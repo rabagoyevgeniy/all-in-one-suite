@@ -14,6 +14,150 @@ export type Database = {
   }
   public: {
     Tables: {
+      coaches: {
+        Row: {
+          avg_rating: number | null
+          bio: string | null
+          class: string | null
+          coin_balance: number | null
+          created_at: string | null
+          current_lat: number | null
+          current_lng: number | null
+          gps_tracking_active: boolean | null
+          has_rayban_meta: boolean | null
+          hourly_rate_aed: number | null
+          hourly_rate_azn: number | null
+          id: string
+          is_available_for_seconding: boolean | null
+          last_location_update: string | null
+          rank: string | null
+          rank_frame_style: string | null
+          seconding_base_percent: number | null
+          specializations: string[] | null
+          total_lessons_completed: number | null
+        }
+        Insert: {
+          avg_rating?: number | null
+          bio?: string | null
+          class?: string | null
+          coin_balance?: number | null
+          created_at?: string | null
+          current_lat?: number | null
+          current_lng?: number | null
+          gps_tracking_active?: boolean | null
+          has_rayban_meta?: boolean | null
+          hourly_rate_aed?: number | null
+          hourly_rate_azn?: number | null
+          id: string
+          is_available_for_seconding?: boolean | null
+          last_location_update?: string | null
+          rank?: string | null
+          rank_frame_style?: string | null
+          seconding_base_percent?: number | null
+          specializations?: string[] | null
+          total_lessons_completed?: number | null
+        }
+        Update: {
+          avg_rating?: number | null
+          bio?: string | null
+          class?: string | null
+          coin_balance?: number | null
+          created_at?: string | null
+          current_lat?: number | null
+          current_lng?: number | null
+          gps_tracking_active?: boolean | null
+          has_rayban_meta?: boolean | null
+          hourly_rate_aed?: number | null
+          hourly_rate_azn?: number | null
+          id?: string
+          is_available_for_seconding?: boolean | null
+          last_location_update?: string | null
+          rank?: string | null
+          rank_frame_style?: string | null
+          seconding_base_percent?: number | null
+          specializations?: string[] | null
+          total_lessons_completed?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coaches_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      parents: {
+        Row: {
+          account_restriction: string | null
+          bad_payer_flag: boolean | null
+          coin_balance: number | null
+          created_at: string | null
+          id: string
+          loyalty_rank: string | null
+          personal_manager_id: string | null
+          premium_expires_at: string | null
+          referral_code: string | null
+          referred_by: string | null
+          subscription_tier: string | null
+          total_coins_earned: number | null
+          video_consent: boolean | null
+        }
+        Insert: {
+          account_restriction?: string | null
+          bad_payer_flag?: boolean | null
+          coin_balance?: number | null
+          created_at?: string | null
+          id: string
+          loyalty_rank?: string | null
+          personal_manager_id?: string | null
+          premium_expires_at?: string | null
+          referral_code?: string | null
+          referred_by?: string | null
+          subscription_tier?: string | null
+          total_coins_earned?: number | null
+          video_consent?: boolean | null
+        }
+        Update: {
+          account_restriction?: string | null
+          bad_payer_flag?: boolean | null
+          coin_balance?: number | null
+          created_at?: string | null
+          id?: string
+          loyalty_rank?: string | null
+          personal_manager_id?: string | null
+          premium_expires_at?: string | null
+          referral_code?: string | null
+          referred_by?: string | null
+          subscription_tier?: string | null
+          total_coins_earned?: number | null
+          video_consent?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parents_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parents_personal_manager_id_fkey"
+            columns: ["personal_manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parents_referred_by_fkey"
+            columns: ["referred_by"]
+            isOneToOne: false
+            referencedRelation: "parents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pools: {
         Row: {
           address: string
@@ -59,6 +203,110 @@ export type Database = {
         }
         Relationships: []
       }
+      pro_athletes: {
+        Row: {
+          coin_balance: number | null
+          created_at: string | null
+          id: string
+          losses: number | null
+          personal_manager_id: string | null
+          pro_rating_points: number | null
+          pro_tier: string | null
+          subscription_expires_at: string | null
+          subscription_tier: string | null
+          win_streak: number | null
+          wins: number | null
+        }
+        Insert: {
+          coin_balance?: number | null
+          created_at?: string | null
+          id: string
+          losses?: number | null
+          personal_manager_id?: string | null
+          pro_rating_points?: number | null
+          pro_tier?: string | null
+          subscription_expires_at?: string | null
+          subscription_tier?: string | null
+          win_streak?: number | null
+          wins?: number | null
+        }
+        Update: {
+          coin_balance?: number | null
+          created_at?: string | null
+          id?: string
+          losses?: number | null
+          personal_manager_id?: string | null
+          pro_rating_points?: number | null
+          pro_tier?: string | null
+          subscription_expires_at?: string | null
+          subscription_tier?: string | null
+          win_streak?: number | null
+          wins?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pro_athletes_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pro_athletes_personal_manager_id_fkey"
+            columns: ["personal_manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pro_personal_records: {
+        Row: {
+          achieved_at: string | null
+          athlete_id: string | null
+          created_at: string | null
+          distance_meters: number | null
+          duel_id: string | null
+          fina_points: number | null
+          id: string
+          is_verified: boolean | null
+          swim_style: string | null
+          time_ms: number
+        }
+        Insert: {
+          achieved_at?: string | null
+          athlete_id?: string | null
+          created_at?: string | null
+          distance_meters?: number | null
+          duel_id?: string | null
+          fina_points?: number | null
+          id?: string
+          is_verified?: boolean | null
+          swim_style?: string | null
+          time_ms: number
+        }
+        Update: {
+          achieved_at?: string | null
+          athlete_id?: string | null
+          created_at?: string | null
+          distance_meters?: number | null
+          duel_id?: string | null
+          fina_points?: number | null
+          id?: string
+          is_verified?: boolean | null
+          swim_style?: string | null
+          time_ms?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pro_personal_records_athlete_id_fkey"
+            columns: ["athlete_id"]
+            isOneToOne: false
+            referencedRelation: "pro_athletes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -94,6 +342,75 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      students: {
+        Row: {
+          age_group: string | null
+          avatar_frame: string | null
+          coin_balance: number | null
+          created_at: string | null
+          current_streak: number | null
+          date_of_birth: string | null
+          id: string
+          longest_streak: number | null
+          losses: number | null
+          medical_notes: string | null
+          parent_id: string | null
+          swim_belt: string | null
+          swim_belt_earned_at: string | null
+          total_coins_earned: number | null
+          wins: number | null
+        }
+        Insert: {
+          age_group?: string | null
+          avatar_frame?: string | null
+          coin_balance?: number | null
+          created_at?: string | null
+          current_streak?: number | null
+          date_of_birth?: string | null
+          id: string
+          longest_streak?: number | null
+          losses?: number | null
+          medical_notes?: string | null
+          parent_id?: string | null
+          swim_belt?: string | null
+          swim_belt_earned_at?: string | null
+          total_coins_earned?: number | null
+          wins?: number | null
+        }
+        Update: {
+          age_group?: string | null
+          avatar_frame?: string | null
+          coin_balance?: number | null
+          created_at?: string | null
+          current_streak?: number | null
+          date_of_birth?: string | null
+          id?: string
+          longest_streak?: number | null
+          losses?: number | null
+          medical_notes?: string | null
+          parent_id?: string | null
+          swim_belt?: string | null
+          swim_belt_earned_at?: string | null
+          total_coins_earned?: number | null
+          wins?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "students_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "students_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
