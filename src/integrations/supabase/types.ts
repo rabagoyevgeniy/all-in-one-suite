@@ -210,6 +210,41 @@ export type Database = {
           },
         ]
       }
+      chats: {
+        Row: {
+          booking_id: string | null
+          chat_type: string | null
+          created_at: string | null
+          id: string
+          last_message_at: string | null
+          participant_ids: string[]
+        }
+        Insert: {
+          booking_id?: string | null
+          chat_type?: string | null
+          created_at?: string | null
+          id?: string
+          last_message_at?: string | null
+          participant_ids: string[]
+        }
+        Update: {
+          booking_id?: string | null
+          chat_type?: string | null
+          created_at?: string | null
+          id?: string
+          last_message_at?: string | null
+          participant_ids?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chats_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coach_payroll: {
         Row: {
           base_salary: number | null
@@ -384,6 +419,73 @@ export type Database = {
           {
             foreignKeyName: "coin_transactions_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      complaints: {
+        Row: {
+          admin_notes: string | null
+          booking_id: string | null
+          category: string | null
+          created_at: string | null
+          description: string
+          id: string
+          is_visible_to_coach: boolean | null
+          reported_coach_id: string | null
+          reporter_id: string | null
+          resolution: string | null
+          resolved_at: string | null
+          status: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          booking_id?: string | null
+          category?: string | null
+          created_at?: string | null
+          description: string
+          id?: string
+          is_visible_to_coach?: boolean | null
+          reported_coach_id?: string | null
+          reporter_id?: string | null
+          resolution?: string | null
+          resolved_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          booking_id?: string | null
+          category?: string | null
+          created_at?: string | null
+          description?: string
+          id?: string
+          is_visible_to_coach?: boolean | null
+          reported_coach_id?: string | null
+          reporter_id?: string | null
+          resolution?: string | null
+          resolved_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "complaints_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "complaints_reported_coach_id_fkey"
+            columns: ["reported_coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "complaints_reporter_id_fkey"
+            columns: ["reporter_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -1002,6 +1104,61 @@ export type Database = {
           },
         ]
       }
+      manager_assignments: {
+        Row: {
+          assigned_at: string | null
+          assigned_by: string | null
+          client_id: string | null
+          id: string
+          is_active: boolean | null
+          manager_id: string | null
+          monthly_revenue: number | null
+          notes: string | null
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          client_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          manager_id?: string | null
+          monthly_revenue?: number | null
+          notes?: string | null
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          client_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          manager_id?: string | null
+          monthly_revenue?: number | null
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manager_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manager_assignments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manager_assignments_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       manager_commissions: {
         Row: {
           active_clients: number | null
@@ -1059,6 +1216,98 @@ export type Database = {
           {
             foreignKeyName: "manager_commissions_manager_id_fkey"
             columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          attachment_url: string | null
+          chat_id: string | null
+          content: string | null
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          message_type: string | null
+          read_at: string | null
+          sender_id: string | null
+        }
+        Insert: {
+          attachment_url?: string | null
+          chat_id?: string | null
+          content?: string | null
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message_type?: string | null
+          read_at?: string | null
+          sender_id?: string | null
+        }
+        Update: {
+          attachment_url?: string | null
+          chat_id?: string | null
+          content?: string | null
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message_type?: string | null
+          read_at?: string | null
+          sender_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          body: string
+          id: string
+          is_read: boolean | null
+          reference_id: string | null
+          sent_at: string | null
+          title: string
+          type: string | null
+          user_id: string | null
+        }
+        Insert: {
+          body: string
+          id?: string
+          is_read?: boolean | null
+          reference_id?: string | null
+          sent_at?: string | null
+          title: string
+          type?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          body?: string
+          id?: string
+          is_read?: boolean | null
+          reference_id?: string | null
+          sent_at?: string | null
+          title?: string
+          type?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -1428,6 +1677,128 @@ export type Database = {
           },
         ]
       }
+      store_items: {
+        Row: {
+          category: string | null
+          combinable_with_discounts: boolean | null
+          created_at: string | null
+          description: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          is_limited: boolean | null
+          max_per_user_per_period: number | null
+          name: string
+          period_type: string | null
+          price_aed: number | null
+          price_coins: number | null
+          requires_achievement_id: string | null
+          requires_rank: string | null
+          sort_order: number | null
+          stock_count: number | null
+          store_type: string | null
+        }
+        Insert: {
+          category?: string | null
+          combinable_with_discounts?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          is_limited?: boolean | null
+          max_per_user_per_period?: number | null
+          name: string
+          period_type?: string | null
+          price_aed?: number | null
+          price_coins?: number | null
+          requires_achievement_id?: string | null
+          requires_rank?: string | null
+          sort_order?: number | null
+          stock_count?: number | null
+          store_type?: string | null
+        }
+        Update: {
+          category?: string | null
+          combinable_with_discounts?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          is_limited?: boolean | null
+          max_per_user_per_period?: number | null
+          name?: string
+          period_type?: string | null
+          price_aed?: number | null
+          price_coins?: number | null
+          requires_achievement_id?: string | null
+          requires_rank?: string | null
+          sort_order?: number | null
+          stock_count?: number | null
+          store_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_items_requires_achievement_id_fkey"
+            columns: ["requires_achievement_id"]
+            isOneToOne: false
+            referencedRelation: "achievements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_purchases: {
+        Row: {
+          aed_paid: number | null
+          coins_paid: number | null
+          created_at: string | null
+          delivery_address: string | null
+          id: string
+          item_id: string | null
+          period_key: string | null
+          status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          aed_paid?: number | null
+          coins_paid?: number | null
+          created_at?: string | null
+          delivery_address?: string | null
+          id?: string
+          item_id?: string | null
+          period_key?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          aed_paid?: number | null
+          coins_paid?: number | null
+          created_at?: string | null
+          delivery_address?: string | null
+          id?: string
+          item_id?: string | null
+          period_key?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_purchases_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "store_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_purchases_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       students: {
         Row: {
           age_group: string | null
@@ -1709,6 +2080,66 @@ export type Database = {
             columns: ["coach_id"]
             isOneToOne: false
             referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_plans: {
+        Row: {
+          coach_instructions: string | null
+          completion_percent: number | null
+          created_at: string | null
+          created_by: string | null
+          goals: string[] | null
+          id: string
+          parent_notes: string | null
+          sessions: Json | null
+          status: string | null
+          student_id: string | null
+          week_end: string | null
+          week_start: string | null
+        }
+        Insert: {
+          coach_instructions?: string | null
+          completion_percent?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          goals?: string[] | null
+          id?: string
+          parent_notes?: string | null
+          sessions?: Json | null
+          status?: string | null
+          student_id?: string | null
+          week_end?: string | null
+          week_start?: string | null
+        }
+        Update: {
+          coach_instructions?: string | null
+          completion_percent?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          goals?: string[] | null
+          id?: string
+          parent_notes?: string | null
+          sessions?: Json | null
+          status?: string | null
+          student_id?: string | null
+          week_end?: string | null
+          week_start?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_plans_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_plans_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
             referencedColumns: ["id"]
           },
         ]
