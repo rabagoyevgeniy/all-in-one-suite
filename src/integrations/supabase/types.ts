@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      achievements: {
+        Row: {
+          category: string | null
+          coin_reward: number | null
+          description: string | null
+          icon_url: string | null
+          id: string
+          is_active: boolean | null
+          key: string
+          name: string
+          target_role: string | null
+          unlocks_shop_item_id: string | null
+        }
+        Insert: {
+          category?: string | null
+          coin_reward?: number | null
+          description?: string | null
+          icon_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          key: string
+          name: string
+          target_role?: string | null
+          unlocks_shop_item_id?: string | null
+        }
+        Update: {
+          category?: string | null
+          coin_reward?: number | null
+          description?: string | null
+          icon_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          key?: string
+          name?: string
+          target_role?: string | null
+          unlocks_shop_item_id?: string | null
+        }
+        Relationships: []
+      }
       booking_logs: {
         Row: {
           booking_id: string | null
@@ -307,6 +346,50 @@ export type Database = {
           },
         ]
       }
+      coin_transactions: {
+        Row: {
+          amount: number
+          balance_after: number
+          created_at: string | null
+          description: string | null
+          id: string
+          reference_id: string | null
+          transaction_type: string | null
+          user_id: string | null
+          user_role: string | null
+        }
+        Insert: {
+          amount: number
+          balance_after: number
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          transaction_type?: string | null
+          user_id?: string | null
+          user_role?: string | null
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          transaction_type?: string | null
+          user_id?: string | null
+          user_role?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coin_transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       discount_usages: {
         Row: {
           discount_amount: number | null
@@ -354,6 +437,359 @@ export type Database = {
             columns: ["subscription_id"]
             isOneToOne: false
             referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      duel_comments: {
+        Row: {
+          author_id: string | null
+          content: string
+          created_at: string | null
+          duel_id: string | null
+          id: string
+          is_live: boolean | null
+        }
+        Insert: {
+          author_id?: string | null
+          content: string
+          created_at?: string | null
+          duel_id?: string | null
+          id?: string
+          is_live?: boolean | null
+        }
+        Update: {
+          author_id?: string | null
+          content?: string
+          created_at?: string | null
+          duel_id?: string | null
+          id?: string
+          is_live?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "duel_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "duel_comments_duel_id_fkey"
+            columns: ["duel_id"]
+            isOneToOne: false
+            referencedRelation: "duels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      duel_escrow: {
+        Row: {
+          coins_held: number
+          duel_id: string | null
+          holder_id: string | null
+          id: string
+          released_at: string | null
+          released_to: string | null
+          status: string | null
+        }
+        Insert: {
+          coins_held: number
+          duel_id?: string | null
+          holder_id?: string | null
+          id?: string
+          released_at?: string | null
+          released_to?: string | null
+          status?: string | null
+        }
+        Update: {
+          coins_held?: number
+          duel_id?: string | null
+          holder_id?: string | null
+          id?: string
+          released_at?: string | null
+          released_to?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "duel_escrow_duel_id_fkey"
+            columns: ["duel_id"]
+            isOneToOne: false
+            referencedRelation: "duels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "duel_escrow_holder_id_fkey"
+            columns: ["holder_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "duel_escrow_released_to_fkey"
+            columns: ["released_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      duel_gifts: {
+        Row: {
+          coins_cost: number | null
+          duel_id: string | null
+          gift_type: string | null
+          id: string
+          recipient_id: string | null
+          sender_id: string | null
+          sent_at: string | null
+        }
+        Insert: {
+          coins_cost?: number | null
+          duel_id?: string | null
+          gift_type?: string | null
+          id?: string
+          recipient_id?: string | null
+          sender_id?: string | null
+          sent_at?: string | null
+        }
+        Update: {
+          coins_cost?: number | null
+          duel_id?: string | null
+          gift_type?: string | null
+          id?: string
+          recipient_id?: string | null
+          sender_id?: string | null
+          sent_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "duel_gifts_duel_id_fkey"
+            columns: ["duel_id"]
+            isOneToOne: false
+            referencedRelation: "duels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "duel_gifts_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "duel_gifts_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      duel_supporter_bets: {
+        Row: {
+          coins_bet: number | null
+          created_at: string | null
+          duel_id: string | null
+          id: string
+          status: string | null
+          supported_participant_id: string | null
+          supporter_id: string | null
+        }
+        Insert: {
+          coins_bet?: number | null
+          created_at?: string | null
+          duel_id?: string | null
+          id?: string
+          status?: string | null
+          supported_participant_id?: string | null
+          supporter_id?: string | null
+        }
+        Update: {
+          coins_bet?: number | null
+          created_at?: string | null
+          duel_id?: string | null
+          id?: string
+          status?: string | null
+          supported_participant_id?: string | null
+          supporter_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "duel_supporter_bets_duel_id_fkey"
+            columns: ["duel_id"]
+            isOneToOne: false
+            referencedRelation: "duels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "duel_supporter_bets_supported_participant_id_fkey"
+            columns: ["supported_participant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "duel_supporter_bets_supporter_id_fkey"
+            columns: ["supporter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      duels: {
+        Row: {
+          academy_rake_coins: number | null
+          challenger_id: string | null
+          challenger_time_ms: number | null
+          completed_at: string | null
+          created_at: string | null
+          distance_meters: number | null
+          duel_type: string | null
+          highlight_clip_url: string | null
+          id: string
+          live_stream_active: boolean | null
+          live_stream_url: string | null
+          opponent_id: string | null
+          opponent_time_ms: number | null
+          pool_id: string | null
+          result_notes: string | null
+          scheduled_at: string | null
+          second_base_percent: number | null
+          second_id: string | null
+          second_tip_percent: number | null
+          stake_coins: number
+          status: string | null
+          swim_style: string | null
+          viewer_count: number | null
+          win_condition: string | null
+          winner_id: string | null
+        }
+        Insert: {
+          academy_rake_coins?: number | null
+          challenger_id?: string | null
+          challenger_time_ms?: number | null
+          completed_at?: string | null
+          created_at?: string | null
+          distance_meters?: number | null
+          duel_type?: string | null
+          highlight_clip_url?: string | null
+          id?: string
+          live_stream_active?: boolean | null
+          live_stream_url?: string | null
+          opponent_id?: string | null
+          opponent_time_ms?: number | null
+          pool_id?: string | null
+          result_notes?: string | null
+          scheduled_at?: string | null
+          second_base_percent?: number | null
+          second_id?: string | null
+          second_tip_percent?: number | null
+          stake_coins: number
+          status?: string | null
+          swim_style?: string | null
+          viewer_count?: number | null
+          win_condition?: string | null
+          winner_id?: string | null
+        }
+        Update: {
+          academy_rake_coins?: number | null
+          challenger_id?: string | null
+          challenger_time_ms?: number | null
+          completed_at?: string | null
+          created_at?: string | null
+          distance_meters?: number | null
+          duel_type?: string | null
+          highlight_clip_url?: string | null
+          id?: string
+          live_stream_active?: boolean | null
+          live_stream_url?: string | null
+          opponent_id?: string | null
+          opponent_time_ms?: number | null
+          pool_id?: string | null
+          result_notes?: string | null
+          scheduled_at?: string | null
+          second_base_percent?: number | null
+          second_id?: string | null
+          second_tip_percent?: number | null
+          stake_coins?: number
+          status?: string | null
+          swim_style?: string | null
+          viewer_count?: number | null
+          win_condition?: string | null
+          winner_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "duels_challenger_id_fkey"
+            columns: ["challenger_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "duels_opponent_id_fkey"
+            columns: ["opponent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "duels_pool_id_fkey"
+            columns: ["pool_id"]
+            isOneToOne: false
+            referencedRelation: "pools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "duels_second_id_fkey"
+            columns: ["second_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "duels_winner_id_fkey"
+            columns: ["winner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      economy_settings: {
+        Row: {
+          description: string | null
+          id: string
+          setting_key: string
+          setting_value: number
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          setting_key: string
+          setting_value: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          setting_key?: string
+          setting_value?: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "economy_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1152,6 +1588,93 @@ export type Database = {
           },
         ]
       }
+      task_completions: {
+        Row: {
+          coins_awarded: number | null
+          completed_at: string | null
+          id: string
+          period_key: string | null
+          proof_url: string | null
+          task_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          coins_awarded?: number | null
+          completed_at?: string | null
+          id?: string
+          period_key?: string | null
+          proof_url?: string | null
+          task_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          coins_awarded?: number | null
+          completed_at?: string | null
+          id?: string
+          period_key?: string | null
+          proof_url?: string | null
+          task_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_completions_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "task_definitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_completions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_definitions: {
+        Row: {
+          coin_reward: number
+          description: string | null
+          icon: string | null
+          id: string
+          is_active: boolean | null
+          key: string
+          reset_period: string | null
+          target_role: string | null
+          task_type: string | null
+          title: string
+          verification_type: string | null
+        }
+        Insert: {
+          coin_reward: number
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          key: string
+          reset_period?: string | null
+          target_role?: string | null
+          task_type?: string | null
+          title: string
+          verification_type?: string | null
+        }
+        Update: {
+          coin_reward?: number
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          key?: string
+          reset_period?: string | null
+          target_role?: string | null
+          task_type?: string | null
+          title?: string
+          verification_type?: string | null
+        }
+        Relationships: []
+      }
       time_slots: {
         Row: {
           city: string | null
@@ -1186,6 +1709,113 @@ export type Database = {
             columns: ["coach_id"]
             isOneToOne: false
             referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_requests: {
+        Row: {
+          booking_id: string | null
+          city: string | null
+          coins_cost: number | null
+          created_at: string | null
+          id: string
+          partner_id: string | null
+          preferred_coach_id: string | null
+          preferred_date: string | null
+          requester_id: string | null
+          status: string | null
+          swim_style: string | null
+        }
+        Insert: {
+          booking_id?: string | null
+          city?: string | null
+          coins_cost?: number | null
+          created_at?: string | null
+          id?: string
+          partner_id?: string | null
+          preferred_coach_id?: string | null
+          preferred_date?: string | null
+          requester_id?: string | null
+          status?: string | null
+          swim_style?: string | null
+        }
+        Update: {
+          booking_id?: string | null
+          city?: string | null
+          coins_cost?: number | null
+          created_at?: string | null
+          id?: string
+          partner_id?: string | null
+          preferred_coach_id?: string | null
+          preferred_date?: string | null
+          requester_id?: string | null
+          status?: string | null
+          swim_style?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_requests_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_requests_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_requests_preferred_coach_id_fkey"
+            columns: ["preferred_coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_requests_requester_id_fkey"
+            columns: ["requester_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_achievements: {
+        Row: {
+          achievement_id: string | null
+          earned_at: string | null
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          achievement_id?: string | null
+          earned_at?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          achievement_id?: string | null
+          earned_at?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_achievements_achievement_id_fkey"
+            columns: ["achievement_id"]
+            isOneToOne: false
+            referencedRelation: "achievements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_achievements_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
