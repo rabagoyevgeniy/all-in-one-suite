@@ -18,27 +18,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (session?.user) {
         // Fetch role and profile using setTimeout to avoid deadlock
         setTimeout(async () => {
-          const { data: roleData } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', session.user.id)
-            .maybeSingle();
+          try {
+            const [{ data: roleData }, { data: profileData }] = await Promise.all([
+              supabase
+                .from('user_roles')
+                .select('role')
+                .eq('user_id', session.user.id)
+                .maybeSingle(),
+              supabase
+                .from('profiles')
+                .select('full_name, avatar_url, city')
+                .eq('id', session.user.id)
+                .maybeSingle(),
+            ]);
 
-          const role = (roleData?.role as UserRole) ?? null;
-          setRole(role);
+            const role = (roleData?.role as UserRole) ?? null;
+            setRole(role);
+            setProfile(profileData);
+            setLoading(false);
 
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('full_name, avatar_url, city')
-            .eq('id', session.user.id)
-            .maybeSingle();
-
-          setProfile(profileData);
-          setLoading(false);
-
-          // Redirect on login if at auth page or root
-          if (role && (location.pathname === '/auth/login' || location.pathname === '/')) {
-            navigate(ROLE_ROUTES[role], { replace: true });
+            // Redirect on login if at auth page or root
+            if (role && (location.pathname === '/auth/login' || location.pathname === '/')) {
+              navigate(ROLE_ROUTES[role], { replace: true });
+            }
+          } catch {
+            setLoading(false);
           }
         }, 0);
       } else {
