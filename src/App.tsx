@@ -3,8 +3,17 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/components/AuthProvider";
+import { AppLayout } from "@/components/AppLayout";
+import { RoleGuard } from "@/components/RoleGuard";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import LoginPage from "./pages/auth/LoginPage";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import CoachDashboard from "./pages/coach/CoachDashboard";
+import ParentDashboard from "./pages/parent/ParentDashboard";
+import StudentDashboard from "./pages/student/StudentDashboard";
+import ProDashboard from "./pages/pro/ProDashboard";
 
 const queryClient = new QueryClient();
 
@@ -14,11 +23,39 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/auth/login" element={<LoginPage />} />
+
+            {/* Admin routes */}
+            <Route element={<RoleGuard allowedRoles={['admin', 'head_manager']}><AppLayout /></RoleGuard>}>
+              <Route path="/admin" element={<AdminDashboard />} />
+            </Route>
+
+            {/* Coach routes */}
+            <Route element={<RoleGuard allowedRoles={['coach']}><AppLayout /></RoleGuard>}>
+              <Route path="/coach" element={<CoachDashboard />} />
+            </Route>
+
+            {/* Parent routes */}
+            <Route element={<RoleGuard allowedRoles={['parent']}><AppLayout /></RoleGuard>}>
+              <Route path="/parent" element={<ParentDashboard />} />
+            </Route>
+
+            {/* Student routes (Arena theme) */}
+            <Route element={<RoleGuard allowedRoles={['student']}><AppLayout theme="arena" /></RoleGuard>}>
+              <Route path="/student" element={<StudentDashboard />} />
+            </Route>
+
+            {/* Pro Athlete routes (Arena theme) */}
+            <Route element={<RoleGuard allowedRoles={['pro_athlete']}><AppLayout theme="arena" /></RoleGuard>}>
+              <Route path="/pro" element={<ProDashboard />} />
+            </Route>
+
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
