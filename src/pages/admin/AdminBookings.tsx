@@ -19,7 +19,16 @@ function useBookings() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bookings')
-        .select('id, status, booking_type, lesson_fee, currency, created_at, notes')
+        .select(`
+          *,
+          student:students!bookings_student_id_fkey(
+            profiles!students_id_fkey(full_name)
+          ),
+          coach:coaches!bookings_coach_id_fkey(
+            profiles!coaches_id_fkey(full_name)
+          ),
+          pool:pools(name)
+        `)
         .order('created_at', { ascending: false })
         .limit(50);
       if (error) throw error;
