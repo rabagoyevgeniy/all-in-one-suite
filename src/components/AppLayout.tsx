@@ -3,8 +3,9 @@ import { useAuthStore } from '@/stores/authStore';
 import { useAdminStore } from '@/stores/adminStore';
 import { supabase } from '@/integrations/supabase/client';
 import { BottomNav } from './BottomNav';
-import { Bell, LogOut, User } from 'lucide-react';
+import { LogOut, User } from 'lucide-react';
 import { CoinBalance } from './CoinBalance';
+import { NotificationBell } from './NotificationBell';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -57,10 +58,7 @@ export function AppLayout({ theme = 'operations' }: AppLayoutProps) {
               </select>
             )}
             {!isAdmin && <CoinBalance amount={0} size="sm" />}
-            <button className="relative p-2 rounded-full hover:bg-muted transition-colors">
-              <Bell size={20} className="text-foreground" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
-            </button>
+            <NotificationBell />
 
             {/* User avatar dropdown */}
             <DropdownMenu>

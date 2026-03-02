@@ -23,7 +23,7 @@ export default function DuelArena() {
       const { data, error } = await supabase
         .from('duels')
         .select(`
-          *, pools(name),
+          *, pools(name, address),
           challenger:profiles!duels_challenger_id_fkey(full_name),
           opponent:profiles!duels_opponent_id_fkey(full_name)
         `)
@@ -68,7 +68,7 @@ export default function DuelArena() {
         </div>
         <div className="flex items-center justify-between">
           <div className="text-center flex-1">
-            <p className="font-display font-bold text-sm text-foreground">{challenger?.full_name || 'Challenger'}</p>
+            <p className="font-display font-bold text-sm text-foreground">{challenger?.full_name ?? 'Unknown'}</p>
             <p className="text-[10px] text-muted-foreground">{isChallenger ? '(You)' : ''}</p>
             {duel.challenger_time_ms && (
               <p className="font-display font-bold text-primary mt-1">{(duel.challenger_time_ms / 1000).toFixed(2)}s</p>
@@ -78,7 +78,7 @@ export default function DuelArena() {
             <Swords size={24} className="text-primary" />
           </div>
           <div className="text-center flex-1">
-            <p className="font-display font-bold text-sm text-foreground">{opponent?.full_name || 'Opponent'}</p>
+            <p className="font-display font-bold text-sm text-foreground">{opponent?.full_name ?? 'Unknown'}</p>
             <p className="text-[10px] text-muted-foreground">{!isChallenger ? '(You)' : ''}</p>
             {duel.opponent_time_ms && (
               <p className="font-display font-bold text-primary mt-1">{(duel.opponent_time_ms / 1000).toFixed(2)}s</p>

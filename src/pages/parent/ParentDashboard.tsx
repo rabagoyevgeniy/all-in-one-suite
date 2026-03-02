@@ -1,5 +1,6 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, MapPin, ChevronRight, Plus, Loader2 } from 'lucide-react';
+import { Clock, MapPin, Plus, Loader2 } from 'lucide-react';
 import { SwimBeltBadge } from '@/components/SwimBeltBadge';
 import { CoinBalance } from '@/components/CoinBalance';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,6 @@ import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/stores/authStore';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useNavigate } from 'react-router-dom';
 
 const LOYALTY_COLORS: Record<string, string> = {
   aqua: 'bg-primary/15 text-primary border-primary/30',
@@ -19,7 +19,9 @@ const LOYALTY_COLORS: Record<string, string> = {
 
 export default function ParentDashboard() {
   const { user } = useAuthStore();
-  const navigate = useNavigate();
+  const [coachLocation, setCoachLocation] = useState<{
+    lat: number; lng: number; updatedAt: string; isActive: boolean;
+  } | null>(null);
 
   const { data: parentData, isLoading } = useQuery({
     queryKey: ['parent-profile', user?.id],
@@ -70,8 +72,9 @@ export default function ParentDashboard() {
       const { data, error } = await supabase
         .from('bookings')
         .select(`
-          id, status, lesson_fee, currency, created_at,
-          pools(name, address)
+          id, status, lesson_fee, currency, created_at, coach_id,
+          pools(name, address),
+          coaches(id, profiles:coaches_id_fkey(full_name))
         `)
         .eq('parent_id', user!.id)
         .in('status', ['confirmed', 'in_progress'])
@@ -83,7 +86,60 @@ export default function ParentDashboard() {
     enabled: !!user?.id,
   });
 
+  // Realtime coach GPS tracking
+  const activeBooking = upcomingBookings?.[0] as any;
+  const trackingCoachId = activeBooking?.coach_id;
+
+  useEffect(() => {
+    if (!trackingCoachId) return;
+
+    // Initial fetch
+    supabase
+      .from('coaches')
+      .select('current_lat, current_lng, last_location_update, gps_tracking_active')
+      .eq('id', trackingCoachId)
+      .single()
+      .then(({ data }) => {
+        if (data?.gps_tracking_active && data.current_lat && data.current_lng) {
+          setCoachLocation({
+            lat: Number(data.current_lat),
+            lng: Number(data.current_lng),
+            updatedAt: data.last_location_update || '',
+            isActive: true,
+          });
+        }
+      });
+
+    const channel = supabase
+      .channel('coach-location')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'coaches',
+        filter: `id=eq.${trackingCoachId}`,
+      }, (payload) => {
+        const n = payload.new as any;
+        if (n.gps_tracking_active && n.current_lat && n.current_lng) {
+          setCoachLocation({
+            lat: Number(n.current_lat),
+            lng: Number(n.current_lng),
+            updatedAt: n.last_location_update || '',
+            isActive: true,
+          });
+        } else {
+          setCoachLocation(null);
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [trackingCoachId]);
+
   const profile = parentData?.profiles as any;
+
+  const locationAge = coachLocation?.updatedAt
+    ? Math.floor((Date.now() - new Date(coachLocation.updatedAt).getTime()) / 60000)
+    : null;
 
   if (isLoading) {
     return (
@@ -106,6 +162,40 @@ export default function ParentDashboard() {
           <CoinBalance amount={parentData?.coin_balance || 0} size="sm" />
         </div>
       </motion.div>
+
+      {/* Coach Tracker Card */}
+      {coachLocation && activeBooking && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card rounded-2xl overflow-hidden border border-success/30"
+        >
+          <div className="p-4 pb-2">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-success" />
+              </span>
+              <span className="font-display font-semibold text-sm text-foreground">🚗 Coach is on the way!</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Coach: {(activeBooking?.coaches as any)?.profiles?.full_name || 'Coach'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              📍 Last seen: {locationAge !== null ? (locationAge < 1 ? 'just now' : `${locationAge}m ago`) : '—'}
+            </p>
+            <p className="text-xs text-muted-foreground">Estimated arrival: ~15 min</p>
+          </div>
+          <iframe
+            src={`https://maps.google.com/maps?q=${coachLocation.lat},${coachLocation.lng}&z=15&output=embed`}
+            width="100%"
+            height="180"
+            className="border-0"
+            loading="lazy"
+            title="Coach location"
+          />
+        </motion.div>
+      )}
 
       {/* Subscription card */}
       {activeSub && (
@@ -199,12 +289,7 @@ export default function ParentDashboard() {
         </div>
       )}
 
-      {/* Book button */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
-      >
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
         <Button className="w-full h-14 rounded-2xl font-display font-semibold text-base gap-2">
           <Plus size={20} />
           Book New Lesson

@@ -2299,6 +2299,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_used_lessons: {
+        Args: { p_student_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role:
