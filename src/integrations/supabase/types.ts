@@ -2271,7 +2271,20 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      admin_dashboard_stats: {
+        Row: {
+          active_coaches: number | null
+          active_subscriptions: number | null
+          bookings_today: number | null
+          completed_today: number | null
+          pending_complaints: number | null
+          revenue_today_aed: number | null
+          revenue_today_azn: number | null
+          total_parents: number | null
+          total_students: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       assign_initial_role: { Args: { _role: string }; Returns: undefined }

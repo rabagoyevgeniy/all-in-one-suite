@@ -10,6 +10,11 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import LoginPage from "./pages/auth/LoginPage";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminCoaches from "./pages/admin/AdminCoaches";
+import AdminClients from "./pages/admin/AdminClients";
+import AdminBookings from "./pages/admin/AdminBookings";
+import AdminFinance from "./pages/admin/AdminFinance";
+import AdminEconomy from "./pages/admin/AdminEconomy";
 import CoachDashboard from "./pages/coach/CoachDashboard";
 import ParentDashboard from "./pages/parent/ParentDashboard";
 import StudentDashboard from "./pages/student/StudentDashboard";
@@ -31,6 +36,11 @@ const App = () => (
             {/* Admin routes */}
             <Route element={<RoleGuard allowedRoles={['admin', 'head_manager']}><AppLayout /></RoleGuard>}>
               <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/coaches" element={<AdminCoaches />} />
+              <Route path="/admin/clients" element={<AdminClients />} />
+              <Route path="/admin/bookings" element={<AdminBookings />} />
+              <Route path="/admin/financial" element={<AdminFinance />} />
+              <Route path="/admin/economy" element={<AdminEconomy />} />
             </Route>
 
             {/* Coach routes */}
