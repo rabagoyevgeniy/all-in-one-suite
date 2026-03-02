@@ -23,7 +23,7 @@ export default function DuelArena() {
       const { data, error } = await supabase
         .from('duels')
         .select(`
-          *, pools(name),
+          *, pools(name, address),
           challenger:profiles!duels_challenger_id_fkey(full_name),
           opponent:profiles!duels_opponent_id_fkey(full_name)
         `)
