@@ -19,20 +19,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Fetch role and profile using setTimeout to avoid deadlock
         setTimeout(async () => {
           try {
-            const [{ data: roleData }, { data: profileData }] = await Promise.all([
-              supabase
+            // Read role from JWT app_metadata first (fastest, no DB query)
+            let role = (session.user.app_metadata?.role as UserRole)
+                    || (session.user.user_metadata?.role as UserRole)
+                    || null;
+
+            // Fallback: query user_roles table
+            if (!role) {
+              const { data: roleData } = await supabase
                 .from('user_roles')
                 .select('role')
                 .eq('user_id', session.user.id)
-                .maybeSingle(),
-              supabase
-                .from('profiles')
-                .select('full_name, avatar_url, city')
-                .eq('id', session.user.id)
-                .maybeSingle(),
-            ]);
+                .maybeSingle();
+              role = (roleData?.role as UserRole) ?? null;
+            }
 
-            let role = (roleData?.role as UserRole) ?? null;
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('full_name, avatar_url, city')
+              .eq('id', session.user.id)
+              .maybeSingle();
 
             // If no role yet, check if user signed up with a role in metadata
             if (!role) {
