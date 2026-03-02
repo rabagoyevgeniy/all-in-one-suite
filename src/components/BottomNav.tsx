@@ -15,10 +15,17 @@ const NAV_ITEMS: Record<string, { path: string; label: string; icon: React.Eleme
     { path: '/admin/financial', label: 'Finance', icon: Wallet },
   ],
   coach: [
-    { path: '/coach', label: 'Today', icon: MapPin },
+    { path: '/coach', label: 'Dashboard', icon: Home },
     { path: '/coach/schedule', label: 'Schedule', icon: Calendar },
     { path: '/coach/students', label: 'Students', icon: Users },
+    { path: '/coach/earnings', label: 'Earnings', icon: Wallet },
     { path: '/coach/profile', label: 'Profile', icon: User },
+  ],
+  personal_manager: [
+    { path: '/pm', label: 'Clients', icon: Users },
+    { path: '/pm/reports', label: 'Reports', icon: ClipboardList },
+    { path: '/pm/earnings', label: 'Earnings', icon: Wallet },
+    { path: '/pm/profile', label: 'Profile', icon: User },
   ],
   parent: [
     { path: '/parent', label: 'Home', icon: Home },

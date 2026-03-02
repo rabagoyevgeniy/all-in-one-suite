@@ -22,23 +22,23 @@ export function useRevenueChart() {
     queryFn: async () => {
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-      
+
       const { data, error } = await supabase
         .from('financial_transactions')
-        .select('amount, created_at, currency')
-        .eq('direction', 'income')
+        .select('amount, direction, created_at, type, description')
         .gte('created_at', sixMonthsAgo.toISOString())
         .order('created_at', { ascending: true });
-      
+
       if (error) throw error;
-      
-      // Group by month
+
+      // Group by month, only income
       const months: Record<string, number> = {};
       (data || []).forEach((t) => {
+        if (t.direction !== 'income') return;
         const month = new Date(t.created_at!).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
         months[month] = (months[month] || 0) + Number(t.amount);
       });
-      
+
       return Object.entries(months).map(([month, revenue]) => ({ month, revenue }));
     },
   });
@@ -50,9 +50,9 @@ export function useActiveCoaches() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('coaches')
-        .select('id, rank, avg_rating, total_lessons_completed, profiles!coaches_id_fkey(full_name, avatar_url, city)')
+        .select('id, rank, avg_rating, total_lessons_completed, coin_balance, has_rayban_meta, specializations, profiles!coaches_id_fkey(full_name, avatar_url, city)')
         .order('avg_rating', { ascending: false })
-        .limit(10);
+        .limit(5);
       if (error) throw error;
       return data;
     },
@@ -65,9 +65,31 @@ export function useRecentBookings() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bookings')
-        .select('id, status, booking_type, created_at, lesson_fee, currency')
+        .select(`
+          id, status, lesson_fee, currency, created_at, booking_type,
+          students(id, profiles:students_id_fkey(full_name)),
+          coaches(id, profiles:coaches_id_fkey(full_name)),
+          pools(name)
+        `)
         .order('created_at', { ascending: false })
         .limit(5);
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useActiveSubscriptions() {
+  return useQuery({
+    queryKey: ['admin-active-subs'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select(`
+          id, package_type, total_lessons, used_lessons,
+          price, currency, status, expires_at
+        `)
+        .eq('status', 'active');
       if (error) throw error;
       return data;
     },
