@@ -66,9 +66,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    // Then check initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
+    // Then check initial session and force token refresh
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session) {
+        // Force refresh to get updated JWT with app_metadata role claims
+        await supabase.auth.refreshSession();
+        // onAuthStateChange will handle the rest
+      } else {
         setLoading(false);
       }
     });
