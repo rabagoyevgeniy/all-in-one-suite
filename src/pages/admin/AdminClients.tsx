@@ -99,8 +99,9 @@ export default function AdminClients() {
           {studentsLoading ? (
             <div className="space-y-2">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-14 rounded-xl" />)}</div>
           ) : students && students.length > 0 ? (
-            students.map((s) => {
-              const profile = s.profiles as any;
+            students.map((s: any) => {
+              const profile = s.profiles;
+              const parentName = s.parent?.profiles?.full_name;
               const belt = SWIM_BELTS.find(b => b.id === s.swim_belt);
               return (
                 <div key={s.id} className="glass-card rounded-xl p-3 flex items-center gap-3">
@@ -110,7 +111,7 @@ export default function AdminClients() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{profile?.full_name || 'Unknown'}</p>
                     <p className="text-[11px] text-muted-foreground">
-                      Streak: {s.current_streak ?? 0}🔥 · {s.coin_balance ?? 0} coins
+                      {parentName ? `Parent: ${parentName} · ` : ''}Streak: {s.current_streak ?? 0}🔥 · {s.coin_balance ?? 0} coins
                     </p>
                   </div>
                   <Badge
