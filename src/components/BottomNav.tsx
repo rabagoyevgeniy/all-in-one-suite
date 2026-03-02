@@ -10,6 +10,7 @@ const NAV_ITEMS: Record<string, { path: string; label: string; icon: React.Eleme
   admin: [
     { path: '/admin', label: 'Dashboard', icon: BarChart3 },
     { path: '/admin/coaches', label: 'Coaches', icon: Users },
+    { path: '/admin/clients', label: 'Clients', icon: Home },
     { path: '/admin/bookings', label: 'Bookings', icon: Calendar },
     { path: '/admin/financial', label: 'Finance', icon: Wallet },
   ],
