@@ -19,7 +19,16 @@ function useBookings() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bookings')
-        .select('id, status, booking_type, lesson_fee, currency, created_at, notes')
+        .select(`
+          *,
+          student:students!bookings_student_id_fkey(
+            profiles!students_id_fkey(full_name)
+          ),
+          coach:coaches!bookings_coach_id_fkey(
+            profiles!coaches_id_fkey(full_name)
+          ),
+          pool:pools(name)
+        `)
         .order('created_at', { ascending: false })
         .limit(50);
       if (error) throw error;
@@ -42,19 +51,28 @@ export default function AdminBookings() {
         <div className="space-y-2">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>
       ) : bookings && bookings.length > 0 ? (
         <div className="space-y-2">
-          {bookings.map((b) => (
+          {bookings.map((b: any) => {
+            const studentName = b.student?.profiles?.full_name;
+            const coachName = b.coach?.profiles?.full_name;
+            const poolName = b.pool?.name;
+            return (
             <div key={b.id} className="glass-card rounded-xl p-3 flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-foreground">{b.booking_type || 'Lesson'}</p>
+                <p className="text-sm font-medium text-foreground">
+                  {studentName || b.booking_type || 'Lesson'}
+                  {coachName ? ` · ${coachName}` : ''}
+                </p>
                 <p className="text-[11px] text-muted-foreground">
                   {new Date(b.created_at!).toLocaleDateString()} · {b.lesson_fee ?? 0} {b.currency}
+                  {poolName ? ` · ${poolName}` : ''}
                 </p>
               </div>
               <Badge variant="outline" className={`text-[10px] ${STATUS_STYLES[b.status || 'confirmed'] || ''}`}>
                 {b.status?.replace('_', ' ')}
               </Badge>
             </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="text-center py-12 text-muted-foreground">No bookings found</div>

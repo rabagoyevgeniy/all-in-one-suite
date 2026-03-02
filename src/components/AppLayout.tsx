@@ -1,19 +1,38 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { useAdminStore } from '@/stores/adminStore';
+import { supabase } from '@/integrations/supabase/client';
 import { BottomNav } from './BottomNav';
-import { Bell } from 'lucide-react';
+import { Bell, LogOut, User } from 'lucide-react';
 import { CoinBalance } from './CoinBalance';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface AppLayoutProps {
   theme?: 'operations' | 'arena';
 }
 
 export function AppLayout({ theme = 'operations' }: AppLayoutProps) {
+  const navigate = useNavigate();
   const { profile, role } = useAuthStore();
   const { city, setCity } = useAdminStore();
+  const { reset } = useAuthStore();
   const isArena = theme === 'arena';
   const isAdmin = role === 'admin' || role === 'head_manager';
+
+  const initials = profile?.full_name
+    ? profile.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    : '?';
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    reset();
+    navigate('/auth/login', { replace: true });
+  };
 
   return (
     <div className={`min-h-screen ${isArena ? 'arena bg-gradient-arena' : 'bg-gradient-operations'}`}>
@@ -42,6 +61,25 @@ export function AppLayout({ theme = 'operations' }: AppLayoutProps) {
               <Bell size={20} className="text-foreground" />
               <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
             </button>
+
+            {/* User avatar dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center text-xs font-bold text-primary hover:bg-primary/25 transition-colors">
+                  {initials}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuItem className="gap-2 text-sm">
+                  <User size={14} />
+                  Profile
+                </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2 text-sm text-destructive" onClick={handleLogout}>
+                  <LogOut size={14} />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
