@@ -1,5 +1,6 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { MapPin, Clock, Star, Navigation, ChevronRight, Trophy, Loader2 } from 'lucide-react';
+import { MapPin, Clock, Star, Navigation, ChevronRight, Loader2 } from 'lucide-react';
 import { CoinBalance } from '@/components/CoinBalance';
 import { SwimBeltBadge } from '@/components/SwimBeltBadge';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +17,7 @@ const BOOKING_STATUS_COLORS: Record<string, string> = {
 
 export default function CoachDashboard() {
   const { user } = useAuthStore();
+  const [gpsActive, setGpsActive] = useState(false);
 
   const { data: coachData, isLoading: coachLoading } = useQuery({
     queryKey: ['coach-profile', user?.id],
@@ -60,7 +62,6 @@ export default function CoachDashboard() {
         .order('created_at', { ascending: false })
         .limit(3);
       if (error) throw error;
-      // Deduplicate students
       const seen = new Set<string>();
       return (data || []).filter(b => {
         const s = b.students as any;
@@ -71,6 +72,38 @@ export default function CoachDashboard() {
     },
     enabled: !!user?.id,
   });
+
+  // GPS broadcasting when active bookings exist
+  const activeBooking = (todayBookings || []).find((b: any) => ['confirmed', 'in_progress'].includes(b.status));
+
+  useEffect(() => {
+    if (!activeBooking || !user?.id) return;
+
+    const sendLocation = async (position: GeolocationPosition) => {
+      setGpsActive(true);
+      await supabase
+        .from('coaches')
+        .update({
+          current_lat: position.coords.latitude,
+          current_lng: position.coords.longitude,
+          last_location_update: new Date().toISOString(),
+          gps_tracking_active: true,
+        })
+        .eq('id', user.id);
+    };
+
+    const watchId = navigator.geolocation.watchPosition(
+      sendLocation,
+      (err) => { console.log('GPS error:', err); setGpsActive(false); },
+      { enableHighAccuracy: true, maximumAge: 30000 }
+    );
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+      setGpsActive(false);
+      supabase.from('coaches').update({ gps_tracking_active: false }).eq('id', user.id);
+    };
+  }, [activeBooking?.id, user?.id]);
 
   const profile = coachData?.profiles as any;
   const rankInfo = COACH_RANKS.find(r => r.id === coachData?.rank);
@@ -93,6 +126,21 @@ export default function CoachDashboard() {
           {todayBookings?.length || 0} lessons today • {profile?.city || 'Dubai'}
         </p>
       </motion.div>
+
+      {/* GPS Status */}
+      {gpsActive && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="glass-card rounded-xl p-3 flex items-center gap-3 border border-success/30"
+        >
+          <span className="relative flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-success" />
+          </span>
+          <span className="text-sm text-foreground">📍 GPS Active — Parents can see your location</span>
+        </motion.div>
+      )}
 
       {/* Quick Stats */}
       <motion.div

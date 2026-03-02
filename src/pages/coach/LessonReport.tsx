@@ -42,7 +42,7 @@ export default function LessonReport() {
       const { data, error } = await supabase
         .from('bookings')
         .select(`
-          id, status, student_id,
+          id, status, student_id, parent_id,
           students(id, profiles:students_id_fkey(full_name)),
           pools(name)
         `)
@@ -56,7 +56,7 @@ export default function LessonReport() {
 
   const submitMutation = useMutation({
     mutationFn: async () => {
-      // Create lesson record
+      // 1. Create lesson record
       const { error: lessonError } = await supabase
         .from('lessons')
         .insert({
@@ -77,15 +77,53 @@ export default function LessonReport() {
         });
       if (lessonError) throw lessonError;
 
-      // Update booking status
+      // 2. Update booking status
       const { error: bookingError } = await supabase
         .from('bookings')
         .update({ status: 'completed' })
         .eq('id', bookingId!);
       if (bookingError) throw bookingError;
+
+      // 3. Increment used_lessons on subscription
+      if (booking?.student_id) {
+        await supabase.rpc('increment_used_lessons', { p_student_id: booking.student_id });
+      }
+
+      // 4. Award 30 coins to coach
+      const { data: coach } = await supabase
+        .from('coaches')
+        .select('coin_balance')
+        .eq('id', user!.id)
+        .single();
+
+      const newBalance = (coach?.coin_balance || 0) + 30;
+      await supabase
+        .from('coaches')
+        .update({ coin_balance: newBalance })
+        .eq('id', user!.id);
+
+      await supabase.from('coin_transactions').insert({
+        user_id: user!.id,
+        user_role: 'coach',
+        amount: 30,
+        transaction_type: 'lesson_attendance',
+        balance_after: newBalance,
+        description: 'Lesson completed — report submitted',
+      });
+
+      // 5. Send notification to parent
+      if (booking?.parent_id) {
+        await supabase.from('notifications').insert({
+          user_id: booking.parent_id,
+          title: '✅ Lesson Completed!',
+          body: `Coach report is ready. Child handed to: ${handoffName || handoffPerson || 'parent'}`,
+          type: 'lesson_completed',
+          reference_id: bookingId,
+        });
+      }
     },
     onSuccess: () => {
-      toast({ title: 'Lesson report submitted! 🎉', description: 'Booking marked as completed' });
+      toast({ title: '+30 coins! Report sent to parent 🎉' });
       navigate('/coach/schedule');
     },
     onError: (err: any) => {
@@ -118,17 +156,14 @@ export default function LessonReport() {
         </div>
       </motion.div>
 
-      {/* 1. Arrival */}
       <Section title="1. Arrival Note">
         <Textarea placeholder="How was the student when they arrived?" value={arrivalNote} onChange={e => setArrivalNote(e.target.value)} />
       </Section>
 
-      {/* 2. Warm-up */}
       <Section title="2. Warm-up">
         <Textarea placeholder="What warm-up exercises were done?" value={warmupNote} onChange={e => setWarmupNote(e.target.value)} />
       </Section>
 
-      {/* 3. Skills */}
       <Section title="3. Main Skills Worked">
         <div className="flex flex-wrap gap-2">
           {SKILLS.map(skill => (
@@ -147,12 +182,10 @@ export default function LessonReport() {
         </div>
       </Section>
 
-      {/* 4. Challenges */}
       <Section title="4. Challenges">
         <Textarea placeholder="Any difficulties or concerns?" value={challengesNote} onChange={e => setChallengesNote(e.target.value)} />
       </Section>
 
-      {/* 5. Mood */}
       <Section title="5. Mood & Energy">
         <div className="flex gap-2">
           {MOODS.map(mood => (
@@ -172,12 +205,10 @@ export default function LessonReport() {
         </div>
       </Section>
 
-      {/* 6. Next focus */}
       <Section title="6. Next Lesson Focus">
         <Textarea placeholder="What should be the focus next time?" value={nextFocus} onChange={e => setNextFocus(e.target.value)} />
       </Section>
 
-      {/* 7. Handoff */}
       <Section title="7. Handoff">
         <div className="space-y-3">
           <div>

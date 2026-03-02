@@ -1,23 +1,24 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
+import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 
 const TEST_ACCOUNTS = [
-  { emoji: '👑', label: 'Admin', email: 'admin@profitswimming.ae', password: 'Admin2026!' },
-  { emoji: '🏊', label: 'Coach', email: 'coach1@profitswimming.ae', password: 'Coach2026!' },
-  { emoji: '👨‍👩‍👧', label: 'Parent', email: 'parent1@test.com', password: 'Parent2026!' },
-  { emoji: '🎮', label: 'Student', email: 'student1@test.com', password: 'Student2026!' },
-  { emoji: '🏆', label: 'Pro', email: 'proathlete1@test.com', password: 'ProAth2026!' },
-  { emoji: '📋', label: 'PM', email: 'pm1@profitswimming.ae', password: 'Manager2026!' },
+  { emoji: '👑', label: 'Admin', email: 'admin@profitswimming.ae', password: 'Admin2026!', route: '/admin' },
+  { emoji: '🏊', label: 'Coach', email: 'coach1@profitswimming.ae', password: 'Coach2026!', route: '/coach' },
+  { emoji: '👨‍👩‍👧', label: 'Parent', email: 'parent1@test.com', password: 'Parent2026!', route: '/parent' },
+  { emoji: '🎮', label: 'Student', email: 'student1@test.com', password: 'Student2026!', route: '/student' },
+  { emoji: '🏆', label: 'Pro', email: 'proathlete1@test.com', password: 'ProAth2026!', route: '/pro' },
+  { emoji: '📋', label: 'PM', email: 'pm1@profitswimming.ae', password: 'Manager2026!', route: '/pm' },
 ];
 
 export function DevAccountSwitcher() {
   const [switching, setSwitching] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const { reset } = useAuthStore();
+  const navigate = useNavigate();
 
-  // Only show on lovable.app preview domains
   const isDevDomain = window.location.hostname.includes('lovable.app') || window.location.hostname.includes('lovableproject.com') || window.location.hostname === 'localhost';
   if (!isDevDomain) return null;
 
@@ -26,13 +27,16 @@ export function DevAccountSwitcher() {
     try {
       await supabase.auth.signOut();
       reset();
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: account.email,
         password: account.password,
       });
       if (error) {
         console.error('Dev switch failed:', error.message);
         alert(`Switch failed: ${error.message}`);
+      } else if (data.session) {
+        navigate(account.route, { replace: true });
+        setTimeout(() => window.location.reload(), 100);
       }
     } finally {
       setSwitching(null);
