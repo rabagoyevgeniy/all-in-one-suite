@@ -20,6 +20,7 @@ import CoachDashboard from "./pages/coach/CoachDashboard";
 import ParentDashboard from "./pages/parent/ParentDashboard";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import ProDashboard from "./pages/pro/ProDashboard";
+import PMDashboard from "./pages/pm/PMDashboard";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +48,17 @@ const App = () => (
             {/* Coach routes */}
             <Route element={<RoleGuard allowedRoles={['coach']}><AppLayout /></RoleGuard>}>
               <Route path="/coach" element={<CoachDashboard />} />
+              <Route path="/coach/schedule" element={<CoachDashboard />} />
+              <Route path="/coach/students" element={<CoachDashboard />} />
+              <Route path="/coach/earnings" element={<CoachDashboard />} />
+              <Route path="/coach/profile" element={<CoachDashboard />} />
+            </Route>
+
+            {/* PM routes */}
+            <Route element={<RoleGuard allowedRoles={['personal_manager']}><AppLayout /></RoleGuard>}>
+              <Route path="/pm" element={<PMDashboard />} />
+              <Route path="/pm/clients" element={<PMDashboard />} />
+              <Route path="/pm/reports" element={<PMDashboard />} />
             </Route>
 
             {/* Parent routes */}

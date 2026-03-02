@@ -1,42 +1,126 @@
 import { motion } from 'framer-motion';
-import { MapPin, Clock, Star, Navigation, ChevronRight } from 'lucide-react';
+import { MapPin, Clock, Star, Navigation, ChevronRight, Trophy, Loader2 } from 'lucide-react';
 import { CoinBalance } from '@/components/CoinBalance';
+import { SwimBeltBadge } from '@/components/SwimBeltBadge';
+import { Badge } from '@/components/ui/badge';
+import { useAuthStore } from '@/stores/authStore';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { COACH_RANKS } from '@/lib/constants';
 
-const todayLessons = [
-  { time: '09:00', student: 'Mia Johnson', pool: 'Marina Private Pool', status: 'completed', rating: 5 },
-  { time: '11:00', student: 'Ahmed Al-Farsi', pool: 'Palm Jumeirah Club', status: 'in_progress', rating: null },
-  { time: '14:00', student: 'Lena Petrova', pool: 'Downtown Hotel Pool', status: 'upcoming', rating: null },
-  { time: '16:30', student: 'Omar Hassan', pool: 'Jumeirah Bay Pool', status: 'upcoming', rating: null },
-];
-
-const statusColors: Record<string, string> = {
-  completed: 'bg-success/20 text-success',
-  in_progress: 'bg-primary/20 text-primary',
-  upcoming: 'bg-muted text-muted-foreground',
+const BOOKING_STATUS_COLORS: Record<string, string> = {
+  confirmed: 'bg-primary/15 text-primary border-primary/30',
+  in_progress: 'bg-success/15 text-success border-success/30 animate-pulse',
+  completed: 'bg-muted text-muted-foreground border-border',
 };
 
 export default function CoachDashboard() {
+  const { user } = useAuthStore();
+
+  const { data: coachData, isLoading: coachLoading } = useQuery({
+    queryKey: ['coach-profile', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('coaches')
+        .select('id, rank, avg_rating, total_lessons_completed, coin_balance, has_rayban_meta, specializations, profiles!coaches_id_fkey(full_name, city)')
+        .eq('id', user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const { data: todayBookings } = useQuery({
+    queryKey: ['coach-today-bookings', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bookings')
+        .select(`
+          id, status, lesson_fee, currency, created_at, booking_type,
+          students(id, swim_belt, profiles:students_id_fkey(full_name)),
+          pools(name, address)
+        `)
+        .eq('coach_id', user!.id)
+        .in('status', ['confirmed', 'in_progress', 'completed'])
+        .order('created_at');
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const { data: recentStudents } = useQuery({
+    queryKey: ['coach-recent-students', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('students(id, swim_belt, profiles:students_id_fkey(full_name))')
+        .eq('coach_id', user!.id)
+        .order('created_at', { ascending: false })
+        .limit(3);
+      if (error) throw error;
+      // Deduplicate students
+      const seen = new Set<string>();
+      return (data || []).filter(b => {
+        const s = b.students as any;
+        if (!s?.id || seen.has(s.id)) return false;
+        seen.add(s.id);
+        return true;
+      });
+    },
+    enabled: !!user?.id,
+  });
+
+  const profile = coachData?.profiles as any;
+  const rankInfo = COACH_RANKS.find(r => r.id === coachData?.rank);
+
+  if (coachLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="px-4 py-6 space-y-6">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <h2 className="font-display font-bold text-xl text-foreground">Good Morning, Coach! 🏊</h2>
-        <p className="text-sm text-muted-foreground">4 lessons today • Dubai</p>
+        <h2 className="font-display font-bold text-xl text-foreground">
+          Good Morning, {profile?.full_name?.split(' ')[0] || 'Coach'}! 🏊
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          {todayBookings?.length || 0} lessons today • {profile?.city || 'Dubai'}
+        </p>
       </motion.div>
 
-      {/* Earnings snapshot */}
+      {/* Quick Stats */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="glass-card rounded-2xl p-4 flex items-center justify-between"
+        className="grid grid-cols-4 gap-2"
       >
-        <div>
-          <p className="text-xs text-muted-foreground font-medium">Today's Earnings</p>
-          <p className="font-display font-bold text-2xl text-foreground">680 AED</p>
+        <div className="glass-card rounded-2xl p-3 text-center">
+          <p className="text-[10px] text-muted-foreground font-medium">Lessons</p>
+          <p className="font-display font-bold text-lg text-foreground">{coachData?.total_lessons_completed || 0}</p>
         </div>
-        <div className="text-right">
-          <p className="text-xs text-muted-foreground font-medium">Coins Earned</p>
-          <CoinBalance amount={200} size="md" />
+        <div className="glass-card rounded-2xl p-3 text-center">
+          <p className="text-[10px] text-muted-foreground font-medium">Rating</p>
+          <div className="flex items-center justify-center gap-0.5 mt-0.5">
+            <Star size={12} className="text-warning fill-warning" />
+            <span className="font-display font-bold text-foreground">{Number(coachData?.avg_rating || 0).toFixed(1)}</span>
+          </div>
+        </div>
+        <div className="glass-card rounded-2xl p-3 text-center">
+          <p className="text-[10px] text-muted-foreground font-medium">Coins</p>
+          <CoinBalance amount={coachData?.coin_balance || 0} size="sm" />
+        </div>
+        <div className="glass-card rounded-2xl p-3 text-center">
+          <p className="text-[10px] text-muted-foreground font-medium">Rank</p>
+          <Badge variant="outline" className="text-[10px] mt-1" style={{ borderColor: rankInfo?.color, color: rankInfo?.color }}>
+            {rankInfo?.label || coachData?.rank || 'Trainee'}
+          </Badge>
         </div>
       </motion.div>
 
@@ -49,33 +133,85 @@ export default function CoachDashboard() {
           </button>
         </div>
 
-        {todayLessons.map((lesson, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 + i * 0.1 }}
-            className="glass-card rounded-xl p-4 flex items-center gap-3"
-          >
-            <div className="flex flex-col items-center min-w-[48px]">
-              <Clock size={14} className="text-muted-foreground mb-1" />
-              <span className="font-display font-bold text-sm text-foreground">{lesson.time}</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm text-foreground truncate">{lesson.student}</p>
-              <div className="flex items-center gap-1 mt-0.5">
-                <MapPin size={12} className="text-muted-foreground" />
-                <span className="text-xs text-muted-foreground truncate">{lesson.pool}</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={`text-[10px] font-medium px-2 py-1 rounded-full ${statusColors[lesson.status]}`}>
-                {lesson.status === 'in_progress' ? 'LIVE' : lesson.status === 'completed' ? 'DONE' : 'NEXT'}
-              </span>
-              <ChevronRight size={16} className="text-muted-foreground" />
-            </div>
-          </motion.div>
-        ))}
+        {todayBookings && todayBookings.length > 0 ? (
+          todayBookings.map((booking, i) => {
+            const student = booking.students as any;
+            const pool = booking.pools as any;
+            const studentProfile = student?.profiles as any;
+            return (
+              <motion.div
+                key={booking.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 + i * 0.1 }}
+                className="glass-card rounded-xl p-4 flex items-center gap-3"
+              >
+                <div className="flex flex-col items-center min-w-[48px]">
+                  <Clock size={14} className="text-muted-foreground mb-1" />
+                  <span className="font-display font-bold text-sm text-foreground">
+                    {new Date(booking.created_at!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm text-foreground truncate">
+                    {studentProfile?.full_name || 'Student'}
+                  </p>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <MapPin size={12} className="text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground truncate">{pool?.name || 'TBD'}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className={`text-[10px] ${BOOKING_STATUS_COLORS[booking.status || 'confirmed'] || ''}`}>
+                    {booking.status === 'in_progress' ? 'LIVE' : booking.status === 'completed' ? 'DONE' : 'NEXT'}
+                  </Badge>
+                  {booking.status === 'confirmed' && (
+                    <button className="text-[10px] font-bold text-primary-foreground bg-primary px-2 py-1 rounded-lg">
+                      Start
+                    </button>
+                  )}
+                  <ChevronRight size={16} className="text-muted-foreground" />
+                </div>
+              </motion.div>
+            );
+          })
+        ) : (
+          <div className="glass-card rounded-xl p-6 text-center text-muted-foreground text-sm">
+            No bookings today
+          </div>
+        )}
+      </div>
+
+      {/* Recent Students */}
+      <div className="space-y-3">
+        <h3 className="font-display font-semibold text-sm text-foreground">Recent Students</h3>
+        {recentStudents && recentStudents.length > 0 ? (
+          recentStudents.map((b, i) => {
+            const s = b.students as any;
+            const sp = s?.profiles as any;
+            return (
+              <motion.div
+                key={s?.id || i}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 + i * 0.1 }}
+                className="glass-card rounded-xl p-3 flex items-center justify-between"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center text-xs font-bold text-primary">
+                    {sp?.full_name?.[0] || '?'}
+                  </div>
+                  <span className="text-sm font-medium text-foreground">{sp?.full_name || 'Unknown'}</span>
+                </div>
+                <SwimBeltBadge belt={s?.swim_belt || 'white'} size="sm" />
+              </motion.div>
+            );
+          })
+        ) : (
+          <div className="glass-card rounded-xl p-4 text-center text-muted-foreground text-sm">
+            No students yet
+          </div>
+        )}
       </div>
     </div>
   );

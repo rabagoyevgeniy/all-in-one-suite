@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { DollarSign, Calendar, Users, AlertTriangle, Loader2 } from 'lucide-react';
+import { DollarSign, Calendar, Users, AlertTriangle } from 'lucide-react';
 import { useAdminDashboardStats, useRevenueChart, useActiveCoaches, useRecentBookings } from '@/hooks/useAdminDashboardStats';
 import { useAdminStore } from '@/stores/adminStore';
 import { COACH_RANKS } from '@/lib/constants';
@@ -128,7 +128,7 @@ export default function AdminDashboard() {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-foreground">{profile?.full_name || 'Unknown'}</p>
-                      <p className="text-[11px] text-muted-foreground">{profile?.city || '—'}</p>
+                      <p className="text-[11px] text-muted-foreground">{profile?.city || '—'} · {coach.total_lessons_completed} lessons</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -151,21 +151,28 @@ export default function AdminDashboard() {
         <h3 className="font-display font-semibold text-sm text-foreground mb-3">Recent Bookings</h3>
         {bookings && bookings.length > 0 ? (
           <div className="space-y-3">
-          {bookings.map((b) => (
-              <div key={b.id} className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-foreground">
-                    {b.booking_type || 'Lesson'}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {new Date(b.created_at!).toLocaleDateString()} · {b.lesson_fee ?? 0} {b.currency}
-                  </p>
+            {bookings.map((b) => {
+              const student = b.students as any;
+              const coach = b.coaches as any;
+              const pool = b.pools as any;
+              return (
+                <div key={b.id} className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      {student?.profiles?.full_name || b.booking_type || 'Lesson'}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {coach?.profiles?.full_name ? `Coach: ${coach.profiles.full_name}` : ''} 
+                      {pool?.name ? ` · ${pool.name}` : ''} 
+                      {' · '}{b.lesson_fee ?? 0} {b.currency}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className={`text-[10px] ${BOOKING_STATUS_COLORS[b.status || 'confirmed'] || ''}`}>
+                    {b.status?.replace('_', ' ')}
+                  </Badge>
                 </div>
-                <Badge variant="outline" className={`text-[10px] ${BOOKING_STATUS_COLORS[b.status || 'confirmed'] || ''}`}>
-                  {b.status?.replace('_', ' ')}
-                </Badge>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground text-center py-4">No bookings yet</p>
