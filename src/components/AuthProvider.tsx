@@ -32,7 +32,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 .maybeSingle(),
             ]);
 
-            const role = (roleData?.role as UserRole) ?? null;
+            let role = (roleData?.role as UserRole) ?? null;
+
+            // If no role yet, check if user signed up with a role in metadata
+            if (!role) {
+              const metaRole = session.user.user_metadata?.signup_role;
+              if (metaRole && ['parent', 'student', 'pro_athlete'].includes(metaRole)) {
+                try {
+                  await supabase.rpc('assign_initial_role', { _role: metaRole });
+                  role = metaRole as UserRole;
+                } catch {
+                  // Role assignment failed — user may already have a role
+                }
+              }
+            }
+
             setRole(role);
             setProfile(profileData);
             setLoading(false);
