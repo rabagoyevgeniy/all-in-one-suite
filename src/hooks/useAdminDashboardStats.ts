@@ -65,7 +65,7 @@ export function useRecentBookings() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bookings')
-        .select('id, status, booking_type, created_at, lesson_fee, currency, profiles_student:student_id(full_name), profiles_coach:coach_id(full_name)')
+        .select('id, status, booking_type, created_at, lesson_fee, currency')
         .order('created_at', { ascending: false })
         .limit(5);
       if (error) throw error;
