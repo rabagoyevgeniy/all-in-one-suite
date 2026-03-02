@@ -5,9 +5,10 @@ import { Loader2 } from 'lucide-react';
 
 const TEST_ACCOUNTS = [
   { emoji: '👑', label: 'Admin', email: 'admin@profitswimming.ae', password: 'Admin2026!' },
-  { emoji: '🏊', label: 'Coach', email: 'coach@profitswimming.ae', password: 'Coach2026!' },
-  { emoji: '👨‍👩‍👧', label: 'Parent', email: 'parent@profitswimming.ae', password: 'Parent2026!' },
-  { emoji: '🎮', label: 'Student', email: 'student@profitswimming.ae', password: 'Student2026!' },
+  { emoji: '🏊', label: 'Coach', email: 'coach1@profitswimming.ae', password: 'Coach2026!' },
+  { emoji: '👨‍👩‍👧', label: 'Parent', email: 'parent1@test.com', password: 'Parent2026!' },
+  { emoji: '🎮', label: 'Student', email: 'student1@test.com', password: 'Student2026!' },
+  { emoji: '🏆', label: 'Pro', email: 'proathlete1@test.com', password: 'ProAth2026!' },
 ];
 
 export function DevAccountSwitcher() {
