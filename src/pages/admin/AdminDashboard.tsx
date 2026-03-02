@@ -151,14 +151,14 @@ export default function AdminDashboard() {
         <h3 className="font-display font-semibold text-sm text-foreground mb-3">Recent Bookings</h3>
         {bookings && bookings.length > 0 ? (
           <div className="space-y-3">
-            {bookings.map((b) => (
+          {bookings.map((b) => (
               <div key={b.id} className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-foreground">
-                    {(b as any).profiles_student?.full_name || 'Student'}
+                    {b.booking_type || 'Lesson'}
                   </p>
                   <p className="text-[11px] text-muted-foreground">
-                    {new Date(b.created_at!).toLocaleDateString()}
+                    {new Date(b.created_at!).toLocaleDateString()} · {b.lesson_fee ?? 0} {b.currency}
                   </p>
                 </div>
                 <Badge variant="outline" className={`text-[10px] ${BOOKING_STATUS_COLORS[b.status || 'confirmed'] || ''}`}>
