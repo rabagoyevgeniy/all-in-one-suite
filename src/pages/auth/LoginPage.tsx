@@ -57,7 +57,7 @@ export default function LoginPage() {
           email: form.email,
           password: form.password,
           options: {
-            data: { full_name: form.fullName },
+            data: { full_name: form.fullName, signup_role: selectedRole },
             emailRedirectTo: window.location.origin,
           },
         });
