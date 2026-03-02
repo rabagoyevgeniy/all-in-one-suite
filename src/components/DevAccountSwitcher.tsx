@@ -18,7 +18,7 @@ export function DevAccountSwitcher() {
   const { reset } = useAuthStore();
 
   // Only show on lovable.app preview domains
-  const isDevDomain = window.location.hostname.includes('lovable.app') || window.location.hostname === 'localhost';
+  const isDevDomain = window.location.hostname.includes('lovable.app') || window.location.hostname.includes('lovableproject.com') || window.location.hostname === 'localhost';
   if (!isDevDomain) return null;
 
   const handleSwitch = async (account: typeof TEST_ACCOUNTS[0]) => {
