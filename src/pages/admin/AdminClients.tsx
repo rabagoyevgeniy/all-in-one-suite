@@ -27,7 +27,7 @@ function useStudentsList() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('students')
-        .select('*, profiles!students_id_fkey(full_name, avatar_url), parent:parent_id(full_name)')
+        .select('*, profiles!students_id_fkey(full_name, avatar_url), parent_profile:profiles!students_parent_id_fkey(full_name)')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data;
