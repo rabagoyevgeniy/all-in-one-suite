@@ -9,6 +9,7 @@ const TEST_ACCOUNTS = [
   { emoji: '👨‍👩‍👧', label: 'Parent', email: 'parent1@test.com', password: 'Parent2026!' },
   { emoji: '🎮', label: 'Student', email: 'student1@test.com', password: 'Student2026!' },
   { emoji: '🏆', label: 'Pro', email: 'proathlete1@test.com', password: 'ProAth2026!' },
+  { emoji: '📋', label: 'PM', email: 'pm1@profitswimming.ae', password: 'Manager2026!' },
 ];
 
 export function DevAccountSwitcher() {
