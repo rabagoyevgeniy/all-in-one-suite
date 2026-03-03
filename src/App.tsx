@@ -109,7 +109,7 @@ const App = () => (
               <Route path="/student/duels" element={<DuelArena />} />
               <Route path="/student/leaderboard" element={<ComingSoon />} />
               <Route path="/student/skills" element={<ComingSoon />} />
-              <Route path="/student/profile" element={<ComingSoon />} />
+              <Route path="/student/profile" element={<StudentProfile />} />
             </Route>
 
             {/* Pro Athlete routes (Arena theme) */}
