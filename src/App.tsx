@@ -120,8 +120,8 @@ const App = () => (
             <Route element={<RoleGuard allowedRoles={['pro_athlete']}><AppLayout theme="arena" /></RoleGuard>}>
               <Route path="/pro" element={<ProDashboard />} />
               <Route path="/pro/arena" element={<ProArena />} />
-              <Route path="/pro/records" element={<ComingSoon />} />
-              <Route path="/pro/profile" element={<ComingSoon />} />
+              <Route path="/pro/records" element={<ProRecords />} />
+              <Route path="/pro/profile" element={<ProProfile />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
