@@ -30,9 +30,7 @@ function useStudentsList() {
         .select(`
           *,
           profiles!students_id_fkey(full_name, avatar_url),
-          parent:parents!students_parent_id_fkey(
-            profiles!parents_id_fkey(full_name)
-          )
+          parent_profile:profiles!students_parent_id_fkey(full_name)
         `)
         .order('created_at', { ascending: false });
       if (error) throw error;
