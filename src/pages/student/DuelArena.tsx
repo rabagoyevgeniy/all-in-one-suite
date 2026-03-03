@@ -24,8 +24,8 @@ export default function DuelArena() {
         .from('duels')
         .select(`
           *, pools(name, address),
-          challenger:profiles!duels_challenger_id_fkey(full_name),
-          opponent:profiles!duels_opponent_id_fkey(full_name)
+          challenger_profile:profiles!duels_challenger_id_fkey(full_name),
+          opponent_profile:profiles!duels_opponent_id_fkey(full_name)
         `)
         .or(`challenger_id.eq.${user!.id},opponent_id.eq.${user!.id}`)
         .order('created_at', { ascending: false });
