@@ -43,6 +43,7 @@ import StudentProfile from "./pages/student/StudentProfile";
 
 // Pro
 import ProDashboard from "./pages/pro/ProDashboard";
+import ProArena from "./pages/pro/ProArena";
 
 // PM
 import PMDashboard from "./pages/pm/PMDashboard";
