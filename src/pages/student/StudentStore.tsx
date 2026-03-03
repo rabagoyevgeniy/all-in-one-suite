@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { spendCoins } from '@/hooks/useCoins';
 
 export default function StudentStore() {
   const { user } = useAuthStore();
@@ -42,23 +43,46 @@ export default function StudentStore() {
 
   const buyMutation = useMutation({
     mutationFn: async (item: any) => {
-      const { error } = await supabase
-        .from('store_purchases')
-        .insert({
-          user_id: user!.id,
-          item_id: item.id,
-          coins_paid: item.price_coins || 0,
-          aed_paid: item.price_aed || 0,
-          period_key: new Date().toISOString().split('T')[0],
-        });
+      const coinCost = item.price_coins || 0;
+      if (coinCost <= 0) throw new Error('Invalid price');
+
+      // Spend coins (checks balance, updates DB, records transaction)
+      const result = await spendCoins(
+        user!.id,
+        'student',
+        coinCost,
+        'shop_purchase',
+        `Bought: ${item.name}`,
+        item.id
+      );
+
+      if (!result.success) {
+        throw new Error(result.error || 'Insufficient coins');
+      }
+
+      // Record purchase
+      const { error } = await supabase.from('store_purchases').insert({
+        user_id: user!.id,
+        item_id: item.id,
+        coins_paid: coinCost,
+        aed_paid: item.price_aed || 0,
+        period_key: new Date().toISOString().split('T')[0],
+      });
       if (error) throw error;
+
+      return { newBalance: result.newBalance, itemName: item.name };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['student-profile'] });
-      toast({ title: 'Purchase successful! 🎉' });
+      queryClient.invalidateQueries({ queryKey: ['coin-balance'] });
+      toast({ title: `✅ ${result.itemName} purchased!`, description: `Balance: ${result.newBalance} 🪙` });
     },
-    onError: () => {
-      toast({ title: 'Purchase failed', variant: 'destructive' });
+    onError: (err: any) => {
+      toast({
+        title: 'Purchase failed',
+        description: err.message === 'Insufficient coins' ? 'Not enough coins! Complete tasks to earn more.' : err.message,
+        variant: 'destructive',
+      });
     },
   });
 
