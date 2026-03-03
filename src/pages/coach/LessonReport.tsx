@@ -10,6 +10,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
+import { awardCoins } from '@/hooks/useCoins';
 
 const MOODS = [
   { value: 'excellent', emoji: '🤩', label: 'Excellent' },
@@ -43,7 +44,7 @@ export default function LessonReport() {
         .from('bookings')
         .select(`
           id, status, student_id, parent_id,
-          students(id, profiles:students_id_fkey(full_name)),
+          students(id, current_streak, longest_streak, profiles:students_id_fkey(full_name)),
           pools(name)
         `)
         .eq('id', bookingId!)
@@ -89,29 +90,47 @@ export default function LessonReport() {
         await supabase.rpc('increment_used_lessons', { p_student_id: booking.student_id });
       }
 
-      // 4. Award 30 coins to coach
-      const { data: coach } = await supabase
-        .from('coaches')
-        .select('coin_balance')
-        .eq('id', user!.id)
-        .single();
+      // 4. Award 30 coins to coach (REAL)
+      await awardCoins(
+        user!.id, 'coach', 30,
+        'lesson_attendance',
+        'Lesson completed — report submitted',
+        bookingId
+      );
 
-      const newBalance = (coach?.coin_balance || 0) + 30;
-      await supabase
-        .from('coaches')
-        .update({ coin_balance: newBalance })
-        .eq('id', user!.id);
+      // 5. Award 50 coins to student (REAL)
+      if (booking?.student_id) {
+        await awardCoins(
+          booking.student_id, 'student', 50,
+          'lesson_attendance',
+          'Lesson attended',
+          bookingId
+        );
 
-      await supabase.from('coin_transactions').insert({
-        user_id: user!.id,
-        user_role: 'coach',
-        amount: 30,
-        transaction_type: 'lesson_attendance',
-        balance_after: newBalance,
-        description: 'Lesson completed — report submitted',
-      });
+        // 6. Check streak bonus
+        const student = booking.students as any;
+        const currentStreak = (student?.current_streak || 0) + 1;
+        if (currentStreak >= 5) {
+          const multiplier = currentStreak >= 10 ? 2 : 1.5;
+          const bonus = Math.round(50 * (multiplier - 1));
+          await awardCoins(
+            booking.student_id, 'student', bonus,
+            'streak_bonus',
+            `Streak bonus x${multiplier} (${currentStreak} lessons)`,
+            bookingId
+          );
+        }
 
-      // 5. Send notification to parent
+        // 7. Update student streak
+        await supabase.from('students')
+          .update({
+            current_streak: currentStreak,
+            longest_streak: Math.max(student?.longest_streak || 0, currentStreak),
+          })
+          .eq('id', booking.student_id);
+      }
+
+      // 8. Send notification to parent
       if (booking?.parent_id) {
         await supabase.from('notifications').insert({
           user_id: booking.parent_id,

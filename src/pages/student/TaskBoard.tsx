@@ -7,9 +7,21 @@ import { useAuthStore } from '@/stores/authStore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { awardCoins } from '@/hooks/useCoins';
+
+function getPeriodKey(resetPeriod: string | null): string {
+  if (resetPeriod === 'daily') return new Date().toISOString().split('T')[0];
+  if (resetPeriod === 'weekly') {
+    const d = new Date();
+    const start = new Date(d.getFullYear(), 0, 1);
+    const week = Math.ceil(((d.getTime() - start.getTime()) / 86400000 + start.getDay() + 1) / 7);
+    return `${d.getFullYear()}-W${week}`;
+  }
+  return 'once';
+}
 
 export default function TaskBoard() {
-  const { user } = useAuthStore();
+  const { user, role } = useAuthStore();
   const queryClient = useQueryClient();
 
   const { data: tasks, isLoading } = useQuery({
@@ -26,7 +38,7 @@ export default function TaskBoard() {
     },
   });
 
-  const { data: completions } = useQuery({
+  const { data: completions, refetch: refetchCompletions } = useQuery({
     queryKey: ['task-completions', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -42,33 +54,66 @@ export default function TaskBoard() {
   const completeMutation = useMutation({
     mutationFn: async (taskId: string) => {
       const task = tasks?.find((t: any) => t.id === taskId);
-      const periodKey = task?.reset_period === 'daily'
-        ? new Date().toISOString().split('T')[0]
-        : task?.reset_period === 'weekly'
-        ? `week-${Math.ceil(new Date().getDate() / 7)}`
-        : 'once';
+      if (!task) throw new Error('Task not found');
+      const periodKey = getPeriodKey(task.reset_period);
 
+      // Check if already completed for this period
+      const alreadyDone = (completions || []).some(
+        (c: any) => c.task_id === taskId && c.period_key === periodKey
+      );
+      if (alreadyDone) {
+        throw new Error('ALREADY_DONE');
+      }
+
+      // Insert task completion
       const { error } = await supabase
         .from('task_completions')
         .insert({
           user_id: user!.id,
           task_id: taskId,
           period_key: periodKey,
-          coins_awarded: task?.coin_reward || 0,
+          coins_awarded: task.coin_reward || 0,
         });
-      if (error) throw error;
+
+      if (error) {
+        if (error.code === '23505') throw new Error('ALREADY_DONE');
+        throw error;
+      }
+
+      // Award coins for real
+      const newBalance = await awardCoins(
+        user!.id,
+        role || 'student',
+        task.coin_reward || 0,
+        'daily_task',
+        task.title,
+        task.id
+      );
+
+      return { newBalance, reward: task.coin_reward || 0 };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['task-completions'] });
       queryClient.invalidateQueries({ queryKey: ['student-profile'] });
-      toast({ title: 'Task completed! 🎉', description: 'Coins added to your balance' });
+      queryClient.invalidateQueries({ queryKey: ['coin-balance'] });
+      toast({ title: `+${result.reward} coins earned! 🪙` });
     },
-    onError: () => {
-      toast({ title: 'Error', description: 'Could not complete task', variant: 'destructive' });
+    onError: (err: any) => {
+      if (err.message === 'ALREADY_DONE') {
+        toast({ title: 'Task already completed!', description: 'Try again tomorrow', variant: 'destructive' });
+      } else {
+        toast({ title: 'Error', description: 'Could not complete task', variant: 'destructive' });
+      }
     },
   });
 
-  const completedIds = new Set((completions || []).map((c: any) => c.task_id));
+  const completedForPeriod = new Set(
+    (completions || []).map((c: any) => {
+      const task = tasks?.find((t: any) => t.id === c.task_id);
+      const expectedKey = task ? getPeriodKey(task.reset_period) : 'once';
+      return c.period_key === expectedKey ? c.task_id : null;
+    }).filter(Boolean)
+  );
 
   const grouped: Record<string, any[]> = {};
   (tasks || []).forEach((t: any) => {
@@ -113,7 +158,7 @@ export default function TaskBoard() {
             {typeLabels[type] || type}
           </h3>
           {items.map((task: any) => {
-            const done = completedIds.has(task.id);
+            const done = completedForPeriod.has(task.id);
             return (
               <div
                 key={task.id}
