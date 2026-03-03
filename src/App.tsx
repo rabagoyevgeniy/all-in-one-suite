@@ -30,15 +30,20 @@ import LessonReport from "./pages/coach/LessonReport";
 
 // Parent
 import ParentDashboard from "./pages/parent/ParentDashboard";
+import ParentBooking from "./pages/parent/ParentBooking";
+import ParentCoins from "./pages/parent/ParentCoins";
+import ParentChat from "./pages/parent/ParentChat";
 
 // Student
 import StudentDashboard from "./pages/student/StudentDashboard";
 import TaskBoard from "./pages/student/TaskBoard";
 import StudentStore from "./pages/student/StudentStore";
 import DuelArena from "./pages/student/DuelArena";
+import StudentProfile from "./pages/student/StudentProfile";
 
 // Pro
 import ProDashboard from "./pages/pro/ProDashboard";
+import ProArena from "./pages/pro/ProArena";
 
 // PM
 import PMDashboard from "./pages/pm/PMDashboard";
@@ -89,11 +94,11 @@ const App = () => (
             <Route element={<RoleGuard allowedRoles={['parent']}><AppLayout /></RoleGuard>}>
               <Route path="/parent" element={<ParentDashboard />} />
               <Route path="/parent/children/:id" element={<ComingSoon />} />
-              <Route path="/parent/booking" element={<ComingSoon />} />
+              <Route path="/parent/booking" element={<ParentBooking />} />
               <Route path="/parent/financial" element={<ComingSoon />} />
-              <Route path="/parent/coins" element={<ComingSoon />} />
+              <Route path="/parent/coins" element={<ParentCoins />} />
               <Route path="/parent/referrals" element={<ComingSoon />} />
-              <Route path="/parent/chat" element={<ComingSoon />} />
+              <Route path="/parent/chat" element={<ParentChat />} />
             </Route>
 
             {/* Student routes (Arena theme) */}
@@ -104,13 +109,13 @@ const App = () => (
               <Route path="/student/duels" element={<DuelArena />} />
               <Route path="/student/leaderboard" element={<ComingSoon />} />
               <Route path="/student/skills" element={<ComingSoon />} />
-              <Route path="/student/profile" element={<ComingSoon />} />
+              <Route path="/student/profile" element={<StudentProfile />} />
             </Route>
 
             {/* Pro Athlete routes (Arena theme) */}
             <Route element={<RoleGuard allowedRoles={['pro_athlete']}><AppLayout theme="arena" /></RoleGuard>}>
               <Route path="/pro" element={<ProDashboard />} />
-              <Route path="/pro/arena" element={<ComingSoon />} />
+              <Route path="/pro/arena" element={<ProArena />} />
               <Route path="/pro/records" element={<ComingSoon />} />
               <Route path="/pro/profile" element={<ComingSoon />} />
             </Route>
