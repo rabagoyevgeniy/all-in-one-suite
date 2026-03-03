@@ -47,8 +47,8 @@ export default function DuelArena() {
   }
 
   const renderDuel = (duel: any, i: number) => {
-    const challenger = duel.challenger as any;
-    const opponent = duel.opponent as any;
+    const challenger = duel.challenger_profile as any;
+    const opponent = duel.opponent_profile as any;
     const pool = duel.pools as any;
     const isChallenger = duel.challenger_id === user?.id;
 
