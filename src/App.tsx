@@ -39,6 +39,7 @@ import StudentDashboard from "./pages/student/StudentDashboard";
 import TaskBoard from "./pages/student/TaskBoard";
 import StudentStore from "./pages/student/StudentStore";
 import DuelArena from "./pages/student/DuelArena";
+import StudentProfile from "./pages/student/StudentProfile";
 
 // Pro
 import ProDashboard from "./pages/pro/ProDashboard";
