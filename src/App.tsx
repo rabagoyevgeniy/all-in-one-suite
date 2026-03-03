@@ -115,7 +115,7 @@ const App = () => (
             {/* Pro Athlete routes (Arena theme) */}
             <Route element={<RoleGuard allowedRoles={['pro_athlete']}><AppLayout theme="arena" /></RoleGuard>}>
               <Route path="/pro" element={<ProDashboard />} />
-              <Route path="/pro/arena" element={<ComingSoon />} />
+              <Route path="/pro/arena" element={<ProArena />} />
               <Route path="/pro/records" element={<ComingSoon />} />
               <Route path="/pro/profile" element={<ComingSoon />} />
             </Route>
