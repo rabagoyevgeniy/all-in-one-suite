@@ -94,11 +94,11 @@ const App = () => (
             <Route element={<RoleGuard allowedRoles={['parent']}><AppLayout /></RoleGuard>}>
               <Route path="/parent" element={<ParentDashboard />} />
               <Route path="/parent/children/:id" element={<ComingSoon />} />
-              <Route path="/parent/booking" element={<ComingSoon />} />
+              <Route path="/parent/booking" element={<ParentBooking />} />
               <Route path="/parent/financial" element={<ComingSoon />} />
-              <Route path="/parent/coins" element={<ComingSoon />} />
+              <Route path="/parent/coins" element={<ParentCoins />} />
               <Route path="/parent/referrals" element={<ComingSoon />} />
-              <Route path="/parent/chat" element={<ComingSoon />} />
+              <Route path="/parent/chat" element={<ParentChat />} />
             </Route>
 
             {/* Student routes (Arena theme) */}
