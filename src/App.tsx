@@ -44,9 +44,13 @@ import StudentProfile from "./pages/student/StudentProfile";
 // Pro
 import ProDashboard from "./pages/pro/ProDashboard";
 import ProArena from "./pages/pro/ProArena";
+import ProRecords from "./pages/pro/ProRecords";
+import ProProfile from "./pages/pro/ProProfile";
 
 // PM
 import PMDashboard from "./pages/pm/PMDashboard";
+import PMReports from "./pages/pm/PMReports";
+import PMEarnings from "./pages/pm/PMEarnings";
 
 const queryClient = new QueryClient();
 
