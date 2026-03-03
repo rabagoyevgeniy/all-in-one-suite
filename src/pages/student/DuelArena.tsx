@@ -68,7 +68,7 @@ export default function DuelArena() {
         </div>
         <div className="flex items-center justify-between">
           <div className="text-center flex-1">
-            <p className="font-display font-bold text-sm text-foreground">{challenger?.full_name ?? 'Unknown'}</p>
+            <p className="font-display font-bold text-sm text-foreground">{challenger?.full_name || duel.challenger_id?.substring(0,8) || 'Player'}</p>
             <p className="text-[10px] text-muted-foreground">{isChallenger ? '(You)' : ''}</p>
             {duel.challenger_time_ms && (
               <p className="font-display font-bold text-primary mt-1">{(duel.challenger_time_ms / 1000).toFixed(2)}s</p>
