@@ -25,16 +25,29 @@ function useStudentsList() {
   return useQuery({
     queryKey: ['admin-students'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Get students with their own profile
+      const { data: studentsData, error } = await supabase
         .from('students')
-        .select(`
-          *,
-          profiles!students_id_fkey(full_name, avatar_url),
-          parent_profile:profiles!students_parent_id_fkey(full_name)
-        `)
+        .select(`*, profiles!students_id_fkey(full_name, avatar_url)`)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data;
+      if (!studentsData || studentsData.length === 0) return [];
+
+      // Get parent profiles for parent_ids
+      const parentIds = [...new Set(studentsData.map((s: any) => s.parent_id).filter(Boolean))];
+      let parentMap: Record<string, string> = {};
+      if (parentIds.length > 0) {
+        const { data: parentProfiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', parentIds);
+        (parentProfiles || []).forEach((p: any) => { parentMap[p.id] = p.full_name; });
+      }
+
+      return studentsData.map((s: any) => ({
+        ...s,
+        parent_name: s.parent_id ? parentMap[s.parent_id] || null : null,
+      }));
     },
   });
 }
@@ -99,7 +112,7 @@ export default function AdminClients() {
           ) : students && students.length > 0 ? (
             students.map((s: any) => {
               const profile = s.profiles;
-              const parentName = (s.parent_profile as any)?.full_name;
+              const parentName = s.parent_name;
               const belt = SWIM_BELTS.find(b => b.id === s.swim_belt);
               return (
                 <div key={s.id} className="glass-card rounded-xl p-3 flex items-center gap-3">

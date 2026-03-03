@@ -44,9 +44,13 @@ import StudentProfile from "./pages/student/StudentProfile";
 // Pro
 import ProDashboard from "./pages/pro/ProDashboard";
 import ProArena from "./pages/pro/ProArena";
+import ProRecords from "./pages/pro/ProRecords";
+import ProProfile from "./pages/pro/ProProfile";
 
 // PM
 import PMDashboard from "./pages/pm/PMDashboard";
+import PMReports from "./pages/pm/PMReports";
+import PMEarnings from "./pages/pm/PMEarnings";
 
 const queryClient = new QueryClient();
 
@@ -85,8 +89,8 @@ const App = () => (
             <Route element={<RoleGuard allowedRoles={['personal_manager']}><AppLayout /></RoleGuard>}>
               <Route path="/pm" element={<PMDashboard />} />
               <Route path="/pm/clients" element={<ComingSoon />} />
-              <Route path="/pm/reports" element={<ComingSoon />} />
-              <Route path="/pm/earnings" element={<ComingSoon />} />
+              <Route path="/pm/reports" element={<PMReports />} />
+              <Route path="/pm/earnings" element={<PMEarnings />} />
               <Route path="/pm/profile" element={<ComingSoon />} />
             </Route>
 
@@ -116,8 +120,8 @@ const App = () => (
             <Route element={<RoleGuard allowedRoles={['pro_athlete']}><AppLayout theme="arena" /></RoleGuard>}>
               <Route path="/pro" element={<ProDashboard />} />
               <Route path="/pro/arena" element={<ProArena />} />
-              <Route path="/pro/records" element={<ComingSoon />} />
-              <Route path="/pro/profile" element={<ComingSoon />} />
+              <Route path="/pro/records" element={<ProRecords />} />
+              <Route path="/pro/profile" element={<ProProfile />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
