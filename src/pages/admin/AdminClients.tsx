@@ -99,7 +99,7 @@ export default function AdminClients() {
           ) : students && students.length > 0 ? (
             students.map((s: any) => {
               const profile = s.profiles;
-              const parentName = s.parent?.profiles?.full_name;
+              const parentName = (s.parent_profile as any)?.full_name;
               const belt = SWIM_BELTS.find(b => b.id === s.swim_belt);
               return (
                 <div key={s.id} className="glass-card rounded-xl p-3 flex items-center gap-3">

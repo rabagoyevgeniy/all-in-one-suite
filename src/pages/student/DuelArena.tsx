@@ -78,7 +78,7 @@ export default function DuelArena() {
             <Swords size={24} className="text-primary" />
           </div>
           <div className="text-center flex-1">
-            <p className="font-display font-bold text-sm text-foreground">{opponent?.full_name ?? 'Unknown'}</p>
+            <p className="font-display font-bold text-sm text-foreground">{opponent?.full_name || duel.opponent_id?.substring(0,8) || 'Player'}</p>
             <p className="text-[10px] text-muted-foreground">{!isChallenger ? '(You)' : ''}</p>
             {duel.opponent_time_ms && (
               <p className="font-display font-bold text-primary mt-1">{(duel.opponent_time_ms / 1000).toFixed(2)}s</p>
