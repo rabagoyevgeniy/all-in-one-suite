@@ -49,7 +49,6 @@ export default function DuelArena() {
   const [stakeCoins, setStakeCoins] = useState(100);
   const [selectedPool, setSelectedPool] = useState('');
   const [selectedOpponent, setSelectedOpponent] = useState('');
-  const [opponentSearch, setOpponentSearch] = useState('');
   const [viewProfile, setViewProfile] = useState<any>(null);
 
   // All duels related to this user
