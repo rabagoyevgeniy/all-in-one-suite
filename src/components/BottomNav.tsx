@@ -12,7 +12,7 @@ const NAV_ITEMS: Record<string, { path: string; label: string; icon: React.Eleme
     { path: '/admin/coaches', label: 'Coaches', icon: Users },
     { path: '/admin/clients', label: 'Clients', icon: Home },
     { path: '/admin/bookings', label: 'Bookings', icon: Calendar },
-    { path: '/admin/financial', label: 'Finance', icon: Wallet },
+    { path: '/admin/tasks', label: 'Tasks', icon: ClipboardList },
   ],
   coach: [
     { path: '/coach', label: 'Dashboard', icon: Home },

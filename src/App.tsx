@@ -74,6 +74,7 @@ const App = () => (
               <Route path="/admin/bookings" element={<AdminBookings />} />
               <Route path="/admin/financial" element={<AdminFinance />} />
               <Route path="/admin/economy" element={<AdminEconomy />} />
+              <Route path="/admin/tasks" element={<AdminTasks />} />
             </Route>
 
             {/* Coach routes */}
