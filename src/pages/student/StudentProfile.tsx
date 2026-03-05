@@ -194,19 +194,36 @@ export default function StudentProfile() {
         </div>
       </motion.div>
 
-      {/* Belt Journey */}
+      {/* Class Journey */}
       <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="space-y-3">
-        <h3 className="font-display font-semibold text-sm text-foreground">🏊 Belt Journey</h3>
-        <div className="flex items-center gap-1.5">
-          {SWIM_BELTS.map((belt, i) => (
-            <div key={belt.id} className="flex-1 flex flex-col items-center gap-1">
-              <div
-                className={`w-full h-3 rounded-full border-2 transition-all ${i <= currentBeltIdx ? 'scale-110' : 'opacity-40'}`}
-                style={{ backgroundColor: belt.color, borderColor: belt.borderColor }}
-              />
-              {i === currentBeltIdx && <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />}
-            </div>
-          ))}
+        <h3 className="font-display font-semibold text-sm text-foreground flex items-center gap-2">
+          <div
+            className="w-5 h-5 rounded-full border-2"
+            style={{ backgroundColor: currentBelt.color, borderColor: currentBelt.borderColor }}
+          />
+          Class Journey
+        </h3>
+        {/* Visual bar chart journey */}
+        <div className="flex items-end gap-1">
+          {SWIM_BELTS.map((belt, i) => {
+            const isActive = i === currentBeltIdx;
+            const isPast = i < currentBeltIdx;
+            return (
+              <div key={belt.id} className="flex-1 flex flex-col items-center gap-0.5">
+                <div
+                  className={`w-full rounded-t-sm transition-all ${isActive ? 'h-8' : isPast ? 'h-5' : 'h-3'}`}
+                  style={{
+                    backgroundColor: isPast || isActive ? belt.color : `${belt.color}30`,
+                    border: `1px solid ${isPast || isActive ? belt.borderColor : `${belt.borderColor}30`}`,
+                    boxShadow: isActive ? `0 0 8px ${belt.borderColor}50` : 'none',
+                  }}
+                />
+                {isActive && (
+                  <div className="w-1 h-1 rounded-full animate-pulse" style={{ backgroundColor: belt.borderColor }} />
+                )}
+              </div>
+            );
+          })}
         </div>
       </motion.div>
 
