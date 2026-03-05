@@ -118,22 +118,30 @@ export default function DuelArena() {
     enabled: !!user?.id,
   });
 
-  // Searchable student list for opponent selection
+  // All students with their belt/rank info for dropdown
   const { data: studentsList } = useQuery({
-    queryKey: ['students-for-duel', opponentSearch],
+    queryKey: ['students-for-duel-dropdown'],
     queryFn: async () => {
-      let query = supabase
+      const { data: students, error } = await supabase
+        .from('students')
+        .select('id, wins, losses, total_coins_earned, swim_belt')
+        .neq('id', user!.id);
+      if (error) throw error;
+      // Get profiles for names
+      const ids = (students || []).map((s: any) => s.id);
+      if (ids.length === 0) return [];
+      const { data: profiles } = await supabase
         .from('profiles')
         .select('id, full_name, avatar_url')
-        .neq('id', user!.id)
-        .eq('is_active', true)
-        .limit(20);
-      if (opponentSearch.trim()) {
-        query = query.ilike('full_name', `%${opponentSearch}%`);
-      }
-      const { data, error } = await query;
-      if (error) throw error;
-      return data;
+        .in('id', ids)
+        .eq('is_active', true);
+      const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+      return (students || []).map((s: any) => {
+        const p = profileMap.get(s.id);
+        const xp = calculateXP(s);
+        const belt = getBeltByXP(xp);
+        return { ...s, full_name: p?.full_name || 'Unknown', avatar_url: p?.avatar_url, xp, belt };
+      }).sort((a: any, b: any) => a.xp - b.xp);
     },
     enabled: !!user?.id && showCreate,
   });
