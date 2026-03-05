@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Swords, Loader2, Plus, Trophy, Search, User, Eye } from 'lucide-react';
+import { Swords, Loader2, Plus, Trophy, Eye } from 'lucide-react';
 import { CoinBalance } from '@/components/CoinBalance';
 import { PageHeader } from '@/components/PageHeader';
 import { Badge } from '@/components/ui/badge';
