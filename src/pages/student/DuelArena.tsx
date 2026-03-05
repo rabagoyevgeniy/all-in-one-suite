@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Swords, Loader2, Plus, Trophy, Search, User, Eye } from 'lucide-react';
+import { Swords, Loader2, Plus, Trophy, Eye } from 'lucide-react';
 import { CoinBalance } from '@/components/CoinBalance';
 import { PageHeader } from '@/components/PageHeader';
 import { Badge } from '@/components/ui/badge';
@@ -50,7 +50,6 @@ export default function DuelArena() {
   const [stakeCoins, setStakeCoins] = useState(100);
   const [selectedPool, setSelectedPool] = useState('');
   const [selectedOpponent, setSelectedOpponent] = useState('');
-  const [opponentSearch, setOpponentSearch] = useState('');
   const [viewProfile, setViewProfile] = useState<any>(null);
 
   // All duels related to this user
@@ -118,22 +117,30 @@ export default function DuelArena() {
     enabled: !!user?.id,
   });
 
-  // Searchable student list for opponent selection
+  // All students with their belt/rank info for dropdown
   const { data: studentsList } = useQuery({
-    queryKey: ['students-for-duel', opponentSearch],
+    queryKey: ['students-for-duel-dropdown'],
     queryFn: async () => {
-      let query = supabase
+      const { data: students, error } = await supabase
+        .from('students')
+        .select('id, wins, losses, total_coins_earned, swim_belt')
+        .neq('id', user!.id);
+      if (error) throw error;
+      // Get profiles for names
+      const ids = (students || []).map((s: any) => s.id);
+      if (ids.length === 0) return [];
+      const { data: profiles } = await supabase
         .from('profiles')
         .select('id, full_name, avatar_url')
-        .neq('id', user!.id)
-        .eq('is_active', true)
-        .limit(20);
-      if (opponentSearch.trim()) {
-        query = query.ilike('full_name', `%${opponentSearch}%`);
-      }
-      const { data, error } = await query;
-      if (error) throw error;
-      return data;
+        .in('id', ids)
+        .eq('is_active', true);
+      const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+      return (students || []).map((s: any) => {
+        const p = profileMap.get(s.id);
+        const xp = calculateXP(s);
+        const belt = getBeltByXP(xp);
+        return { ...s, full_name: p?.full_name || 'Unknown', avatar_url: p?.avatar_url, xp, belt };
+      }).sort((a: any, b: any) => a.xp - b.xp);
     },
     enabled: !!user?.id && showCreate,
   });
@@ -174,8 +181,8 @@ export default function DuelArena() {
         pool_id: selectedPool,
       };
 
-      // If specific opponent selected, set opponent_id (direct challenge)
-      if (selectedOpponent) {
+      // If specific opponent selected (not "open"), set opponent_id
+      if (selectedOpponent && selectedOpponent !== 'open') {
         insertData.opponent_id = selectedOpponent;
       }
 
@@ -188,7 +195,7 @@ export default function DuelArena() {
       });
 
       // If direct challenge, notify opponent
-      if (selectedOpponent) {
+      if (selectedOpponent && selectedOpponent !== 'open') {
         await supabase.from('notifications').insert({
           user_id: selectedOpponent,
           title: '⚔️ You have been challenged!',
@@ -207,7 +214,6 @@ export default function DuelArena() {
       queryClient.invalidateQueries({ queryKey: ['open-challenges'] });
       setShowCreate(false);
       setSelectedOpponent('');
-      setOpponentSearch('');
       toast({ title: 'Duel created! Coins locked 🔒⚔️' });
     },
     onError: (err: any) => {
@@ -391,37 +397,31 @@ export default function DuelArena() {
                 <DialogTitle className="font-display">Create Duel ⚔️</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 pt-2">
-                {/* Opponent picker with search */}
+                {/* Opponent picker dropdown */}
                 <div>
                   <Label className="text-xs">Opponent (optional — leave empty for open challenge)</Label>
-                  <div className="relative mt-1">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      placeholder="Search swimmer..."
-                      value={opponentSearch}
-                      onChange={e => { setOpponentSearch(e.target.value); setSelectedOpponent(''); }}
-                      className="pl-9 text-sm"
-                    />
-                  </div>
-                  {opponentSearch && (studentsList || []).length > 0 && !selectedOpponent && (
-                    <div className="mt-1 max-h-32 overflow-y-auto rounded-lg border border-border bg-card">
+                  <Select value={selectedOpponent} onValueChange={setSelectedOpponent}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Open challenge (anyone can accept)" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      <SelectItem value="open">🌐 Open Challenge (anyone)</SelectItem>
                       {(studentsList || []).map((s: any) => (
-                        <button
-                          key={s.id}
-                          onClick={() => { setSelectedOpponent(s.id); setOpponentSearch(s.full_name); }}
-                          className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50 flex items-center gap-2"
-                        >
-                          <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
-                            {s.full_name?.[0] || '?'}
+                        <SelectItem key={s.id} value={s.id}>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-3 h-3 rounded-full border"
+                              style={{ backgroundColor: s.belt.color, borderColor: s.belt.borderColor }}
+                            />
+                            <span>{s.full_name}</span>
+                            <span className="text-muted-foreground text-[10px]">
+                              {s.belt.name} · {s.xp} XP
+                            </span>
                           </div>
-                          {s.full_name}
-                        </button>
+                        </SelectItem>
                       ))}
-                    </div>
-                  )}
-                  {selectedOpponent && (
-                    <p className="text-[10px] text-success mt-1">✅ Direct challenge to: {opponentSearch}</p>
-                  )}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label className="text-xs">Swim Style</Label>
@@ -467,7 +467,7 @@ export default function DuelArena() {
                   disabled={createDuelMutation.isPending || stakeCoins < 10}
                 >
                   {createDuelMutation.isPending ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
-                  {selectedOpponent ? 'Send Challenge' : 'Create Open Challenge'} ({stakeCoins} 🪙)
+                  {selectedOpponent && selectedOpponent !== 'open' ? 'Send Challenge' : 'Create Open Challenge'} ({stakeCoins} 🪙)
                 </Button>
               </div>
             </DialogContent>
