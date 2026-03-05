@@ -160,7 +160,34 @@ export default function DuelArena() {
       queryClient.invalidateQueries({ queryKey: ['student-all-duels'] });
       queryClient.invalidateQueries({ queryKey: ['student-balance'] });
       queryClient.invalidateQueries({ queryKey: ['coin-balance'] });
+      queryClient.invalidateQueries({ queryKey: ['task-completions'] });
       toast({ title: 'Duel accepted! Coins locked ⚔️🔒' });
+
+      // Auto-complete duel-related tasks
+      (async () => {
+        try {
+          const { data: duelTask } = await supabase
+            .from('task_definitions')
+            .select('id, coin_reward, reset_period')
+            .eq('key', 'accept_first_duel')
+            .eq('is_active', true)
+            .maybeSingle();
+
+          if (duelTask) {
+            const periodKey = duelTask.reset_period === 'daily'
+              ? new Date().toISOString().split('T')[0] : 'once';
+            const { error: compError } = await supabase.from('task_completions').insert({
+              user_id: user!.id, task_id: duelTask.id,
+              period_key: periodKey, coins_awarded: duelTask.coin_reward || 0,
+            });
+            if (!compError && duelTask.coin_reward) {
+              await awardCoins(user!.id, 'student', duelTask.coin_reward,
+                'daily_task', 'Task: Accept first duel', duelTask.id);
+              queryClient.invalidateQueries({ queryKey: ['task-completions'] });
+            }
+          }
+        } catch {}
+      })();
     },
     onError: (err: any) => {
       toast({ title: 'Failed', description: err.message, variant: 'destructive' });

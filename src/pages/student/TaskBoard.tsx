@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Loader2, CheckCircle2 } from 'lucide-react';
+import { Loader2, CheckCircle2, Clock, Zap } from 'lucide-react';
 import { CoinBalance } from '@/components/CoinBalance';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -38,7 +38,7 @@ export default function TaskBoard() {
     },
   });
 
-  const { data: completions, refetch: refetchCompletions } = useQuery({
+  const { data: completions } = useQuery({
     queryKey: ['task-completions', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -57,15 +57,11 @@ export default function TaskBoard() {
       if (!task) throw new Error('Task not found');
       const periodKey = getPeriodKey(task.reset_period);
 
-      // Check if already completed for this period
       const alreadyDone = (completions || []).some(
         (c: any) => c.task_id === taskId && c.period_key === periodKey
       );
-      if (alreadyDone) {
-        throw new Error('ALREADY_DONE');
-      }
+      if (alreadyDone) throw new Error('ALREADY_DONE');
 
-      // Insert task completion
       const { error } = await supabase
         .from('task_completions')
         .insert({
@@ -80,16 +76,10 @@ export default function TaskBoard() {
         throw error;
       }
 
-      // Award coins for real
       const newBalance = await awardCoins(
-        user!.id,
-        role || 'student',
-        task.coin_reward || 0,
-        'daily_task',
-        task.title,
-        task.id
+        user!.id, role || 'student', task.coin_reward || 0,
+        'daily_task', task.title, task.id
       );
-
       return { newBalance, reward: task.coin_reward || 0 };
     },
     onSuccess: (result) => {
@@ -100,7 +90,7 @@ export default function TaskBoard() {
     },
     onError: (err: any) => {
       if (err.message === 'ALREADY_DONE') {
-        toast({ title: 'Task already completed!', description: 'Try again tomorrow', variant: 'destructive' });
+        toast({ title: 'Task already completed!', description: 'Try again next period', variant: 'destructive' });
       } else {
         toast({ title: 'Error', description: 'Could not complete task', variant: 'destructive' });
       }
@@ -131,6 +121,13 @@ export default function TaskBoard() {
     other: '🎯 Other',
   };
 
+  // Determine if a task shows a "Do" button (manual/admin) or auto-progress
+  const isManualTask = (task: any): boolean => {
+    const vt = task.verification_type;
+    // Only manual/admin tasks (or null for backward compat) get "Do" button
+    return !vt || vt === 'admin' || vt === 'manual';
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -159,6 +156,7 @@ export default function TaskBoard() {
           </h3>
           {items.map((task: any) => {
             const done = completedForPeriod.has(task.id);
+            const manual = isManualTask(task);
             return (
               <div
                 key={task.id}
@@ -176,10 +174,17 @@ export default function TaskBoard() {
                   {task.description && (
                     <p className="text-[11px] text-muted-foreground truncate">{task.description}</p>
                   )}
+                  {/* Auto-validated tasks: show hint */}
+                  {!manual && !done && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <Zap size={10} className="text-warning" />
+                      <span className="text-[10px] text-warning">Auto-validates on action</span>
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <CoinBalance amount={task.coin_reward} size="sm" />
-                  {!done && (
+                  {!done && manual && (
                     <Button
                       size="sm"
                       className="h-7 px-3 text-[10px] rounded-lg"
@@ -188,6 +193,12 @@ export default function TaskBoard() {
                     >
                       Do
                     </Button>
+                  )}
+                  {!done && !manual && (
+                    <Badge variant="outline" className="text-[9px] border-warning/30 text-warning">
+                      <Clock size={10} className="mr-0.5" />
+                      Auto
+                    </Badge>
                   )}
                 </div>
               </div>
