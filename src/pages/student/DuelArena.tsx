@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Swords, Loader2, Plus, Trophy, Eye } from 'lucide-react';
+import { Swords, Loader2, Plus, Trophy, Eye, Info } from 'lucide-react';
 import { CoinBalance } from '@/components/CoinBalance';
 import { PageHeader } from '@/components/PageHeader';
 import { Badge } from '@/components/ui/badge';
@@ -21,16 +21,6 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 
-// Status flow:
-// 1. "open" — challenger created, waiting for someone to accept → shown as "Challenge" / "Open Challenge"
-// 2. "accepted" — opponent accepted, coins locked from both sides → waiting for admin to validate results
-// 3. "in_progress" — admin starts the duel (optional live tracking)
-// 4. "completed" — admin recorded results + winner declared
-//
-// UI mapping:
-// - "pending" in DB = open challenge (not yet accepted)
-// - "accepted" in DB = pending validation (both parties locked in)
-
 const STATUS_LABELS: Record<string, { label: string; style: string }> = {
   pending: { label: '🔓 OPEN', style: 'bg-warning/15 text-warning border-warning/30' },
   accepted: { label: '⏳ PENDING', style: 'bg-primary/15 text-primary border-primary/30' },
@@ -47,10 +37,12 @@ export default function DuelArena() {
   const [showCreate, setShowCreate] = useState(false);
   const [swimStyle, setSwimStyle] = useState('freestyle');
   const [distance, setDistance] = useState(50);
-  const [stakeCoins, setStakeCoins] = useState(100);
+  const [stakeCoins, setStakeCoins] = useState(10);
   const [selectedPool, setSelectedPool] = useState('');
   const [selectedOpponent, setSelectedOpponent] = useState('');
+  const [selectedSecond, setSelectedSecond] = useState('');
   const [viewProfile, setViewProfile] = useState<any>(null);
+  const [previewOpponent, setPreviewOpponent] = useState<any>(null);
 
   // All duels related to this user
   const { data: duels, isLoading } = useQuery({
@@ -71,7 +63,7 @@ export default function DuelArena() {
     enabled: !!user?.id,
   });
 
-  // Open challenges from OTHER students (not this user)
+  // Open challenges from OTHER students
   const { data: openChallenges } = useQuery({
     queryKey: ['open-challenges', user?.id],
     queryFn: async () => {
@@ -117,21 +109,20 @@ export default function DuelArena() {
     enabled: !!user?.id,
   });
 
-  // All students with their belt/rank info for dropdown
+  // All students with belt info for dropdown
   const { data: studentsList } = useQuery({
     queryKey: ['students-for-duel-dropdown'],
     queryFn: async () => {
       const { data: students, error } = await supabase
         .from('students')
-        .select('id, wins, losses, total_coins_earned, swim_belt')
+        .select('id, wins, losses, total_coins_earned, swim_belt, current_streak, coin_balance')
         .neq('id', user!.id);
       if (error) throw error;
-      // Get profiles for names
       const ids = (students || []).map((s: any) => s.id);
       if (ids.length === 0) return [];
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, full_name, avatar_url')
+        .select('id, full_name, avatar_url, city')
         .in('id', ids)
         .eq('is_active', true);
       const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
@@ -139,10 +130,35 @@ export default function DuelArena() {
         const p = profileMap.get(s.id);
         const xp = calculateXP(s);
         const belt = getBeltByXP(xp);
-        return { ...s, full_name: p?.full_name || 'Unknown', avatar_url: p?.avatar_url, xp, belt };
+        return { ...s, full_name: p?.full_name || 'Unknown', avatar_url: p?.avatar_url, city: p?.city, xp, belt };
       }).sort((a: any, b: any) => a.xp - b.xp);
     },
     enabled: !!user?.id && showCreate,
+  });
+
+  // Available coaches for seconding
+  const { data: availableSeconds } = useQuery({
+    queryKey: ['available-seconds'],
+    queryFn: async () => {
+      const { data: coaches, error } = await supabase
+        .from('coaches')
+        .select('id, is_available_for_seconding, avg_rating, total_lessons_completed')
+        .eq('is_available_for_seconding', true);
+      if (error) throw error;
+      const ids = (coaches || []).map((c: any) => c.id);
+      if (ids.length === 0) return [];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .in('id', ids);
+      const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+      return (coaches || []).map((c: any) => ({
+        ...c,
+        full_name: profileMap.get(c.id)?.full_name || 'Coach',
+        avatar_url: profileMap.get(c.id)?.avatar_url,
+      }));
+    },
+    enabled: showCreate,
   });
 
   // Fetch challenger profile for preview
@@ -163,6 +179,7 @@ export default function DuelArena() {
   const createDuelMutation = useMutation({
     mutationFn: async () => {
       if (stakeCoins < 10) throw new Error('Minimum stake is 10 coins');
+      if (stakeCoins > (myBalance || 0)) throw new Error('Insufficient coins');
       if (!selectedPool) throw new Error('Select a pool');
 
       const result = await spendCoins(
@@ -181,9 +198,11 @@ export default function DuelArena() {
         pool_id: selectedPool,
       };
 
-      // If specific opponent selected (not "open"), set opponent_id
       if (selectedOpponent && selectedOpponent !== 'open') {
         insertData.opponent_id = selectedOpponent;
+      }
+      if (selectedSecond) {
+        insertData.second_id = selectedSecond;
       }
 
       const { data: duel, error } = await supabase.from('duels').insert(insertData).select().single();
@@ -194,7 +213,6 @@ export default function DuelArena() {
         coins_held: stakeCoins, status: 'held',
       });
 
-      // If direct challenge, notify opponent
       if (selectedOpponent && selectedOpponent !== 'open') {
         await supabase.from('notifications').insert({
           user_id: selectedOpponent,
@@ -214,6 +232,8 @@ export default function DuelArena() {
       queryClient.invalidateQueries({ queryKey: ['open-challenges'] });
       setShowCreate(false);
       setSelectedOpponent('');
+      setSelectedSecond('');
+      setStakeCoins(10);
       toast({ title: 'Duel created! Coins locked 🔒⚔️' });
     },
     onError: (err: any) => {
@@ -235,7 +255,6 @@ export default function DuelArena() {
         coins_held: duel.stake_coins, status: 'held',
       });
 
-      // On accept → status becomes "accepted" (pending admin validation)
       await supabase.from('duels')
         .update({ status: 'accepted', opponent_id: user!.id })
         .eq('id', duel.id);
@@ -283,9 +302,7 @@ export default function DuelArena() {
     },
   });
 
-  // My active duels (accepted/in_progress)
   const myActiveDuels = (duels || []).filter((d: any) => ['accepted', 'in_progress'].includes(d.status));
-  // My created open challenges (pending, I'm challenger)
   const myOpenChallenges = (duels || []).filter((d: any) => d.status === 'pending' && d.challenger_id === user?.id);
   const pastDuels = (duels || []).filter((d: any) => d.status === 'completed');
 
@@ -348,7 +365,6 @@ export default function DuelArena() {
           <span>{pool?.name || 'TBD'}</span>
         </div>
 
-        {/* Accept button for incoming open challenges */}
         {showAccept && (
           <div className="mt-3 flex gap-2">
             <Button
@@ -382,6 +398,11 @@ export default function DuelArena() {
     );
   };
 
+  // Find the selected opponent's data for the info preview
+  const selectedOpponentData = selectedOpponent && selectedOpponent !== 'open'
+    ? (studentsList || []).find((s: any) => s.id === selectedOpponent)
+    : null;
+
   return (
     <div className="px-4 py-6 space-y-6">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
@@ -392,37 +413,80 @@ export default function DuelArena() {
                 <Plus size={16} /> Challenge
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-sm">
+            <DialogContent className="max-w-sm max-h-[85vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="font-display">Create Duel ⚔️</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 pt-2">
-                {/* Opponent picker dropdown */}
+                {/* Opponent picker */}
                 <div>
                   <Label className="text-xs">Opponent (optional — leave empty for open challenge)</Label>
-                  <Select value={selectedOpponent} onValueChange={setSelectedOpponent}>
+                  <div className="flex items-center gap-1 mt-1">
+                    <div className="flex-1">
+                      <Select value={selectedOpponent} onValueChange={setSelectedOpponent}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Open challenge (anyone can accept)" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-60">
+                          <SelectItem value="open">🌐 Open Challenge (anyone)</SelectItem>
+                          {(studentsList || []).map((s: any) => (
+                            <SelectItem key={s.id} value={s.id}>
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className="w-3 h-3 rounded-full border"
+                                  style={{ backgroundColor: s.belt.color, borderColor: s.belt.borderColor }}
+                                />
+                                <span>{s.full_name}</span>
+                                <span className="text-muted-foreground text-[10px]">
+                                  {s.belt.name} · {s.xp} XP
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {/* Info button to preview selected opponent */}
+                    {selectedOpponentData && (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewOpponent(selectedOpponentData)}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary/10 text-primary hover:bg-primary/20 transition-colors shrink-0"
+                        title="View athlete profile"
+                      >
+                        <Info size={16} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Second (referee) picker */}
+                <div>
+                  <Label className="text-xs">Second / Referee (optional)</Label>
+                  <Select value={selectedSecond} onValueChange={setSelectedSecond}>
                     <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Open challenge (anyone can accept)" />
+                      <SelectValue placeholder="No second (admin judges)" />
                     </SelectTrigger>
                     <SelectContent className="max-h-60">
-                      <SelectItem value="open">🌐 Open Challenge (anyone)</SelectItem>
-                      {(studentsList || []).map((s: any) => (
-                        <SelectItem key={s.id} value={s.id}>
+                      <SelectItem value="none">No second (admin judges)</SelectItem>
+                      {(availableSeconds || []).map((c: any) => (
+                        <SelectItem key={c.id} value={c.id}>
                           <div className="flex items-center gap-2">
-                            <div
-                              className="w-3 h-3 rounded-full border"
-                              style={{ backgroundColor: s.belt.color, borderColor: s.belt.borderColor }}
-                            />
-                            <span>{s.full_name}</span>
+                            <span>🏅</span>
+                            <span>{c.full_name}</span>
                             <span className="text-muted-foreground text-[10px]">
-                              {s.belt.name} · {s.xp} XP
+                              ⭐ {Number(c.avg_rating || 0).toFixed(1)} · {c.total_lessons_completed || 0} lessons
                             </span>
                           </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-[9px] text-muted-foreground mt-0.5">
+                    A second officiates the duel, fixes times and ensures fair play
+                  </p>
                 </div>
+
                 <div>
                   <Label className="text-xs">Swim Style</Label>
                   <Select value={swimStyle} onValueChange={setSwimStyle}>
@@ -446,10 +510,16 @@ export default function DuelArena() {
                   <Input
                     type="number" min={10} max={myBalance || 0}
                     value={stakeCoins}
-                    onChange={e => setStakeCoins(Number(e.target.value))}
+                    onChange={e => {
+                      const val = Number(e.target.value);
+                      setStakeCoins(Math.min(val, myBalance || 0));
+                    }}
                   />
                   <p className="text-[10px] text-muted-foreground mt-1">
                     Your balance: {(myBalance || 0).toLocaleString()} 🪙
+                    {stakeCoins > (myBalance || 0) && (
+                      <span className="text-destructive ml-2">Insufficient coins!</span>
+                    )}
                   </p>
                 </div>
                 <div>
@@ -464,7 +534,7 @@ export default function DuelArena() {
                 <Button
                   className="w-full rounded-xl"
                   onClick={() => createDuelMutation.mutate()}
-                  disabled={createDuelMutation.isPending || stakeCoins < 10}
+                  disabled={createDuelMutation.isPending || stakeCoins < 10 || stakeCoins > (myBalance || 0)}
                 >
                   {createDuelMutation.isPending ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
                   {selectedOpponent && selectedOpponent !== 'open' ? 'Send Challenge' : 'Create Open Challenge'} ({stakeCoins} 🪙)
@@ -475,7 +545,7 @@ export default function DuelArena() {
         </PageHeader>
       </motion.div>
 
-      {/* Incoming Challenges (open from others) */}
+      {/* Incoming Challenges */}
       {(openChallenges || []).length > 0 && (
         <div className="space-y-3">
           <h3 className="font-display font-semibold text-sm text-foreground flex items-center gap-1">
@@ -485,7 +555,7 @@ export default function DuelArena() {
         </div>
       )}
 
-      {/* Active Duels (accepted/in_progress) */}
+      {/* Active Duels */}
       {myActiveDuels.length > 0 && (
         <div className="space-y-3">
           <h3 className="font-display font-semibold text-sm text-foreground">Active Duels</h3>
@@ -493,7 +563,7 @@ export default function DuelArena() {
         </div>
       )}
 
-      {/* My Open Challenges (pending, created by me) */}
+      {/* My Open Challenges */}
       {myOpenChallenges.length > 0 && (
         <div className="space-y-3">
           <h3 className="font-display font-semibold text-sm text-foreground">My Open Challenges</h3>
@@ -525,6 +595,15 @@ export default function DuelArena() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Opponent Preview Mini-Modal (from Create Duel) */}
+      <Dialog open={!!previewOpponent} onOpenChange={() => setPreviewOpponent(null)}>
+        <DialogContent className="max-w-xs">
+          {previewOpponent && (
+            <ChallengerProfileCard profile={previewOpponent} onClose={() => setPreviewOpponent(null)} />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -551,6 +630,7 @@ function ChallengerProfileCard({ profile, onClose }: { profile: any; onClose: ()
           {belt.name}
         </Badge>
         <p className="text-[10px] text-muted-foreground mt-1">{totalXP.toLocaleString()} XP</p>
+        {profile.city && <p className="text-[10px] text-muted-foreground">📍 {profile.city}</p>}
       </div>
       <div className="grid grid-cols-3 gap-2">
         <div className="glass-card rounded-lg p-2 text-center">
