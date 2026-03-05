@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Store, Loader2 } from 'lucide-react';
 import { CoinBalance } from '@/components/CoinBalance';
+import { PageHeader } from '@/components/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/stores/authStore';
@@ -98,12 +99,10 @@ export default function StudentStore() {
 
   return (
     <div className="px-4 py-6 space-y-6">
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
-        <div>
-          <h2 className="font-display font-bold text-xl text-foreground">ProFit Store</h2>
-          <p className="text-sm text-muted-foreground">Spend your earned coins</p>
-        </div>
-        <CoinBalance amount={balance} size="md" animated />
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+        <PageHeader title="ProFit Store" subtitle="Spend your earned coins">
+          <CoinBalance amount={balance} size="md" animated />
+        </PageHeader>
       </motion.div>
 
       <div className="space-y-3">

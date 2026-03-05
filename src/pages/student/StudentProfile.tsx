@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { CoinBalance } from '@/components/CoinBalance';
+import { PageHeader } from '@/components/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { SWIM_BELTS, calculateXP, getBeltByXP, getBeltIndex } from '@/lib/constants';
 import { Loader2, Trophy, Flame, Target, Lock, Swords, Medal, Star, X } from 'lucide-react';
@@ -80,6 +81,7 @@ export default function StudentProfile() {
 
   return (
     <div className="px-4 py-6 space-y-6 arena bg-gradient-arena min-h-screen -mt-[1px]">
+      <PageHeader title="Profile" />
       {/* Professional Athlete Card */}
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
