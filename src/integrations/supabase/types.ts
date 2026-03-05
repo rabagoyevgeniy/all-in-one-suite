@@ -1959,6 +1959,66 @@ export type Database = {
           },
         ]
       }
+      task_assignments: {
+        Row: {
+          admin_notes: string | null
+          assigned_by: string
+          assigned_to: string
+          coin_reward: number
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          evaluated_at: string | null
+          id: string
+          status: string
+          title: string
+          xp_reward: number
+        }
+        Insert: {
+          admin_notes?: string | null
+          assigned_by: string
+          assigned_to: string
+          coin_reward?: number
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          evaluated_at?: string | null
+          id?: string
+          status?: string
+          title: string
+          xp_reward?: number
+        }
+        Update: {
+          admin_notes?: string | null
+          assigned_by?: string
+          assigned_to?: string
+          coin_reward?: number
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          evaluated_at?: string | null
+          id?: string
+          status?: string
+          title?: string
+          xp_reward?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_assignments_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_completions: {
         Row: {
           coins_awarded: number | null
