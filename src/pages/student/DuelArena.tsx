@@ -215,7 +215,6 @@ export default function DuelArena() {
       queryClient.invalidateQueries({ queryKey: ['open-challenges'] });
       setShowCreate(false);
       setSelectedOpponent('');
-      setOpponentSearch('');
       toast({ title: 'Duel created! Coins locked 🔒⚔️' });
     },
     onError: (err: any) => {
