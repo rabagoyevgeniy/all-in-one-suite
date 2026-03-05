@@ -468,7 +468,7 @@ export default function DuelArena() {
                   disabled={createDuelMutation.isPending || stakeCoins < 10}
                 >
                   {createDuelMutation.isPending ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
-                  {selectedOpponent ? 'Send Challenge' : 'Create Open Challenge'} ({stakeCoins} 🪙)
+                  {selectedOpponent && selectedOpponent !== 'open' ? 'Send Challenge' : 'Create Open Challenge'} ({stakeCoins} 🪙)
                 </Button>
               </div>
             </DialogContent>
