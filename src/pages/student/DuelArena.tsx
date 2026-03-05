@@ -399,37 +399,31 @@ export default function DuelArena() {
                 <DialogTitle className="font-display">Create Duel ⚔️</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 pt-2">
-                {/* Opponent picker with search */}
+                {/* Opponent picker dropdown */}
                 <div>
                   <Label className="text-xs">Opponent (optional — leave empty for open challenge)</Label>
-                  <div className="relative mt-1">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      placeholder="Search swimmer..."
-                      value={opponentSearch}
-                      onChange={e => { setOpponentSearch(e.target.value); setSelectedOpponent(''); }}
-                      className="pl-9 text-sm"
-                    />
-                  </div>
-                  {opponentSearch && (studentsList || []).length > 0 && !selectedOpponent && (
-                    <div className="mt-1 max-h-32 overflow-y-auto rounded-lg border border-border bg-card">
+                  <Select value={selectedOpponent} onValueChange={setSelectedOpponent}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Open challenge (anyone can accept)" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      <SelectItem value="open">🌐 Open Challenge (anyone)</SelectItem>
                       {(studentsList || []).map((s: any) => (
-                        <button
-                          key={s.id}
-                          onClick={() => { setSelectedOpponent(s.id); setOpponentSearch(s.full_name); }}
-                          className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50 flex items-center gap-2"
-                        >
-                          <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
-                            {s.full_name?.[0] || '?'}
+                        <SelectItem key={s.id} value={s.id}>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-3 h-3 rounded-full border"
+                              style={{ backgroundColor: s.belt.color, borderColor: s.belt.borderColor }}
+                            />
+                            <span>{s.full_name}</span>
+                            <span className="text-muted-foreground text-[10px]">
+                              {s.belt.name} · {s.xp} XP
+                            </span>
                           </div>
-                          {s.full_name}
-                        </button>
+                        </SelectItem>
                       ))}
-                    </div>
-                  )}
-                  {selectedOpponent && (
-                    <p className="text-[10px] text-success mt-1">✅ Direct challenge to: {opponentSearch}</p>
-                  )}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label className="text-xs">Swim Style</Label>
