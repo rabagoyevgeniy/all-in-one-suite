@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, CheckCircle2, Zap, Lock, ChevronRight, Gift, Star, ChevronDown, Info, Coins } from 'lucide-react';
+import { Loader2, CheckCircle2, Lock, Gift, ChevronDown, Info, Coins } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { awardCoins, spendCoins } from '@/hooks/useCoins';
+import { spendCoins } from '@/hooks/useCoins';
 import { SWIM_BELTS, calculateXP, getBeltByXP, getBeltIndex } from '@/lib/constants';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -34,10 +34,10 @@ const CATEGORY_CHIPS = [
   { key: 'incomplete', label: 'Not Done', icon: '🔓' },
 ];
 
-const UNLOCK_COST = 25; // coins to unlock a completed task for re-do
+const UNLOCK_COST = 25;
 
 export default function TaskBoard() {
-  const { user, role } = useAuthStore();
+  const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const [activeCategory, setActiveCategory] = useState('all');
   const [expandedTask, setExpandedTask] = useState<string | null>(null);
@@ -66,6 +66,21 @@ export default function TaskBoard() {
     },
   });
 
+  // Admin-assigned tasks for this user
+  const { data: adminTasks } = useQuery({
+    queryKey: ['my-admin-tasks', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('task_assignments')
+        .select('*')
+        .eq('assigned_to', user!.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+    enabled: !!user?.id,
+  });
+
   const { data: completions } = useQuery({
     queryKey: ['task-completions', user?.id],
     queryFn: async () => {
@@ -77,47 +92,6 @@ export default function TaskBoard() {
       return data;
     },
     enabled: !!user?.id,
-  });
-
-  const completeMutation = useMutation({
-    mutationFn: async (taskId: string) => {
-      const task = tasks?.find((t: any) => t.id === taskId);
-      if (!task) throw new Error('Task not found');
-      const periodKey = getPeriodKey(task.reset_period);
-
-      const alreadyDone = (completions || []).some(
-        (c: any) => c.task_id === taskId && c.period_key === periodKey
-      );
-      if (alreadyDone) throw new Error('ALREADY_DONE');
-
-      const { error } = await supabase.from('task_completions').insert({
-        user_id: user!.id, task_id: taskId,
-        period_key: periodKey, coins_awarded: task.coin_reward || 0,
-      });
-      if (error) {
-        if (error.code === '23505') throw new Error('ALREADY_DONE');
-        throw error;
-      }
-
-      const newBalance = await awardCoins(
-        user!.id, role || 'student', task.coin_reward || 0,
-        'daily_task', task.title, task.id
-      );
-      return { newBalance, reward: task.coin_reward || 0 };
-    },
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['task-completions'] });
-      queryClient.invalidateQueries({ queryKey: ['student-profile'] });
-      queryClient.invalidateQueries({ queryKey: ['coin-balance'] });
-      toast({ title: `+${result.reward} coins earned! 🪙` });
-    },
-    onError: (err: any) => {
-      if (err.message === 'ALREADY_DONE') {
-        toast({ title: 'Task already completed!', description: 'Try again next period', variant: 'destructive' });
-      } else {
-        toast({ title: 'Error', description: 'Could not complete task', variant: 'destructive' });
-      }
-    },
   });
 
   // Unlock a completed task for re-do by spending coins
@@ -132,7 +106,6 @@ export default function TaskBoard() {
       );
       if (!result.success) throw new Error(result.error || 'Insufficient coins');
 
-      // Delete the completion record so it can be re-done
       const periodKey = getPeriodKey(task.reset_period);
       await supabase.from('task_completions')
         .delete()
@@ -162,11 +135,6 @@ export default function TaskBoard() {
     }).filter(Boolean)
   );
 
-  const isManualTask = (task: any): boolean => {
-    const vt = task.verification_type;
-    return !vt || vt === 'admin' || vt === 'manual';
-  };
-
   const filteredTasks = (tasks || []).filter((t: any) => {
     if (activeCategory === 'all') return true;
     if (activeCategory === 'incomplete') return !completedForPeriod.has(t.id);
@@ -177,6 +145,10 @@ export default function TaskBoard() {
   const totalTasks = (tasks || []).length;
   const completedCount = completedForPeriod.size;
   const progressPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
+
+  // Admin tasks counts
+  const pendingAdminTasks = (adminTasks || []).filter((t: any) => t.status === 'assigned');
+  const completedAdminTasks = (adminTasks || []).filter((t: any) => t.status === 'completed');
 
   // XP & Belt for Class Journey
   const totalXP = calculateXP(student || {});
@@ -216,7 +188,7 @@ export default function TaskBoard() {
             className="w-10 h-10 rounded-full border-2 flex items-center justify-center shadow-md"
             style={{ backgroundColor: currentBelt.color, borderColor: currentBelt.borderColor }}
           >
-            <span className="text-sm">🏊</span>
+            <span className="text-sm">🧢</span>
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-display font-bold text-sm text-foreground">Class Journey</p>
@@ -230,7 +202,7 @@ export default function TaskBoard() {
           </div>
         </div>
 
-        {/* Belt steps - visual journey */}
+        {/* Belt steps */}
         <div className="flex items-end gap-1 mb-2">
           {SWIM_BELTS.map((belt, i) => {
             const isActive = i === currentBeltIdx;
@@ -253,7 +225,6 @@ export default function TaskBoard() {
           })}
         </div>
         
-        {/* XP progress bar */}
         <div className="flex items-center justify-between text-[9px] text-muted-foreground mb-1">
           <span>{xpInBelt.toLocaleString()} / {xpForBelt.toLocaleString()} XP</span>
           {currentBeltIdx < SWIM_BELTS.length - 1 && (
@@ -271,47 +242,77 @@ export default function TaskBoard() {
         </div>
       </motion.div>
 
-      {/* Daily Progress Ring */}
+      {/* Daily Progress — single bar */}
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
         className="glass-card rounded-2xl p-4"
       >
-        <div className="flex items-center gap-4">
-          {/* Circular progress */}
-          <div className="relative w-16 h-16 shrink-0">
-            <svg className="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
-              <circle cx="32" cy="32" r="28" fill="none" stroke="hsl(var(--muted)/0.2)" strokeWidth="4" />
-              <circle
-                cx="32" cy="32" r="28" fill="none"
-                stroke="hsl(var(--primary))"
-                strokeWidth="4"
-                strokeLinecap="round"
-                strokeDasharray={2 * Math.PI * 28}
-                strokeDashoffset={2 * Math.PI * 28 * (1 - progressPercent / 100)}
-                style={{ transition: 'stroke-dashoffset 0.8s ease-out' }}
-              />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="font-display font-bold text-lg text-foreground">{progressPercent}%</span>
-            </div>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-display font-bold text-sm text-foreground">Daily Progress</p>
-            <p className="text-[11px] text-muted-foreground">{completedCount}/{totalTasks} tasks completed</p>
-            {progressPercent === 100 && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex items-center gap-1 text-success text-[11px] font-medium mt-1"
-              >
-                <Gift size={14} /> All tasks complete! 🎉
-              </motion.div>
-            )}
-          </div>
+        <div className="flex items-center justify-between mb-2">
+          <p className="font-display font-bold text-sm text-foreground">Daily Progress</p>
+          <span className="text-[11px] text-muted-foreground">{completedCount}/{totalTasks}</span>
         </div>
+        <div className="h-3 rounded-full bg-muted/30 overflow-hidden">
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${progressPercent}%` }}
+            transition={{ duration: 0.8, ease: 'easeOut' }}
+            className="h-full rounded-full bg-primary"
+          />
+        </div>
+        {progressPercent === 100 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex items-center gap-1 text-success text-[11px] font-medium mt-2"
+          >
+            <Gift size={14} /> All tasks complete! 🎉
+          </motion.div>
+        )}
       </motion.div>
+
+      {/* Admin-Assigned Tasks */}
+      {pendingAdminTasks.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="font-display font-semibold text-sm text-foreground flex items-center gap-1">
+            📋 Coach/Admin Tasks
+            <Badge variant="outline" className="text-[9px] ml-1">{pendingAdminTasks.length}</Badge>
+          </h3>
+          {pendingAdminTasks.map((task: any, i: number) => (
+            <motion.div
+              key={task.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.04 }}
+              className="glass-card rounded-2xl p-4"
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-lg bg-warning/15">
+                  📋
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground">{task.title}</p>
+                  {task.description && (
+                    <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">{task.description}</p>
+                  )}
+                  <div className="flex items-center gap-3 mt-1.5">
+                    <span className="text-[11px] font-bold text-coin">🪙 +{task.coin_reward}</span>
+                    <span className="text-[11px] font-bold text-primary">⚡ +{task.xp_reward} XP</span>
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-[9px] border-warning/30 text-warning shrink-0">
+                  <Lock size={10} className="mr-0.5" />
+                  Pending Review
+                </Badge>
+              </div>
+              <p className="text-[9px] text-muted-foreground mt-2">
+                Assigned {new Date(task.created_at).toLocaleDateString()} · Admin will evaluate completion
+              </p>
+            </motion.div>
+          ))}
+        </div>
+      )}
 
       {/* Category Chips */}
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
@@ -343,14 +344,12 @@ export default function TaskBoard() {
         })}
       </div>
 
-      {/* Task Cards */}
+      {/* Task Cards — ALL tasks are system/admin-validated, NO "Do" button */}
       <div className="space-y-2.5">
         <AnimatePresence mode="popLayout">
           {filteredTasks.map((task: any, i: number) => {
             const done = completedForPeriod.has(task.id);
-            const manual = isManualTask(task);
             const isExpanded = expandedTask === task.id;
-            // XP reward is modest: coin_reward * 0.5 XP
             const xpReward = Math.round((task.coin_reward || 0) * 0.5);
             return (
               <motion.div
@@ -400,11 +399,15 @@ export default function TaskBoard() {
                         </div>
                       </div>
 
-                      {/* Auto-validated hint */}
-                      {!manual && !done && (
+                      {/* Validation info */}
+                      {!done && (
                         <div className="flex items-center gap-1 mt-1.5">
-                          <Zap size={10} className="text-warning" />
-                          <span className="text-[10px] text-warning">Auto-validates on action</span>
+                          <Lock size={10} className="text-muted-foreground" />
+                          <span className="text-[10px] text-muted-foreground">
+                            {task.verification_type === 'auto' || task.verification_type === 'system'
+                              ? 'Auto-validates when action is performed'
+                              : 'Verified by admin/coach'}
+                          </span>
                         </div>
                       )}
                     </div>
@@ -416,7 +419,6 @@ export default function TaskBoard() {
                           <Badge className="bg-success/15 text-success border-success/30 text-[10px]">
                             Done ✓
                           </Badge>
-                          {/* Unlock for re-do */}
                           <button
                             onClick={() => setUnlockingTask(task.id)}
                             className="flex items-center gap-0.5 text-[9px] text-primary hover:underline"
@@ -424,20 +426,10 @@ export default function TaskBoard() {
                             <Coins size={10} /> Redo ({UNLOCK_COST} 🪙)
                           </button>
                         </div>
-                      ) : manual ? (
-                        <Button
-                          size="sm"
-                          className="h-8 px-4 text-[11px] rounded-xl"
-                          onClick={() => completeMutation.mutate(task.id)}
-                          disabled={completeMutation.isPending}
-                        >
-                          <ChevronRight size={14} className="mr-0.5" />
-                          Do
-                        </Button>
                       ) : (
                         <Badge variant="outline" className="text-[9px] border-muted-foreground/30 text-muted-foreground">
                           <Lock size={10} className="mr-0.5" />
-                          Auto
+                          Locked
                         </Badge>
                       )}
                       {/* Info toggle */}
@@ -487,6 +479,26 @@ export default function TaskBoard() {
           <p className="text-sm text-muted-foreground mt-1">
             {activeCategory === 'incomplete' ? 'Come back tomorrow for new challenges' : 'Try another category'}
           </p>
+        </div>
+      )}
+
+      {/* Completed Admin Tasks History */}
+      {completedAdminTasks.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="font-display font-semibold text-sm text-muted-foreground">Completed Admin Tasks</h3>
+          {completedAdminTasks.map((task: any) => (
+            <div key={task.id} className="glass-card rounded-2xl p-3 opacity-60">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={16} className="text-success shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-medium text-muted-foreground line-through">{task.title}</p>
+                  <p className="text-[9px] text-muted-foreground">
+                    🪙 +{task.coin_reward} · ⚡ +{task.xp_reward} XP · {new Date(task.completed_at).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
