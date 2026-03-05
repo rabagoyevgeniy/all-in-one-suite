@@ -182,8 +182,8 @@ export default function DuelArena() {
         pool_id: selectedPool,
       };
 
-      // If specific opponent selected, set opponent_id (direct challenge)
-      if (selectedOpponent) {
+      // If specific opponent selected (not "open"), set opponent_id
+      if (selectedOpponent && selectedOpponent !== 'open') {
         insertData.opponent_id = selectedOpponent;
       }
 
