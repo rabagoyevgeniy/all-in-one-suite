@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Store, Loader2 } from 'lucide-react';
 import { CoinBalance } from '@/components/CoinBalance';
+import { PageHeader } from '@/components/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/stores/authStore';
