@@ -81,6 +81,7 @@ export default function StudentProfile() {
 
   return (
     <div className="px-4 py-6 space-y-6 arena bg-gradient-arena min-h-screen -mt-[1px]">
+      <PageHeader title="Profile" />
       {/* Professional Athlete Card */}
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
