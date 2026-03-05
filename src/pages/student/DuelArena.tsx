@@ -196,7 +196,7 @@ export default function DuelArena() {
       });
 
       // If direct challenge, notify opponent
-      if (selectedOpponent) {
+      if (selectedOpponent && selectedOpponent !== 'open') {
         await supabase.from('notifications').insert({
           user_id: selectedOpponent,
           title: '⚔️ You have been challenged!',
