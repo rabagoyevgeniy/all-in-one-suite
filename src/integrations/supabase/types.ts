@@ -259,7 +259,15 @@ export type Database = {
         Row: {
           body: string
           created_at: string | null
+          deleted_at: string | null
+          edited_at: string | null
           id: string
+          is_edited: boolean
+          media_mime_type: string | null
+          media_name: string | null
+          media_size: number | null
+          media_url: string | null
+          message_type: string
           reply_to_id: string | null
           room_id: string
           sender_id: string
@@ -267,7 +275,15 @@ export type Database = {
         Insert: {
           body: string
           created_at?: string | null
+          deleted_at?: string | null
+          edited_at?: string | null
           id?: string
+          is_edited?: boolean
+          media_mime_type?: string | null
+          media_name?: string | null
+          media_size?: number | null
+          media_url?: string | null
+          message_type?: string
           reply_to_id?: string | null
           room_id: string
           sender_id: string
@@ -275,7 +291,15 @@ export type Database = {
         Update: {
           body?: string
           created_at?: string | null
+          deleted_at?: string | null
+          edited_at?: string | null
           id?: string
+          is_edited?: boolean
+          media_mime_type?: string | null
+          media_name?: string | null
+          media_size?: number | null
+          media_url?: string | null
+          message_type?: string
           reply_to_id?: string | null
           room_id?: string
           sender_id?: string
