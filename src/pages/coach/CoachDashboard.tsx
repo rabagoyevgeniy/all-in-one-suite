@@ -338,35 +338,86 @@ export default function CoachDashboard() {
         )}
       </div>
 
-      {/* Recent Students */}
+      {/* Earnings This Month */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.35 }}
+        className="bg-card rounded-2xl p-4 shadow-sm border border-border"
+      >
+        <div className="flex items-center justify-between mb-3">
+          <span className="font-semibold text-foreground flex items-center gap-2">
+            <Wallet size={16} className="text-primary" />
+            {t('Earnings This Month', 'Заработок за месяц')}
+          </span>
+          <button onClick={() => navigate('/coach/earnings')} className="text-xs text-primary">
+            {t('Details', 'Подробнее')}
+          </button>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-emerald-50 dark:bg-emerald-500/10 rounded-xl p-3 text-center">
+            <div className="font-bold text-emerald-700 dark:text-emerald-300 text-lg">
+              {(monthlyEarnings?.totalEarned || 0).toLocaleString()}
+            </div>
+            <div className="text-[10px] text-muted-foreground">{monthlyEarnings?.currency || 'AED'}</div>
+          </div>
+          <div className="bg-sky-50 dark:bg-sky-500/10 rounded-xl p-3 text-center">
+            <div className="font-bold text-sky-700 dark:text-sky-300 text-lg">
+              {monthlyEarnings?.lessonsCount || 0}
+            </div>
+            <div className="text-[10px] text-muted-foreground">{t('Lessons', 'Уроки')}</div>
+          </div>
+          <div className="bg-amber-50 dark:bg-amber-500/10 rounded-xl p-3 text-center">
+            <div className="font-bold text-amber-700 dark:text-amber-300 text-lg flex items-center justify-center gap-0.5">
+              <Star size={14} className="fill-current" />
+              {Number(coachData?.avg_rating || 0).toFixed(1)}
+            </div>
+            <div className="text-[10px] text-muted-foreground">{t('Rating', 'Рейтинг')}</div>
+          </div>
+        </div>
+        {monthlyEarnings?.nextPayout && (
+          <div className="text-xs text-muted-foreground text-center mt-3">
+            {t('Next payout', 'Следующая выплата')}: {new Date(monthlyEarnings.nextPayout).toLocaleDateString()}
+          </div>
+        )}
+      </motion.div>
+
+      {/* My Students */}
       <div className="space-y-3">
-        <h3 className="font-display font-semibold text-sm text-foreground">
-          {t('Recent Students', 'Недавние ученики')}
-        </h3>
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-sm text-foreground">
+            {t('My Students', 'Мои ученики')}
+          </h3>
+          <button onClick={() => navigate('/coach/students')} className="text-xs text-primary">
+            {t('View all', 'Все')}
+          </button>
+        </div>
         {recentStudents && recentStudents.length > 0 ? (
-          recentStudents.map((b, i) => {
-            const s = b.students as any;
-            const sp = s?.profiles as any;
-            return (
-              <motion.div
-                key={s?.id || i}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 + i * 0.1 }}
-                className="glass-card rounded-xl p-3 flex items-center justify-between"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center text-xs font-bold text-primary">
+          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+            {recentStudents.map((b, i) => {
+              const s = b.students as any;
+              const sp = s?.profiles as any;
+              return (
+                <motion.div
+                  key={s?.id || i}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.4 + i * 0.08 }}
+                  className="flex-shrink-0 bg-card rounded-2xl p-3 border border-border shadow-sm flex flex-col items-center gap-2 w-24"
+                >
+                  <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center text-sm font-bold text-primary">
                     {sp?.full_name?.[0] || '?'}
                   </div>
-                  <span className="text-sm font-medium text-foreground">{sp?.full_name || t('Unknown', 'Неизвестно')}</span>
-                </div>
-                <SwimBeltBadge belt={s?.swim_belt || 'white'} size="sm" />
-              </motion.div>
-            );
-          })
+                  <span className="text-xs font-medium text-foreground text-center leading-tight truncate w-full">
+                    {sp?.full_name?.split(' ')[0] || '—'}
+                  </span>
+                  <SwimBeltBadge belt={s?.swim_belt || 'white'} size="sm" />
+                </motion.div>
+              );
+            })}
+          </div>
         ) : (
-          <div className="glass-card rounded-xl p-4 text-center text-muted-foreground text-sm">
+          <div className="bg-card rounded-xl p-4 text-center text-muted-foreground text-sm border border-border">
             {t('No students yet', 'Пока нет учеников')}
           </div>
         )}
