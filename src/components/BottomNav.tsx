@@ -32,7 +32,7 @@ const NAV_ITEMS: Record<string, { path: string; label: string; icon: React.Eleme
     { path: '/parent/booking', label: 'Book', icon: Calendar },
     { path: '/parent/shop', label: 'Shop', icon: Store },
     { path: '/parent/coins', label: 'Coins', icon: Wallet },
-    { path: '/parent/chat', label: 'Chat', icon: MessageSquare },
+    { path: '/chat', label: 'Chat', icon: MessageSquare },
   ],
   student: [
     { path: '/student', label: 'Home', icon: Home },
