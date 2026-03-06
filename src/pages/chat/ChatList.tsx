@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Plus, MessageCircle, Users, Globe, Megaphone } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { NewDirectChat } from './NewDirectChat';
+import { CommunityInfoSheet } from '@/components/chat/CommunityInfoSheet';
 import { formatDistanceToNow } from 'date-fns';
 
 function timeAgo(date: string | null) {
