@@ -4,10 +4,11 @@ import { Clock, MapPin, Plus, Loader2, Star } from 'lucide-react';
 import { SwimBeltBadge } from '@/components/SwimBeltBadge';
 import { CoinBalance } from '@/components/CoinBalance';
 import { SubscriptionWarningBanner } from '@/components/SubscriptionWarningBanner';
+import { RatingModal } from '@/components/RatingModal';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/stores/authStore';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 const LOYALTY_COLORS: Record<string, string> = {
