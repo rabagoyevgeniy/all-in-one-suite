@@ -346,7 +346,12 @@ export default function ParentDashboard() {
                 size="sm"
                 variant="outline"
                 className="rounded-xl gap-1"
-                onClick={() => {/* будет добавлено в следующем шаге */}}
+                onClick={() => setRatingModal({
+                  bookingId: booking.id,
+                  coachId: (booking?.coaches as any)?.id,
+                  coachName: (booking?.coaches as any)?.profiles?.full_name || 'Coach',
+                  date: new Date(booking.created_at).toLocaleDateString(),
+                })}
               >
                 <Star size={14} className="text-warning" /> Rate
               </Button>
