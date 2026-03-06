@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Reply, Pencil, Trash2 } from 'lucide-react';
+import { Reply, Pencil, Trash2, Forward, Pin } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { useLanguage } from '@/hooks/useLanguage';
@@ -17,6 +17,9 @@ interface MessageContextMenuProps {
   onReply?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onForward?: () => void;
+  onPin?: () => void;
+  canPin?: boolean;
 }
 
 export default function MessageContextMenu({
@@ -27,6 +30,9 @@ export default function MessageContextMenu({
   onReply,
   onEdit,
   onDelete,
+  onForward,
+  onPin,
+  canPin,
 }: MessageContextMenuProps) {
   const { user } = useAuthStore();
   const { t } = useLanguage();
@@ -81,7 +87,7 @@ export default function MessageContextMenu({
         align={isOwn ? 'end' : 'start'}
         className="w-auto p-1.5 rounded-2xl shadow-xl border border-[hsl(var(--border)/0.5)] bg-[hsl(0_0%_100%)]"
       >
-        {/* Quick reactions bar — floating card style */}
+        {/* Quick reactions bar */}
         <div className="flex gap-1 px-1 pb-1.5 mb-1 border-b border-[hsl(var(--border)/0.5)]">
           {QUICK_EMOJIS.map((emoji) => (
             <motion.button
@@ -100,6 +106,18 @@ export default function MessageContextMenu({
           <DropdownMenuItem onClick={() => { setOpen(false); onReply(); }} className="rounded-lg">
             <Reply className="w-4 h-4 mr-2" />
             {t('Reply', 'Ответить')}
+          </DropdownMenuItem>
+        )}
+        {onForward && (
+          <DropdownMenuItem onClick={() => { setOpen(false); onForward(); }} className="rounded-lg">
+            <Forward className="w-4 h-4 mr-2" />
+            {t('Forward', 'Переслать')}
+          </DropdownMenuItem>
+        )}
+        {canPin && onPin && (
+          <DropdownMenuItem onClick={() => { setOpen(false); onPin(); }} className="rounded-lg">
+            <Pin className="w-4 h-4 mr-2" />
+            {t('Pin', 'Закрепить')}
           </DropdownMenuItem>
         )}
         {canEdit && onEdit && (
