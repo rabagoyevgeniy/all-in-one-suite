@@ -115,7 +115,7 @@ const App = () => (
               <Route path="/parent/payments" element={<ParentPayments />} />
               <Route path="/parent/coins" element={<ParentCoins />} />
               <Route path="/parent/referrals" element={<ComingSoon />} />
-              <Route path="/parent/chat" element={<ParentChat />} />
+              <Route path="/parent/shop" element={<ParentShop />} />
               <Route path="/parent/shop" element={<ParentShop />} />
             </Route>
 
