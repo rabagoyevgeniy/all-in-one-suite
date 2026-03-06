@@ -51,6 +51,7 @@ import ProDashboard from "./pages/pro/ProDashboard";
 import ProArena from "./pages/pro/ProArena";
 import ProRecords from "./pages/pro/ProRecords";
 import ProProfile from "./pages/pro/ProProfile";
+import ProShop from "./pages/pro/ProShop";
 
 // PM
 import PMDashboard from "./pages/pm/PMDashboard";
