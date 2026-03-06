@@ -565,15 +565,10 @@ export default function ChatRoom() {
                   <Send className="w-4 h-4 text-[hsl(0_0%_100%)]" />
                 </motion.button>
               ) : (
-                <motion.button
-                  key="mic"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  exit={{ scale: 0 }}
-                  className="w-10 h-10 rounded-full bg-[hsl(var(--muted))] hover:bg-[hsl(var(--muted)/0.8)] flex items-center justify-center transition-colors shrink-0"
-                >
-                  <Mic className="w-5 h-5 text-muted-foreground" />
-                </motion.button>
+                <VoiceRecorder
+                  roomId={roomId || ''}
+                  onSent={() => queryClient.invalidateQueries({ queryKey: ['chat-room-messages', roomId] })}
+                />
               )}
             </AnimatePresence>
           </div>
