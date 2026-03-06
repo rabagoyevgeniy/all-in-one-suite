@@ -75,81 +75,18 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
     setSelectedUserId(selectedUser.id);
 
     try {
-      // Get current user ID reliably
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-      if (authError || !authUser) throw new Error('Not authenticated');
-      const currentUserId = authUser.id;
+      const { data: roomId, error } = await supabase
+        .rpc('create_direct_chat', { other_user_id: selectedUser.id });
 
-      // Step 1: Find existing direct room between these two users
-      const { data: myMemberships } = await supabase
-        .from('chat_members')
-        .select('room_id')
-        .eq('user_id', currentUserId);
-
-      let existingRoomId: string | null = null;
-
-      if (myMemberships && myMemberships.length > 0) {
-        const myRoomIds = myMemberships.map(m => m.room_id);
-
-        const { data: otherMemberships } = await supabase
-          .from('chat_members')
-          .select('room_id')
-          .eq('user_id', selectedUser.id)
-          .in('room_id', myRoomIds);
-
-        if (otherMemberships && otherMemberships.length > 0) {
-          const sharedRoomIds = otherMemberships.map(m => m.room_id);
-
-          const { data: directRoom } = await supabase
-            .from('chat_rooms')
-            .select('id')
-            .eq('type', 'direct')
-            .in('id', sharedRoomIds)
-            .limit(1)
-            .maybeSingle();
-
-          if (directRoom) existingRoomId = directRoom.id;
-        }
-      }
-
-      // Step 2: Create new room if none exists
-      if (!existingRoomId) {
-        const roomName = `${profile?.full_name || 'User'} & ${selectedUser.full_name}`;
-
-        const { data: newRoom, error: roomError } = await supabase
-          .from('chat_rooms')
-          .insert({
-            type: 'direct',
-            name: roomName,
-            created_by: currentUserId,
-          })
-          .select('id')
-          .single();
-
-        if (roomError) {
-          console.error('[Chat] Room creation error:', roomError);
-          throw new Error(`Room creation failed: ${roomError.message}`);
-        }
-
-        const { error: membersError } = await supabase
-          .from('chat_members')
-          .insert([
-            { room_id: newRoom.id, user_id: currentUserId, role: 'member' },
-            { room_id: newRoom.id, user_id: selectedUser.id, role: 'member' },
-          ]);
-
-        if (membersError) {
-          console.error('[Chat] Members insert error:', membersError);
-          throw new Error(`Adding members failed: ${membersError.message}`);
-        }
-
-        existingRoomId = newRoom.id;
+      if (error) {
+        console.error('[Chat] RPC error:', error);
+        throw new Error(error.message);
       }
 
       onOpenChange(false);
-      navigate(`/chat/${existingRoomId}`);
+      navigate(`/chat/${roomId}`);
     } catch (err: any) {
-      console.error('[Chat] handleSelectUser error:', err);
+      console.error('[Chat] Error:', err);
       toast({
         title: t('Failed to start conversation', 'Не удалось начать диалог'),
         description: err.message ?? '',
