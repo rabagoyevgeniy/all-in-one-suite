@@ -161,6 +161,13 @@ export default function ParentDashboard() {
     return () => { supabase.removeChannel(channel); };
   }, [trackingCoachId]);
 
+  const [ratingModal, setRatingModal] = useState<{
+    bookingId: string;
+    coachId: string;
+    coachName: string;
+    date: string;
+  } | null>(null);
+
   const profile = parentData?.profiles as any;
 
   const locationAge = coachLocation?.updatedAt
