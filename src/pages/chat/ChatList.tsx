@@ -37,53 +37,49 @@ export default function ChatList() {
   const { data: directRooms, isLoading: directLoading } = useQuery({
     queryKey: ['chat-rooms-direct', user?.id],
     queryFn: async () => {
-      const { data: rooms } = await supabase
-        .from('chat_rooms')
-        .select('*')
-        .eq('type', 'direct')
-        .order('last_message_at', { ascending: false, nullsFirst: false });
-
-      if (!rooms) return [];
-
-      // Filter to rooms where user is a member
       const { data: memberships } = await supabase
         .from('chat_members')
         .select('room_id')
         .eq('user_id', user!.id);
-      
-      const myRoomIds = new Set((memberships || []).map(m => m.room_id));
-      const myRooms = rooms.filter(r => myRoomIds.has(r.id));
 
-      // Get other members for each room
-      const roomIds = myRooms.map(r => r.id);
+      const roomIds = (memberships || []).map(m => m.room_id);
       if (roomIds.length === 0) return [];
 
+      const { data: rooms } = await supabase
+        .from('chat_rooms')
+        .select('*')
+        .eq('type', 'direct')
+        .in('id', roomIds)
+        .order('last_message_at', { ascending: false, nullsFirst: false });
+
+      if (!rooms?.length) return [];
+
+      // Get other members
       const { data: allMembers } = await supabase
         .from('chat_members')
         .select('room_id, user_id')
-        .in('room_id', roomIds)
+        .in('room_id', rooms.map(r => r.id))
         .neq('user_id', user!.id);
 
       const otherUserIds = [...new Set((allMembers || []).map(m => m.user_id))];
-      
-      const { data: profiles } = otherUserIds.length > 0 
+
+      const { data: profiles } = otherUserIds.length > 0
         ? await supabase.from('profiles').select('id, full_name, avatar_url').in('id', otherUserIds)
         : { data: [] };
 
       const profileMap = new Map((profiles || []).map(p => [p.id, p]));
       const memberMap = new Map((allMembers || []).map(m => [m.room_id, m.user_id]));
 
-      // Get unread counts
+      // Unread counts
       const { data: myMemberships } = await supabase
         .from('chat_members')
         .select('room_id, last_read_at')
         .eq('user_id', user!.id)
-        .in('room_id', roomIds);
+        .in('room_id', rooms.map(r => r.id));
 
       const readMap = new Map((myMemberships || []).map(m => [m.room_id, m.last_read_at]));
 
-      // Count unread for each room
-      const enriched = await Promise.all(myRooms.map(async (room) => {
+      const enriched = await Promise.all(rooms.map(async (room) => {
         const lastRead = readMap.get(room.id);
         let unreadCount = 0;
         if (lastRead) {
@@ -113,7 +109,7 @@ export default function ChatList() {
         .from('chat_members')
         .select('room_id')
         .eq('user_id', user!.id);
-      
+
       const roomIds = (memberships || []).map(m => m.room_id);
       if (roomIds.length === 0) return [];
 
@@ -139,18 +135,23 @@ export default function ChatList() {
     enabled: !!user?.id,
   });
 
-  // Community rooms
+  // Community rooms — NO membership join, visible to everyone
   const { data: communityRooms, isLoading: communityLoading } = useQuery({
-    queryKey: ['chat-rooms-community'],
+    queryKey: ['community-rooms'],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('chat_rooms')
-        .select('*')
+        .select('id, type, name, last_message, last_message_at')
         .in('type', ['community', 'announcement'])
         .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Community rooms error:', error);
+        throw error;
+      }
       return data || [];
     },
-    enabled: !!user?.id,
+    refetchOnWindowFocus: true,
   });
 
   const renderRoomItem = (room: any, subtitle: string, icon: React.ReactNode, avatarText?: string, avatarUrl?: string, badge?: number) => (
@@ -158,7 +159,7 @@ export default function ChatList() {
       key={room.id}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-muted/50 transition-colors"
+      className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 hover:bg-muted/80 active:scale-[0.98] border border-transparent hover:border-border/50"
       onClick={() => navigate(`/chat/${room.id}`)}
     >
       <Avatar className="h-11 w-11 shrink-0">
@@ -263,15 +264,32 @@ export default function ChatList() {
             <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
           ) : communityRooms && communityRooms.length > 0 ? (
             <div className="space-y-1">
-              {communityRooms.map((room: any) =>
-                renderRoomItem(
-                  room,
-                  room.name || 'Community',
-                  room.type === 'announcement' ? <Megaphone size={16} /> : <Globe size={16} />,
-                  room.type === 'announcement' ? '📣' : '🌍',
-                  undefined
-                )
-              )}
+              {communityRooms.map((room: any) => (
+                <motion.div
+                  key={room.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 hover:bg-muted/80 active:scale-[0.98] border border-transparent hover:border-border/50"
+                  onClick={() => navigate(`/chat/${room.id}`)}
+                >
+                  <div className="h-11 w-11 rounded-full bg-primary/10 flex items-center justify-center text-lg shrink-0">
+                    {room.type === 'announcement' ? '📣' : '🌍'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-foreground truncate">{room.name || 'Community'}</p>
+                      {room.type === 'announcement' && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Official</Badge>
+                      )}
+                    </div>
+                    {room.last_message && (
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">
+                        {room.last_message.length > 40 ? room.last_message.slice(0, 40) + '…' : room.last_message}
+                      </p>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
             </div>
           ) : emptyState(t('No community channels', 'Нет каналов сообщества'))}
         </TabsContent>
