@@ -160,8 +160,13 @@ export default function ChatMessageBubble({ msg, isOwn, showName, otherLastRead,
           </a>
         )}
 
+        {/* Voice message */}
+        {messageType === 'voice' && msg.media_url && (
+          <VoiceBubble url={msg.media_url} isOwn={isOwn} />
+        )}
+
         {/* Text body */}
-        {!(messageType === 'image' && msg.body === msg.media_name) && (
+        {messageType !== 'voice' && !(messageType === 'image' && msg.body === msg.media_name) && (
           <p className="whitespace-pre-wrap break-words">{msg.body}</p>
         )}
 
