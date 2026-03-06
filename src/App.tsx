@@ -61,6 +61,10 @@ import PMDashboard from "./pages/pm/PMDashboard";
 import PMReports from "./pages/pm/PMReports";
 import PMEarnings from "./pages/pm/PMEarnings";
 
+// AI
+import AIAssistant from "./pages/AIAssistant";
+import { AIAssistantFAB } from "./components/AIAssistantFAB";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -146,8 +150,12 @@ const App = () => (
               <Route path="/pro/profile" element={<ProProfile />} />
             </Route>
 
+            {/* AI Assistant (all authenticated roles, no AppLayout wrapper) */}
+            <Route path="/ai-assistant" element={<RoleGuard allowedRoles={['parent', 'coach', 'student', 'pro_athlete', 'personal_manager', 'admin', 'head_manager']}><AIAssistant /></RoleGuard>} />
+
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <AIAssistantFAB />
           <DevAccountSwitcher />
         </AuthProvider>
       </BrowserRouter>
