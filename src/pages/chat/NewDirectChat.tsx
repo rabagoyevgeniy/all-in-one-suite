@@ -1,11 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { useLanguage } from '@/hooks/useLanguage';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Loader2, Search } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useQuery } from '@tanstack/react-query';
@@ -40,29 +39,33 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
   const [search, setSearch] = useState('');
   const [creating, setCreating] = useState(false);
 
-  // Load all users from profiles table
-  const { data: allUsers, isLoading } = useQuery({
-    queryKey: ['chat-users', user?.id],
+  // Load ALL users from profiles table — no role filter, just exclude self
+  const { data: allUsers, isLoading, error } = useQuery({
+    queryKey: ['chat-searchable-users'],
     queryFn: async () => {
+      console.log('[NewDirectChat] Fetching users...');
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, avatar_url, city')
-        .neq('id', user!.id)
-        .eq('is_active', true)
         .order('full_name');
 
-      if (error) {
-        console.error('Users fetch error:', error);
-        throw error;
-      }
-      return data || [];
+      console.log('[NewDirectChat] Result:', { count: data?.length, error });
+      if (error) throw error;
+
+      // Filter out current user client-side
+      const currentId = (await supabase.auth.getUser()).data.user?.id;
+      return (data ?? []).filter(u => u.id !== currentId);
     },
-    enabled: !!user?.id && open,
+    staleTime: 30000,
   });
 
-  const filtered = (allUsers || []).filter(u =>
-    !search || u.full_name?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = useMemo(() => {
+    if (!allUsers) return [];
+    if (!search.trim()) return allUsers;
+    return allUsers.filter(u =>
+      u.full_name?.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [allUsers, search]);
 
   const handleSelectUser = async (selectedUser: any) => {
     if (creating) return;
@@ -86,7 +89,6 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
           .in('id', myRoomIds);
 
         if (myDirectRooms && myDirectRooms.length > 0) {
-          // Check if selected user is in any of these direct rooms
           for (const dr of myDirectRooms) {
             const { data: otherMember } = await supabase
               .from('chat_members')
@@ -118,7 +120,6 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
         if (roomError) throw roomError;
         roomId = newRoom.id;
 
-        // Step 3: Add both members
         const { error: membersError } = await supabase
           .from('chat_members')
           .insert([
@@ -129,7 +130,6 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
         if (membersError) throw membersError;
       }
 
-      // Step 4: Close and navigate
       onOpenChange(false);
       navigate(`/chat/${roomId}`);
     } catch (err) {
@@ -148,6 +148,7 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
       <SheetContent side="bottom" className="h-[70vh] rounded-t-2xl">
         <SheetHeader>
           <SheetTitle>{t('New conversation', 'Новый диалог')}</SheetTitle>
+          <SheetDescription>{t('Select a person to start chatting', 'Выберите собеседника')}</SheetDescription>
         </SheetHeader>
         <div className="mt-4 space-y-3">
           <div className="relative">
@@ -167,7 +168,7 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
             </div>
           )}
 
-          <ScrollArea className="h-[calc(70vh-160px)]">
+          <ScrollArea className="h-[calc(70vh-180px)]">
             {isLoading ? (
               <div className="space-y-3 pr-3">
                 {[1, 2, 3].map(i => (
@@ -180,17 +181,26 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
                   </div>
                 ))}
               </div>
+            ) : error ? (
+              <div className="p-4 text-center text-destructive text-sm">
+                {t('Error loading users', 'Ошибка загрузки')}: {(error as Error).message}
+              </div>
             ) : filtered.length > 0 ? (
               <div className="space-y-1 pr-3">
                 {filtered.map((u: any) => (
-                  <div
+                  <button
                     key={u.id}
-                    className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 hover:bg-muted/40 active:scale-[0.98] border border-transparent hover:border-border/50"
+                    disabled={creating}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 hover:bg-muted/40 active:scale-[0.98] border border-transparent hover:border-border/50 text-left"
                     onClick={() => handleSelectUser(u)}
                   >
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary shrink-0">
-                      {u.full_name?.[0]?.toUpperCase() || '?'}
-                    </div>
+                    {u.avatar_url ? (
+                      <img src={u.avatar_url} className="w-10 h-10 rounded-full object-cover shrink-0" alt="" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary shrink-0">
+                        {u.full_name?.[0]?.toUpperCase() || '?'}
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm text-foreground truncate">
                         {u.full_name}
@@ -201,14 +211,14 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
                         </p>
                       )}
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             ) : (
               <p className="text-center text-sm text-muted-foreground py-6">
                 {search
                   ? t(`No users found matching "${search}"`, `Пользователи не найдены по запросу "${search}"`)
-                  : t('No users found', 'Пользователи не найдены')}
+                  : t('No users available', 'Нет доступных пользователей')}
               </p>
             )}
           </ScrollArea>
