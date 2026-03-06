@@ -1,15 +1,19 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { useLanguage } from '@/hooks/useLanguage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Send, Loader2, Globe, Users } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Globe, Users, Check, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import MessageContextMenu from '@/components/chat/MessageContextMenu';
 import MessageReactions from '@/components/chat/MessageReactions';
+import ChatMessageBubble from '@/components/chat/ChatMessageBubble';
+import ChatMediaUpload from '@/components/chat/ChatMediaUpload';
+import ReplyPreview from '@/components/chat/ReplyPreview';
+import TypingIndicator, { useTypingPresence } from '@/components/chat/TypingIndicator';
 
 export default function ChatRoom() {
   const { roomId } = useParams<{ roomId: string }>();
@@ -17,10 +21,16 @@ export default function ChatRoom() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [messageText, setMessageText] = useState('');
   const [realtimeMessages, setRealtimeMessages] = useState<any[]>([]);
   const [realtimeReactions, setRealtimeReactions] = useState<any[]>([]);
+  const [replyTo, setReplyTo] = useState<{ id: string; body: string; senderName: string } | null>(null);
+  const [editingMsg, setEditingMsg] = useState<{ id: string; body: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const { sendTyping } = useTypingPresence(roomId || '');
 
   // Room info
   const { data: room } = useQuery({
@@ -36,13 +46,13 @@ export default function ChatRoom() {
     enabled: !!roomId,
   });
 
-  // For direct chats, get the other person's name
+  // For direct chats, get the other person
   const { data: otherMember } = useQuery({
     queryKey: ['chat-other-member', roomId],
     queryFn: async () => {
       const { data: members } = await supabase
         .from('chat_members')
-        .select('user_id')
+        .select('user_id, last_read_at')
         .eq('room_id', roomId!)
         .neq('user_id', user!.id);
       if (!members?.length) return null;
@@ -51,7 +61,7 @@ export default function ChatRoom() {
         .select('full_name, avatar_url')
         .eq('id', members[0].user_id)
         .single();
-      return profile;
+      return { ...profile, last_read_at: members[0].last_read_at };
     },
     enabled: !!roomId && !!room && room.type === 'direct',
   });
@@ -60,7 +70,7 @@ export default function ChatRoom() {
     ? (otherMember?.full_name || t('Chat', 'Чат'))
     : (room?.name || t('Chat', 'Чат'));
 
-  // Messages
+  // Messages with reply joins
   const { data: dbMessages, isLoading: msgsLoading } = useQuery({
     queryKey: ['chat-room-messages', roomId],
     queryFn: async () => {
@@ -70,12 +80,28 @@ export default function ChatRoom() {
         .eq('room_id', roomId!)
         .order('created_at', { ascending: true })
         .limit(200);
-      return data || [];
+
+      // Fetch reply messages separately for any that have reply_to_id
+      const msgs = data || [];
+      const replyIds = msgs.filter((m: any) => m.reply_to_id).map((m: any) => m.reply_to_id);
+      if (replyIds.length > 0) {
+        const { data: replyMsgs } = await supabase
+          .from('chat_messages')
+          .select('id, body, sender_id, sender:profiles!chat_messages_sender_id_fkey(full_name)')
+          .in('id', replyIds);
+        const replyMap = new Map((replyMsgs || []).map((r: any) => [r.id, r]));
+        msgs.forEach((m: any) => {
+          if (m.reply_to_id) {
+            m.reply_message = replyMap.get(m.reply_to_id) || null;
+          }
+        });
+      }
+      return msgs;
     },
     enabled: !!roomId,
   });
 
-  // Reactions query
+  // Reactions
   const { data: dbReactions } = useQuery({
     queryKey: ['chat-room-reactions', roomId],
     queryFn: async () => {
@@ -90,7 +116,6 @@ export default function ChatRoom() {
     enabled: !!roomId && !!dbMessages && dbMessages.length > 0,
   });
 
-  // All reactions = db + realtime deduped
   const allReactions = (() => {
     const db = dbReactions || [];
     const dbIds = new Set(db.map((r: any) => r.id));
@@ -98,7 +123,6 @@ export default function ChatRoom() {
     return [...db, ...newOnes];
   })();
 
-  // Combine db + realtime messages, dedup
   const allMessages = (() => {
     const db = dbMessages || [];
     const dbIds = new Set(db.map((m: any) => m.id));
@@ -117,7 +141,7 @@ export default function ChatRoom() {
       .then(() => {});
   }, [roomId, user?.id]);
 
-  // Realtime subscription for messages + reactions
+  // Realtime subscription
   useEffect(() => {
     if (!roomId) return;
     setRealtimeMessages([]);
@@ -147,10 +171,7 @@ export default function ChatRoom() {
             .eq('room_id', roomId)
             .eq('user_id', user!.id);
         }
-
-        setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }, 50);
+        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
       })
       .on('postgres_changes', {
         event: '*',
@@ -158,23 +179,28 @@ export default function ChatRoom() {
         table: 'chat_reactions',
       }, (payload) => {
         if (payload.eventType === 'INSERT') {
-          const r = payload.new as any;
-          setRealtimeReactions(prev => [...prev, r]);
+          setRealtimeReactions(prev => [...prev, payload.new as any]);
         } else if (payload.eventType === 'DELETE') {
-          const old = payload.old as any;
-          setRealtimeReactions(prev => prev.filter(r => r.id !== old.id));
+          setRealtimeReactions(prev => prev.filter(r => r.id !== (payload.old as any).id));
         }
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'chat_messages',
+        filter: `room_id=eq.${roomId}`,
+      }, () => {
+        // Refetch on edits/deletes
+        queryClient.invalidateQueries({ queryKey: ['chat-room-messages', roomId] });
       })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [roomId, user?.id]);
+  }, [roomId, user?.id, queryClient]);
 
-  // Auto-scroll on new messages
+  // Auto-scroll
   useEffect(() => {
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
+    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
   }, [allMessages.length]);
 
   const handleSend = async () => {
@@ -182,12 +208,29 @@ export default function ChatRoom() {
     const text = messageText.trim();
     setMessageText('');
 
-    const { error } = await supabase.from('chat_messages').insert({
+    // Handle edit mode
+    if (editingMsg) {
+      const { error } = await supabase.from('chat_messages')
+        .update({ body: text, is_edited: true, edited_at: new Date().toISOString() } as any)
+        .eq('id', editingMsg.id);
+      if (error) {
+        toast({ title: t('Edit failed', 'Ошибка редактирования'), variant: 'destructive' });
+        setMessageText(text);
+      }
+      setEditingMsg(null);
+      return;
+    }
+
+    const insertData: any = {
       room_id: roomId,
       sender_id: user!.id,
       body: text,
-    });
+    };
+    if (replyTo) {
+      insertData.reply_to_id = replyTo.id;
+    }
 
+    const { error } = await supabase.from('chat_messages').insert(insertData);
     if (error) {
       console.error('Send error:', error);
       setMessageText(text);
@@ -195,10 +238,34 @@ export default function ChatRoom() {
       return;
     }
 
+    setReplyTo(null);
+
     await supabase.from('chat_rooms').update({
       last_message: text.slice(0, 100),
       last_message_at: new Date().toISOString(),
     }).eq('id', roomId);
+  };
+
+  const handleDelete = async (msgId: string) => {
+    await supabase.from('chat_messages')
+      .update({ deleted_at: new Date().toISOString() } as any)
+      .eq('id', msgId);
+    queryClient.invalidateQueries({ queryKey: ['chat-room-messages', roomId] });
+  };
+
+  const handleEdit = (msgId: string, body: string) => {
+    setEditingMsg({ id: msgId, body });
+    setMessageText(body);
+    inputRef.current?.focus();
+  };
+
+  const handleReply = (msg: any) => {
+    setReplyTo({
+      id: msg.id,
+      body: msg.body,
+      senderName: msg.sender?.full_name || '',
+    });
+    inputRef.current?.focus();
   };
 
   const isAnnouncement = room?.type === 'announcement';
@@ -210,7 +277,7 @@ export default function ChatRoom() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)]">
-      {/* Sticky Header */}
+      {/* Header */}
       <div className="sticky top-0 z-10 px-3 py-3 border-b border-border flex items-center gap-3 bg-background/95 backdrop-blur">
         <Button variant="ghost" size="icon" className="shrink-0" onClick={() => navigate('/chat')}>
           <ArrowLeft size={20} />
@@ -236,9 +303,7 @@ export default function ChatRoom() {
               {room?.type === 'community' ? <Globe className="w-4 h-4 text-primary" /> : <Users className="w-4 h-4 text-primary" />}
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-display font-semibold text-sm text-foreground truncate">
-                {headerTitle}
-              </h3>
+              <h3 className="font-display font-semibold text-sm text-foreground truncate">{headerTitle}</h3>
               {room?.type && room.type !== 'direct' && (
                 <p className="text-[10px] text-muted-foreground">
                   {room.type === 'announcement' ? '📣 Announcements' : room.type === 'community' ? '🌍 Community' : '👥 Group'}
@@ -270,33 +335,19 @@ export default function ChatRoom() {
                     messageId={msg.id}
                     senderId={msg.sender_id}
                     createdAt={msg.created_at}
-                    onReply={() => {
-                      toast({ title: t('Reply coming soon', 'Ответ скоро будет') });
-                    }}
-                    onEdit={() => {
-                      toast({ title: t('Edit coming soon', 'Редактирование скоро') });
-                    }}
-                    onDelete={() => {
-                      toast({ title: t('Delete coming soon', 'Удаление скоро') });
-                    }}
+                    onReply={() => handleReply(msg)}
+                    onEdit={() => handleEdit(msg.id, msg.body)}
+                    onDelete={() => handleDelete(msg.id)}
                   >
-                    <div className={`rounded-2xl px-3.5 py-2 text-sm ${isOwn ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'}`}>
-                      {showName && (
-                        <p className="text-[10px] font-semibold mb-0.5 opacity-70">
-                          {(msg.sender as any)?.full_name || ''}
-                        </p>
-                      )}
-                      <p className="whitespace-pre-wrap break-words">{msg.body}</p>
-                      <p className={`text-[9px] mt-1 ${isOwn ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
-                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                    </div>
+                    <ChatMessageBubble
+                      msg={msg}
+                      isOwn={isOwn}
+                      showName={showName}
+                      otherLastRead={otherMember?.last_read_at}
+                      isDirect={room?.type === 'direct'}
+                    />
                   </MessageContextMenu>
-                  <MessageReactions
-                    messageId={msg.id}
-                    reactions={msgReactions}
-                    isOwn={isOwn}
-                  />
+                  <MessageReactions messageId={msg.id} reactions={msgReactions} isOwn={isOwn} />
                 </div>
               </div>
             );
@@ -305,12 +356,34 @@ export default function ChatRoom() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input — sticky at bottom */}
+      {/* Typing indicator */}
+      <TypingIndicator roomId={roomId || ''} />
+
+      {/* Reply / Edit preview */}
+      <ReplyPreview replyTo={replyTo} onCancel={() => setReplyTo(null)} />
+      {editingMsg && (
+        <div className="flex items-center gap-2 px-3 py-2 border-t border-border bg-muted/30">
+          <div className="flex-1 min-w-0 border-l-2 border-yellow-500 pl-2">
+            <p className="text-xs font-semibold text-yellow-600">✏️ {t('Editing message', 'Редактирование')}</p>
+            <p className="text-xs text-muted-foreground truncate">{editingMsg.body}</p>
+          </div>
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setEditingMsg(null); setMessageText(''); }}>
+            <X size={14} />
+          </Button>
+        </div>
+      )}
+
+      {/* Input */}
       {canSend ? (
-        <div className="sticky bottom-0 px-3 py-3 border-t border-border flex gap-2 bg-background">
+        <div className="sticky bottom-0 px-3 py-3 border-t border-border flex gap-2 bg-background relative">
+          <ChatMediaUpload roomId={roomId || ''} onUploaded={() => queryClient.invalidateQueries({ queryKey: ['chat-room-messages', roomId] })} />
           <Input
+            ref={inputRef}
             value={messageText}
-            onChange={e => setMessageText(e.target.value)}
+            onChange={e => {
+              setMessageText(e.target.value);
+              sendTyping();
+            }}
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
             placeholder={t('Type a message...', 'Напишите сообщение...')}
             className="rounded-xl"
