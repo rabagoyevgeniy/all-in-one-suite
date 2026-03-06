@@ -104,9 +104,9 @@ export default function ParentBooking() {
         type: 'system',
       });
       navigate('/parent');
-      toast.success('Урок забронирован! ✅');
+      toast({ title: 'Урок забронирован! ✅' });
     } catch (e) {
-      toast.error('Ошибка при бронировании');
+      toast({ title: 'Ошибка при бронировании', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }

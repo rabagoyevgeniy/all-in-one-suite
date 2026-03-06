@@ -314,6 +314,38 @@ export default function ParentDashboard() {
         </div>
       )}
 
+      {completedBookings && completedBookings.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="font-display font-semibold text-sm text-foreground">Rate Your Lessons ⭐</h3>
+          {completedBookings.map((booking: any, i: number) => (
+            <motion.div
+              key={booking.id}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 + i * 0.1 }}
+              className="glass-card rounded-xl p-3 flex items-center justify-between"
+            >
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  {(booking?.coaches as any)?.profiles?.full_name || 'Coach'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {new Date(booking.created_at).toLocaleDateString()}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-xl gap-1"
+                onClick={() => {/* будет добавлено в следующем шаге */}}
+              >
+                <Star size={14} className="text-warning" /> Rate
+              </Button>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
         <Button className="w-full h-14 rounded-2xl font-display font-semibold text-base gap-2">
           <Plus size={20} />
