@@ -68,7 +68,7 @@ export default function CoachDashboard() {
         .select('students(id, swim_belt, profiles:students_id_fkey(full_name))')
         .eq('coach_id', user!.id)
         .order('created_at', { ascending: false })
-        .limit(3);
+        .limit(10);
       if (error) throw error;
       const seen = new Set<string>();
       return (data || []).filter(b => {
@@ -76,7 +76,40 @@ export default function CoachDashboard() {
         if (!s?.id || seen.has(s.id)) return false;
         seen.add(s.id);
         return true;
-      });
+      }).slice(0, 5);
+    },
+    enabled: !!user?.id,
+  });
+
+  // Earnings this month
+  const { data: monthlyEarnings } = useQuery({
+    queryKey: ['coach-monthly-earnings', user?.id],
+    queryFn: async () => {
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const { data: completedThisMonth, error } = await supabase
+        .from('bookings')
+        .select('lesson_fee, currency')
+        .eq('coach_id', user!.id)
+        .eq('status', 'completed')
+        .gte('created_at', monthStart);
+      if (error) throw error;
+
+      const totalEarned = (completedThisMonth || []).reduce((s, b) => s + Number(b.lesson_fee || 0), 0);
+      const lessonsCount = completedThisMonth?.length || 0;
+      const currency = completedThisMonth?.[0]?.currency || 'AED';
+
+      // Next payroll
+      const { data: payroll } = await supabase
+        .from('coach_payroll')
+        .select('period_end, status')
+        .eq('coach_id', user!.id)
+        .eq('status', 'draft')
+        .order('period_end', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      return { totalEarned, lessonsCount, currency, nextPayout: payroll?.period_end };
     },
     enabled: !!user?.id,
   });
