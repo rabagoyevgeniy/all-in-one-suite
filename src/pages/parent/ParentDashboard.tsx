@@ -366,6 +366,22 @@ export default function ParentDashboard() {
           Book New Lesson
         </Button>
       </motion.div>
+
+      {ratingModal && (
+        <RatingModal
+          isOpen={!!ratingModal}
+          onClose={() => setRatingModal(null)}
+          booking={{
+            id: ratingModal.bookingId,
+            coachId: ratingModal.coachId,
+            coachName: ratingModal.coachName,
+            date: ratingModal.date,
+          }}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['parent-completed-bookings'] });
+          }}
+        />
+      )}
     </div>
   );
 }

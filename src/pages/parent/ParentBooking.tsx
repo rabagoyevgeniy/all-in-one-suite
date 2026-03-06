@@ -157,6 +157,9 @@ export default function ParentBooking() {
                         <span className="text-[11px] text-muted-foreground flex items-center gap-0.5">
                           <Star size={10} className="text-warning" /> {Number(c.avg_rating).toFixed(1)}
                         </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          ({(c as any).lesson_reviews?.[0]?.count || 0} reviews)
+                        </span>
                       </div>
                     </div>
                     <span className="font-display font-bold text-sm text-foreground">{c.hourly_rate_aed || '—'} AED</span>
