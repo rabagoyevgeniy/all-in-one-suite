@@ -11,6 +11,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { COACH_RANKS } from '@/lib/constants';
 import { toast } from '@/hooks/use-toast';
+import { useLanguage } from '@/hooks/useLanguage';
 
 const BOOKING_STATUS_COLORS: Record<string, string> = {
   confirmed: 'bg-primary/15 text-primary border-primary/30',
@@ -21,6 +22,7 @@ const BOOKING_STATUS_COLORS: Record<string, string> = {
 export default function CoachDashboard() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [gpsActive, setGpsActive] = useState(false);
   const [startingLesson, setStartingLesson] = useState<string | null>(null);
 
@@ -78,7 +80,6 @@ export default function CoachDashboard() {
     enabled: !!user?.id,
   });
 
-  // GPS broadcasting when active bookings exist
   const activeBooking = (todayBookings || []).find((b: any) => ['confirmed', 'in_progress'].includes(b.status));
 
   useEffect(() => {
@@ -125,10 +126,11 @@ export default function CoachDashboard() {
     <div className="px-4 py-6 space-y-6">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
         <h2 className="font-display font-bold text-xl text-foreground">
-          Good Morning, {profile?.full_name?.split(' ')[0] || 'Coach'}! 🏊
+          {t("Today's Lessons", 'Занятия сегодня')}
         </h2>
         <p className="text-sm text-muted-foreground">
-          {todayBookings?.length || 0} lessons today • {profile?.city || 'Dubai'}
+          {t('Your route and schedule for today', 'Ваш маршрут и расписание на сегодня')}
+          {' • '}{profile?.city || 'Dubai'}
         </p>
       </motion.div>
 
@@ -143,7 +145,9 @@ export default function CoachDashboard() {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
             <span className="relative inline-flex rounded-full h-3 w-3 bg-success" />
           </span>
-          <span className="text-sm text-foreground">📍 GPS Active — Parents can see your location</span>
+          <span className="text-sm text-foreground">
+            📍 {t('GPS Active — Parents can see your location', 'GPS активен — родители видят ваше местоположение')}
+          </span>
         </motion.div>
       )}
 
@@ -155,22 +159,22 @@ export default function CoachDashboard() {
         className="grid grid-cols-4 gap-2"
       >
         <div className="glass-card rounded-2xl p-3 text-center">
-          <p className="text-[10px] text-muted-foreground font-medium">Lessons</p>
+          <p className="text-[10px] text-muted-foreground font-medium">{t('Lessons', 'Уроки')}</p>
           <p className="font-display font-bold text-lg text-foreground">{coachData?.total_lessons_completed || 0}</p>
         </div>
         <div className="glass-card rounded-2xl p-3 text-center">
-          <p className="text-[10px] text-muted-foreground font-medium">Rating</p>
+          <p className="text-[10px] text-muted-foreground font-medium">{t('Rating', 'Рейтинг')}</p>
           <div className="flex items-center justify-center gap-0.5 mt-0.5">
             <Star size={12} className="text-warning fill-warning" />
             <span className="font-display font-bold text-foreground">{Number(coachData?.avg_rating || 0).toFixed(1)}</span>
           </div>
         </div>
         <div className="glass-card rounded-2xl p-3 text-center">
-          <p className="text-[10px] text-muted-foreground font-medium">Coins</p>
+          <p className="text-[10px] text-muted-foreground font-medium">{t('Coins', 'Монеты')}</p>
           <CoinBalance amount={coachData?.coin_balance || 0} size="sm" />
         </div>
         <div className="glass-card rounded-2xl p-3 text-center">
-          <p className="text-[10px] text-muted-foreground font-medium">Rank</p>
+          <p className="text-[10px] text-muted-foreground font-medium">{t('Rank', 'Ранг')}</p>
           <Badge variant="outline" className="text-[10px] mt-1" style={{ borderColor: rankInfo?.color, color: rankInfo?.color }}>
             {rankInfo?.label || coachData?.rank || 'Trainee'}
           </Badge>
@@ -180,9 +184,11 @@ export default function CoachDashboard() {
       {/* Today's Route */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="font-display font-semibold text-sm text-foreground">Today's Route</h3>
+          <h3 className="font-display font-semibold text-sm text-foreground">
+            {t("Today's Route", 'Маршрут сегодня')}
+          </h3>
           <button className="text-xs text-primary font-medium flex items-center gap-1">
-            <Navigation size={12} /> Open Map
+            <Navigation size={12} /> {t('Open Map', 'Карта')}
           </button>
         </div>
 
@@ -197,32 +203,34 @@ export default function CoachDashboard() {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.2 + i * 0.1 }}
-                className="glass-card rounded-xl p-4 flex items-center gap-3"
+                className="glass-card rounded-xl p-4 space-y-3"
               >
-                <div className="flex flex-col items-center min-w-[48px]">
-                  <Clock size={14} className="text-muted-foreground mb-1" />
-                  <span className="font-display font-bold text-sm text-foreground">
-                    {new Date(booking.created_at!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm text-foreground truncate">
-                    {studentProfile?.full_name || 'Student'}
-                  </p>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <MapPin size={12} className="text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground truncate">{pool?.name || 'TBD'}</span>
+                <div className="flex items-center gap-3">
+                  <div className="flex flex-col items-center min-w-[48px]">
+                    <Clock size={14} className="text-muted-foreground mb-1" />
+                    <span className="font-display font-bold text-sm text-foreground">
+                      {new Date(booking.created_at!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className={`text-[10px] ${BOOKING_STATUS_COLORS[booking.status || 'confirmed'] || ''}`}>
-                    {booking.status === 'in_progress' ? 'LIVE' : booking.status === 'completed' ? 'DONE' : 'NEXT'}
-                  </Badge>
-                  <ChevronRight size={16} className="text-muted-foreground" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm text-foreground truncate">
+                      {studentProfile?.full_name || t('Student', 'Ученик')}
+                    </p>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <MapPin size={12} className="text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground truncate">{pool?.name || 'TBD'}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className={`text-[10px] ${BOOKING_STATUS_COLORS[booking.status || 'confirmed'] || ''}`}>
+                      {booking.status === 'in_progress' ? 'LIVE' : booking.status === 'completed' ? t('DONE', 'ГОТОВО') : t('NEXT', 'СЛЕД')}
+                    </Badge>
+                    <ChevronRight size={16} className="text-muted-foreground" />
+                  </div>
                 </div>
                 {booking.status === 'confirmed' && (
                   <Button
-                    className="w-full h-14 text-base font-bold rounded-2xl bg-success hover:bg-success/90 text-success-foreground mt-3"
+                    className="w-full h-14 text-base font-bold rounded-2xl bg-success hover:bg-success/90 text-success-foreground"
                     disabled={startingLesson === booking.id}
                     onClick={async (e) => {
                       e.stopPropagation();
@@ -249,7 +257,7 @@ export default function CoachDashboard() {
                           state: { lessonId: lesson.id },
                         });
                       } catch {
-                        toast({ title: 'Failed to start lesson', variant: 'destructive' });
+                        toast({ title: t('Failed to start lesson', 'Не удалось начать занятие'), variant: 'destructive' });
                         setStartingLesson(null);
                       }
                     }}
@@ -257,7 +265,7 @@ export default function CoachDashboard() {
                     {startingLesson === booking.id ? (
                       <Loader2 className="h-5 w-5 animate-spin" />
                     ) : (
-                      '🏊 Start Lesson'
+                      `🏊 ${t('Start Lesson', 'Начать занятие')}`
                     )}
                   </Button>
                 )}
@@ -265,15 +273,20 @@ export default function CoachDashboard() {
             );
           })
         ) : (
-          <div className="glass-card rounded-xl p-6 text-center text-muted-foreground text-sm">
-            No bookings today
+          <div className="glass-card rounded-xl p-6 text-center text-muted-foreground text-sm whitespace-pre-line">
+            {t(
+              'You have no lessons today.\nEnjoy your free day or check upcoming bookings.',
+              'Сегодня занятий нет.\nВы можете отдохнуть или посмотреть будущие записи.'
+            )}
           </div>
         )}
       </div>
 
       {/* Recent Students */}
       <div className="space-y-3">
-        <h3 className="font-display font-semibold text-sm text-foreground">Recent Students</h3>
+        <h3 className="font-display font-semibold text-sm text-foreground">
+          {t('Recent Students', 'Недавние ученики')}
+        </h3>
         {recentStudents && recentStudents.length > 0 ? (
           recentStudents.map((b, i) => {
             const s = b.students as any;
@@ -290,7 +303,7 @@ export default function CoachDashboard() {
                   <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center text-xs font-bold text-primary">
                     {sp?.full_name?.[0] || '?'}
                   </div>
-                  <span className="text-sm font-medium text-foreground">{sp?.full_name || 'Unknown'}</span>
+                  <span className="text-sm font-medium text-foreground">{sp?.full_name || t('Unknown', 'Неизвестно')}</span>
                 </div>
                 <SwimBeltBadge belt={s?.swim_belt || 'white'} size="sm" />
               </motion.div>
@@ -298,7 +311,7 @@ export default function CoachDashboard() {
           })
         ) : (
           <div className="glass-card rounded-xl p-4 text-center text-muted-foreground text-sm">
-            No students yet
+            {t('No students yet', 'Пока нет учеников')}
           </div>
         )}
       </div>

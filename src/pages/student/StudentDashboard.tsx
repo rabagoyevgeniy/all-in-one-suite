@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Flame, Swords, Trophy, BookOpen, Loader2 } from 'lucide-react';
+import { Flame, Swords, Trophy, BookOpen, Loader2, ShoppingBag, Award } from 'lucide-react';
 import { CoinBalance } from '@/components/CoinBalance';
 import { SwimBeltBadge } from '@/components/SwimBeltBadge';
 import { useAuthStore } from '@/stores/authStore';
@@ -11,11 +11,13 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { spendCoins, awardCoins } from '@/hooks/useCoins';
 import { calculateXP, getBeltByXP } from '@/lib/constants';
+import { useLanguage } from '@/hooks/useLanguage';
 
 export default function StudentDashboard() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { t } = useLanguage();
 
   const { data: studentData, isLoading } = useQuery({
     queryKey: ['student-profile', user?.id],
@@ -147,16 +149,16 @@ export default function StudentDashboard() {
       queryClient.invalidateQueries({ queryKey: ['student-balance'] });
       queryClient.invalidateQueries({ queryKey: ['coin-balance'] });
       queryClient.invalidateQueries({ queryKey: ['task-completions'] });
-      toast({ title: 'Duel accepted! Coins locked ⚔️🔒' });
+      toast({ title: t('Duel accepted! Coins locked ⚔️🔒', 'Дуэль принята! Монеты заблокированы ⚔️🔒') });
     },
     onError: (err: any) => {
-      toast({ title: 'Failed', description: err.message, variant: 'destructive' });
+      toast({ title: t('Failed', 'Ошибка'), description: err.message, variant: 'destructive' });
     },
   });
 
   const profile = studentData?.profiles as any;
-  const completedIds = new Set((completedTasks || []).map((t: any) => t.task_id));
-  const dailyTasks = (tasks || []).filter((t: any) => t.reset_period === 'daily').slice(0, 3);
+  const completedIds = new Set((completedTasks || []).map((ct: any) => ct.task_id));
+  const dailyTasks = (tasks || []).filter((tk: any) => tk.reset_period === 'daily').slice(0, 3);
 
   const totalXP = calculateXP(studentData || {});
   const currentBelt = getBeltByXP(totalXP);
@@ -181,8 +183,17 @@ export default function StudentDashboard() {
           🏊
         </div>
         <h2 className="font-display font-bold text-xl text-foreground">
-          Hey, {profile?.full_name?.split(' ')[0] || 'Swimmer'}!
+          {t('Your Swim Arena', 'Твоя арена плавания')}
         </h2>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {t(
+            'Level up your swimming skills and earn rewards',
+            'Повышай уровень плавания и получай награды'
+          )}
+        </p>
+        <p className="font-display font-semibold text-sm text-foreground mt-2">
+          {t('Hey', 'Привет')}, {profile?.full_name?.split(' ')[0] || t('Swimmer', 'Пловец')}!
+        </p>
         <div className="mt-2 flex items-center justify-center gap-2">
           <SwimBeltBadge belt={currentBelt.id} size="md" />
           <Badge variant="outline" className="text-[9px]" style={{ borderColor: currentBelt.borderColor, color: currentBelt.borderColor }}>
@@ -197,7 +208,7 @@ export default function StudentDashboard() {
           <div className="flex items-center gap-1">
             <Flame size={18} className="text-warning" />
             <span className="font-display font-bold text-foreground">{studentData?.current_streak || 0}</span>
-            <span className="text-xs text-muted-foreground">streak</span>
+            <span className="text-xs text-muted-foreground">{t('streak', 'серия')}</span>
           </div>
         </div>
         <div className="flex items-center justify-center gap-4 mt-3 text-xs text-muted-foreground">
@@ -206,12 +217,13 @@ export default function StudentDashboard() {
         </div>
       </motion.div>
 
-      {/* Quick actions — Education instead of Tasks */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* Quick actions */}
+      <div className="grid grid-cols-4 gap-2">
         {[
-          { icon: Swords, label: 'Duel Arena', glow: true, path: '/student/duels', badge: activeDuels?.length },
-          { icon: Trophy, label: 'Leaderboard', glow: false, path: '/student/leaderboard' },
-          { icon: BookOpen, label: 'Education', glow: false, path: '/student/education' },
+          { emoji: '🥋', label: t('My Swim Belt', 'Мой уровень'), path: '/student/skills' },
+          { Icon: Swords, label: t('Duel Arena', 'Арена дуэлей'), glow: true, path: '/student/duels', badge: activeDuels?.length },
+          { Icon: ShoppingBag, label: t('ProFit Store', 'Магазин ProFit'), path: '/student/store' },
+          { Icon: Award, label: t('Achievements', 'Достижения'), path: '/student/leaderboard' },
         ].map((action, i) => (
           <motion.button
             key={action.label}
@@ -219,12 +231,16 @@ export default function StudentDashboard() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 + i * 0.1 }}
             onClick={() => navigate(action.path)}
-            className={`glass-card rounded-xl p-4 flex flex-col items-center gap-2 relative ${action.glow ? 'glow-primary' : ''}`}
+            className={`glass-card rounded-xl p-3 flex flex-col items-center gap-2 relative ${action.glow ? 'glow-primary' : ''}`}
           >
-            <action.icon size={24} className="text-primary" />
-            <span className="text-[11px] font-medium text-foreground">{action.label}</span>
+            {action.emoji ? (
+              <span className="text-xl">{action.emoji}</span>
+            ) : action.Icon ? (
+              <action.Icon size={22} className="text-primary" />
+            ) : null}
+            <span className="text-[10px] font-medium text-foreground leading-tight text-center">{action.label}</span>
             {action.badge && action.badge > 0 && (
-              <span className="absolute top-2 right-2 w-5 h-5 bg-destructive text-destructive-foreground rounded-full text-[10px] font-bold flex items-center justify-center">
+              <span className="absolute top-1.5 right-1.5 w-5 h-5 bg-destructive text-destructive-foreground rounded-full text-[10px] font-bold flex items-center justify-center">
                 {action.badge}
               </span>
             )}
@@ -233,7 +249,7 @@ export default function StudentDashboard() {
       </div>
 
       {/* Pending Challenges */}
-      {pendingChallenges && pendingChallenges.length > 0 && (
+      {pendingChallenges && pendingChallenges.length > 0 ? (
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
@@ -241,7 +257,7 @@ export default function StudentDashboard() {
           className="space-y-3"
         >
           <h3 className="font-display font-semibold text-sm text-foreground flex items-center gap-1">
-            <Swords size={14} className="text-warning" /> Pending Challenges
+            <Swords size={14} className="text-warning" /> {t('Pending Challenges', 'Ожидающие вызовы')}
           </h3>
           {pendingChallenges.map((duel: any, i: number) => {
             const challenger = duel.challenger_profile as any;
@@ -260,32 +276,41 @@ export default function StudentDashboard() {
                       {challenger?.full_name?.[0] || '?'}
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-foreground">{challenger?.full_name || 'Unknown'}</p>
+                      <p className="text-sm font-semibold text-foreground">{challenger?.full_name || t('Unknown', 'Неизвестно')}</p>
                       <p className="text-[10px] text-muted-foreground capitalize">{duel.swim_style} · {duel.distance_meters}m</p>
                     </div>
                   </div>
                   <CoinBalance amount={duel.stake_coins} size="sm" />
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-muted-foreground">{pool?.name || 'Any pool'}</span>
+                  <span className="text-[10px] text-muted-foreground">{pool?.name || t('Any pool', 'Любой бассейн')}</span>
                   <Button
                     size="sm"
                     className="h-7 px-4 text-[10px] rounded-lg"
                     onClick={() => acceptDuelMutation.mutate(duel)}
                     disabled={acceptDuelMutation.isPending}
                   >
-                    Accept ⚔️
+                    {t('Accept ⚔️', 'Принять ⚔️')}
                   </Button>
                 </div>
               </motion.div>
             );
           })}
         </motion.div>
+      ) : (
+        <div className="glass-card rounded-xl p-6 text-center text-muted-foreground text-sm whitespace-pre-line">
+          {t(
+            'No duels yet.\nChallenge another swimmer and prove your skills.',
+            'Дуэлей пока нет.\nБрось вызов другому ученику и покажи свои навыки.'
+          )}
+        </div>
       )}
 
       {/* Daily Tasks */}
       <div className="space-y-3">
-        <h3 className="font-display font-semibold text-sm text-foreground">Daily Tasks</h3>
+        <h3 className="font-display font-semibold text-sm text-foreground">
+          {t('Daily Tasks', 'Ежедневные задания')}
+        </h3>
         {dailyTasks.length > 0 ? dailyTasks.map((task: any, i: number) => {
           const done = completedIds.has(task.id);
           return (
@@ -309,7 +334,7 @@ export default function StudentDashboard() {
           );
         }) : (
           <div className="glass-card rounded-xl p-4 text-center text-muted-foreground text-sm">
-            No daily tasks available
+            {t('No daily tasks available', 'Нет доступных заданий')}
           </div>
         )}
       </div>
