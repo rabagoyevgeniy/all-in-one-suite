@@ -61,6 +61,10 @@ import PMDashboard from "./pages/pm/PMDashboard";
 import PMReports from "./pages/pm/PMReports";
 import PMEarnings from "./pages/pm/PMEarnings";
 
+// AI
+import AIAssistant from "./pages/AIAssistant";
+import { AIAssistantFAB } from "./components/AIAssistantFAB";
+
 const queryClient = new QueryClient();
 
 const App = () => (
