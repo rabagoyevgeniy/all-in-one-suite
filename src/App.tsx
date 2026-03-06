@@ -116,7 +116,12 @@ const App = () => (
               <Route path="/parent/coins" element={<ParentCoins />} />
               <Route path="/parent/referrals" element={<ComingSoon />} />
               <Route path="/parent/shop" element={<ParentShop />} />
-              <Route path="/parent/shop" element={<ParentShop />} />
+            </Route>
+
+            {/* Chat routes (all authenticated roles) */}
+            <Route element={<RoleGuard allowedRoles={['parent', 'coach', 'student', 'pro_athlete', 'personal_manager', 'admin', 'head_manager']}><AppLayout /></RoleGuard>}>
+              <Route path="/chat" element={<ChatList />} />
+              <Route path="/chat/:roomId" element={<ChatRoom />} />
             </Route>
 
             {/* Student routes (Arena theme) */}
