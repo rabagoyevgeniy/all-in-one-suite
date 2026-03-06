@@ -35,7 +35,10 @@ export default function ChatRoom() {
   const [replyTo, setReplyTo] = useState<{ id: string; body: string; senderName: string } | null>(null);
   const [editingMsg, setEditingMsg] = useState<{ id: string; body: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const unreadDividerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [initialLastRead, setInitialLastRead] = useState<string | null>(null);
+  const hasScrolledToUnread = useRef(false);
 
   const { sendTyping } = useTypingPresence(roomId || '');
 
