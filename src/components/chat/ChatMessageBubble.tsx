@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Download, FileText } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Download, FileText, Play, Pause } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 
@@ -17,14 +17,65 @@ function formatFileSize(bytes: number) {
   return `${(bytes / 1048576).toFixed(1)} MB`;
 }
 
+function VoiceBubble({ url, isOwn }: { url: string; isOwn: boolean }) {
+  const [playing, setPlaying] = useState(false);
+  const [prog, setProg] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    const audio = new Audio(url);
+    audioRef.current = audio;
+    audio.onended = () => { setPlaying(false); setProg(0); };
+    audio.ontimeupdate = () => {
+      if (audio.duration) setProg((audio.currentTime / audio.duration) * 100);
+    };
+    return () => { audio.pause(); audio.src = ''; };
+  }, [url]);
+
+  const toggle = () => {
+    if (!audioRef.current) return;
+    if (playing) { audioRef.current.pause(); setPlaying(false); }
+    else { audioRef.current.play(); setPlaying(true); }
+  };
+
+  return (
+    <div className="flex items-center gap-2 py-1 min-w-[160px]">
+      <button onClick={toggle} className={cn(
+        'w-8 h-8 rounded-full flex items-center justify-center shrink-0',
+        isOwn ? 'bg-[hsl(0_0%_100%/0.2)]' : 'bg-[hsl(var(--muted))]'
+      )}>
+        {playing ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 ml-0.5" />}
+      </button>
+      <div className={cn('flex-1 h-1 rounded-full relative', isOwn ? 'bg-[hsl(0_0%_100%/0.3)]' : 'bg-[hsl(var(--muted))]')}>
+        <div className={cn('h-full rounded-full transition-all', isOwn ? 'bg-[hsl(0_0%_100%)]' : 'bg-primary')} style={{ width: `${prog}%` }} />
+      </div>
+    </div>
+  );
+}
+
 export default function ChatMessageBubble({ msg, isOwn, showName, otherLastRead, isDirect }: ChatMessageBubbleProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const isDeleted = !!msg.deleted_at;
   const messageType = msg.message_type || 'text';
   const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   const isRead = isDirect && isOwn && otherLastRead && new Date(otherLastRead) >= new Date(msg.created_at);
+
+  // System message — centered pill
+  if (messageType === 'system') {
+    return (
+      <div className="flex justify-center my-2 px-4">
+        <div className="bg-[hsl(var(--muted))] text-muted-foreground text-xs px-3 py-1 rounded-full">
+          {msg.body}
+        </div>
+      </div>
+    );
+  }
+
 
   if (isDeleted) {
     return (
@@ -145,8 +196,13 @@ export default function ChatMessageBubble({ msg, isOwn, showName, otherLastRead,
           </a>
         )}
 
+        {/* Voice message */}
+        {messageType === 'voice' && msg.media_url && (
+          <VoiceBubble url={msg.media_url} isOwn={isOwn} />
+        )}
+
         {/* Text body */}
-        {!(messageType === 'image' && msg.body === msg.media_name) && (
+        {messageType !== 'voice' && !(messageType === 'image' && msg.body === msg.media_name) && (
           <p className="whitespace-pre-wrap break-words">{msg.body}</p>
         )}
 

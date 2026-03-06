@@ -7,6 +7,7 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ChevronLeft, Send, Loader2, Globe, Users, X, Phone, Video, Mic, Paperclip } from 'lucide-react';
+import VoiceRecorder from '@/components/chat/VoiceRecorder';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import MessageContextMenu from '@/components/chat/MessageContextMenu';
@@ -34,7 +35,10 @@ export default function ChatRoom() {
   const [replyTo, setReplyTo] = useState<{ id: string; body: string; senderName: string } | null>(null);
   const [editingMsg, setEditingMsg] = useState<{ id: string; body: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const unreadDividerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [initialLastRead, setInitialLastRead] = useState<string | null>(null);
+  const hasScrolledToUnread = useRef(false);
 
   const { sendTyping } = useTypingPresence(roomId || '');
 
@@ -52,7 +56,29 @@ export default function ChatRoom() {
     enabled: !!roomId,
   });
 
-  // For direct chats, get the other person
+  // Get current user's last_read_at BEFORE we mark as read (for unread divider)
+  const { data: myMembership } = useQuery({
+    queryKey: ['chat-my-membership', roomId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('chat_members')
+        .select('last_read_at')
+        .eq('room_id', roomId!)
+        .eq('user_id', user!.id)
+        .single();
+      return data;
+    },
+    enabled: !!roomId && !!user?.id,
+    staleTime: Infinity, // Only fetch once
+  });
+
+  useEffect(() => {
+    if (myMembership && initialLastRead === null) {
+      setInitialLastRead(myMembership.last_read_at || '1970-01-01T00:00:00Z');
+    }
+  }, [myMembership, initialLastRead]);
+
+
   const { data: otherMember } = useQuery({
     queryKey: ['chat-other-member', roomId],
     queryFn: async () => {
@@ -202,10 +228,15 @@ export default function ChatRoom() {
     return () => { supabase.removeChannel(channel); };
   }, [roomId, user?.id, queryClient]);
 
-  // Auto-scroll
+  // Auto-scroll — to unread divider on first load, then to bottom for new messages
   useEffect(() => {
-    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-  }, [allMessages.length]);
+    if (!hasScrolledToUnread.current && unreadDividerRef.current) {
+      hasScrolledToUnread.current = true;
+      setTimeout(() => unreadDividerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+    } else if (hasScrolledToUnread.current || !initialLastRead) {
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+    }
+  }, [allMessages.length, initialLastRead]);
 
   // Auto-resize textarea
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -396,53 +427,83 @@ export default function ChatRoom() {
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <p className="text-sm text-muted-foreground">{t('No messages yet. Say hello! 👋', 'Сообщений пока нет. Напишите первыми! 👋')}</p>
             </div>
-          ) : (
-            allMessages.map((msg: any, idx: number) => {
+          ) : (() => {
+            // Calculate unread divider position
+            let unreadIndex = -1;
+            let unreadCount = 0;
+            if (initialLastRead) {
+              const readTime = new Date(initialLastRead).getTime();
+              for (let i = 0; i < allMessages.length; i++) {
+                const msgTime = new Date(allMessages[i].created_at).getTime();
+                if (msgTime > readTime && allMessages[i].sender_id !== user?.id) {
+                  if (unreadIndex === -1) unreadIndex = i;
+                  unreadCount++;
+                }
+              }
+            }
+
+            return allMessages.map((msg: any, idx: number) => {
               const isOwn = msg.sender_id === user?.id;
-              const showName = room?.type !== 'direct' && !isOwn;
+              const isSystem = msg.message_type === 'system';
+              const showName = room?.type !== 'direct' && !isOwn && !isSystem;
               const msgReactions = getReactionsForMessage(msg.id);
               const showAvatar = shouldShowAvatar(idx);
 
               return (
-                <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} items-end gap-1.5`}>
-                  {/* Avatar for others */}
-                  {!isOwn && (
-                    <div className="w-6 shrink-0 mb-1">
-                      {showAvatar ? (
-                        msg.sender?.avatar_url ? (
-                          <img src={msg.sender.avatar_url} className="w-6 h-6 rounded-full object-cover" alt="" />
-                        ) : (
-                          <div className="w-6 h-6 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center text-[8px] font-bold text-muted-foreground">
-                            {getInitials(msg.sender?.full_name)}
-                          </div>
-                        )
-                      ) : null}
+                <div key={msg.id}>
+                  {idx === unreadIndex && unreadCount > 0 && (
+                    <div ref={unreadDividerRef} className="flex items-center gap-3 my-4 px-4">
+                      <div className="flex-1 h-px bg-primary/30" />
+                      <span className="text-xs text-primary/60 font-medium whitespace-nowrap">
+                        {unreadCount} new message{unreadCount > 1 ? 's' : ''} • {unreadCount} {unreadCount === 1 ? 'новое' : 'новых'}
+                      </span>
+                      <div className="flex-1 h-px bg-primary/30" />
                     </div>
                   )}
 
-                  <div className={`${isOwn ? 'max-w-[72%]' : 'max-w-[72%]'}`}>
-                    <MessageContextMenu
-                      messageId={msg.id}
-                      senderId={msg.sender_id}
-                      createdAt={msg.created_at}
-                      onReply={() => handleReply(msg)}
-                      onEdit={() => handleEdit(msg.id, msg.body)}
-                      onDelete={() => handleDelete(msg.id)}
-                    >
-                      <ChatMessageBubble
-                        msg={msg}
-                        isOwn={isOwn}
-                        showName={showName}
-                        otherLastRead={otherMember?.last_read_at}
-                        isDirect={room?.type === 'direct'}
-                      />
-                    </MessageContextMenu>
-                    <MessageReactions messageId={msg.id} reactions={msgReactions} isOwn={isOwn} />
-                  </div>
+                  {isSystem ? (
+                    <ChatMessageBubble msg={msg} isOwn={false} showName={false} />
+                  ) : (
+                    <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} items-end gap-1.5`}>
+                      {!isOwn && (
+                        <div className="w-6 shrink-0 mb-1">
+                          {showAvatar ? (
+                            msg.sender?.avatar_url ? (
+                              <img src={msg.sender.avatar_url} className="w-6 h-6 rounded-full object-cover" alt="" />
+                            ) : (
+                              <div className="w-6 h-6 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center text-[8px] font-bold text-muted-foreground">
+                                {getInitials(msg.sender?.full_name)}
+                              </div>
+                            )
+                          ) : null}
+                        </div>
+                      )}
+
+                      <div className={`${isOwn ? 'max-w-[72%]' : 'max-w-[72%]'}`}>
+                        <MessageContextMenu
+                          messageId={msg.id}
+                          senderId={msg.sender_id}
+                          createdAt={msg.created_at}
+                          onReply={() => handleReply(msg)}
+                          onEdit={() => handleEdit(msg.id, msg.body)}
+                          onDelete={() => handleDelete(msg.id)}
+                        >
+                          <ChatMessageBubble
+                            msg={msg}
+                            isOwn={isOwn}
+                            showName={showName}
+                            otherLastRead={otherMember?.last_read_at}
+                            isDirect={room?.type === 'direct'}
+                          />
+                        </MessageContextMenu>
+                        <MessageReactions messageId={msg.id} reactions={msgReactions} isOwn={isOwn} />
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
-            })
-          )}
+            });
+          })()}
           <div ref={messagesEndRef} />
         </div>
       </div>
@@ -504,15 +565,10 @@ export default function ChatRoom() {
                   <Send className="w-4 h-4 text-[hsl(0_0%_100%)]" />
                 </motion.button>
               ) : (
-                <motion.button
-                  key="mic"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  exit={{ scale: 0 }}
-                  className="w-10 h-10 rounded-full bg-[hsl(var(--muted))] hover:bg-[hsl(var(--muted)/0.8)] flex items-center justify-center transition-colors shrink-0"
-                >
-                  <Mic className="w-5 h-5 text-muted-foreground" />
-                </motion.button>
+                <VoiceRecorder
+                  roomId={roomId || ''}
+                  onSent={() => queryClient.invalidateQueries({ queryKey: ['chat-room-messages', roomId] })}
+                />
               )}
             </AnimatePresence>
           </div>
