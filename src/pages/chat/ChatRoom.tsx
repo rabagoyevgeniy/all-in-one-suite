@@ -228,10 +228,15 @@ export default function ChatRoom() {
     return () => { supabase.removeChannel(channel); };
   }, [roomId, user?.id, queryClient]);
 
-  // Auto-scroll
+  // Auto-scroll — to unread divider on first load, then to bottom for new messages
   useEffect(() => {
-    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-  }, [allMessages.length]);
+    if (!hasScrolledToUnread.current && unreadDividerRef.current) {
+      hasScrolledToUnread.current = true;
+      setTimeout(() => unreadDividerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+    } else if (hasScrolledToUnread.current || !initialLastRead) {
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+    }
+  }, [allMessages.length, initialLastRead]);
 
   // Auto-resize textarea
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
