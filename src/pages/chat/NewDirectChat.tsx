@@ -209,7 +209,7 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
                   <button
                     key={u.id}
                     disabled={creating}
-                    className="w-full flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 hover:bg-muted/40 active:scale-[0.98] border border-transparent hover:border-border/50 text-left"
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 hover:bg-muted/40 active:scale-[0.98] border border-transparent hover:border-border/50 text-left ${creating && selectedUserId !== u.id ? 'opacity-50 pointer-events-none' : ''}`}
                     onClick={() => handleSelectUser(u)}
                   >
                     {u.avatar_url ? (
