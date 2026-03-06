@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { useLanguage } from '@/hooks/useLanguage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Send, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Globe, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function ChatRoom() {
@@ -18,7 +18,6 @@ export default function ChatRoom() {
   const [messageText, setMessageText] = useState('');
   const [realtimeMessages, setRealtimeMessages] = useState<any[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Room info
   const { data: room } = useQuery({
@@ -26,7 +25,7 @@ export default function ChatRoom() {
     queryFn: async () => {
       const { data } = await supabase
         .from('chat_rooms')
-        .select('*')
+        .select('id, name, type, city')
         .eq('id', roomId!)
         .single();
       return data;
@@ -34,26 +33,29 @@ export default function ChatRoom() {
     enabled: !!roomId,
   });
 
-  // Room title
-  const { data: roomTitle } = useQuery({
-    queryKey: ['chat-room-title', roomId, room?.type],
+  // For direct chats, get the other person's name
+  const { data: otherMember } = useQuery({
+    queryKey: ['chat-other-member', roomId],
     queryFn: async () => {
-      if (room?.type !== 'direct') return room?.name || t('Chat', 'Чат');
       const { data: members } = await supabase
         .from('chat_members')
         .select('user_id')
         .eq('room_id', roomId!)
         .neq('user_id', user!.id);
-      if (!members?.length) return t('Chat', 'Чат');
+      if (!members?.length) return null;
       const { data: profile } = await supabase
         .from('profiles')
-        .select('full_name')
+        .select('full_name, avatar_url')
         .eq('id', members[0].user_id)
         .single();
-      return profile?.full_name || t('Chat', 'Чат');
+      return profile;
     },
-    enabled: !!roomId && !!room,
+    enabled: !!roomId && !!room && room.type === 'direct',
   });
+
+  const headerTitle = room?.type === 'direct'
+    ? (otherMember?.full_name || t('Chat', 'Чат'))
+    : (room?.name || t('Chat', 'Чат'));
 
   // Messages
   const { data: dbMessages, isLoading: msgsLoading } = useQuery({
@@ -102,7 +104,6 @@ export default function ChatRoom() {
         filter: `room_id=eq.${roomId}`,
       }, async (payload) => {
         const newMsg = payload.new as any;
-        // Fetch sender profile
         const { data: profile } = await supabase
           .from('profiles')
           .select('full_name, avatar_url')
@@ -111,7 +112,6 @@ export default function ChatRoom() {
         newMsg.sender = profile;
         setRealtimeMessages(prev => [...prev, newMsg]);
 
-        // Update last_read_at if not own message
         if (newMsg.sender_id !== user?.id) {
           await supabase
             .from('chat_members')
@@ -120,7 +120,6 @@ export default function ChatRoom() {
             .eq('user_id', user!.id);
         }
 
-        // Scroll to bottom
         setTimeout(() => {
           messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
         }, 50);
@@ -138,9 +137,8 @@ export default function ChatRoom() {
 
   const handleSend = async () => {
     if (!messageText.trim() || !roomId) return;
-
     const text = messageText.trim();
-    setMessageText(''); // Clear optimistically
+    setMessageText('');
 
     const { error } = await supabase.from('chat_messages').insert({
       room_id: roomId,
@@ -150,12 +148,11 @@ export default function ChatRoom() {
 
     if (error) {
       console.error('Send error:', error);
-      setMessageText(text); // Restore on failure
+      setMessageText(text);
       toast({ title: t('Failed to send message', 'Не удалось отправить сообщение'), variant: 'destructive' });
       return;
     }
 
-    // Update room's last_message
     await supabase.from('chat_rooms').update({
       last_message: text.slice(0, 100),
       last_message_at: new Date().toISOString(),
@@ -167,28 +164,48 @@ export default function ChatRoom() {
   const canSend = !isAnnouncement || isAdmin;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)]">
-      {/* Header */}
-      <div className="px-3 py-3 border-b border-border flex items-center gap-3 bg-card">
-        <Button variant="ghost" size="icon" className="shrink-0" onClick={() => navigate(-1)}>
+    <div className="flex flex-col h-[calc(100vh-64px)]">
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-10 px-3 py-3 border-b border-border flex items-center gap-3 bg-background/95 backdrop-blur">
+        <Button variant="ghost" size="icon" className="shrink-0" onClick={() => navigate('/chat')}>
           <ArrowLeft size={20} />
         </Button>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-display font-semibold text-sm text-foreground truncate">
-            {roomTitle || t('Chat', 'Чат')}
-          </h3>
-          {room?.type && room.type !== 'direct' && (
-            <p className="text-[10px] text-muted-foreground">
-              {room.type === 'announcement' ? t('📣 Announcements', '📣 Объявления') :
-               room.type === 'community' ? t('🌍 Community', '🌍 Сообщество') :
-               t('👥 Group', '👥 Группа')}
-            </p>
-          )}
-        </div>
+        {room?.type === 'direct' && otherMember ? (
+          <>
+            {otherMember.avatar_url ? (
+              <img src={otherMember.avatar_url} className="w-8 h-8 rounded-full object-cover" alt="" />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs">
+                {otherMember.full_name?.charAt(0) ?? '?'}
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <h3 className="font-display font-semibold text-sm text-foreground truncate">
+                {otherMember.full_name}
+              </h3>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+              {room?.type === 'community' ? <Globe className="w-4 h-4 text-primary" /> : <Users className="w-4 h-4 text-primary" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-display font-semibold text-sm text-foreground truncate">
+                {headerTitle}
+              </h3>
+              {room?.type && room.type !== 'direct' && (
+                <p className="text-[10px] text-muted-foreground">
+                  {room.type === 'announcement' ? '📣 Announcements' : room.type === 'community' ? '🌍 Community' : '👥 Group'}
+                </p>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
+      <div className="flex-1 overflow-y-auto px-3 py-3 pb-4 space-y-2">
         {msgsLoading ? (
           <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
         ) : allMessages.length === 0 ? (
@@ -219,9 +236,9 @@ export default function ChatRoom() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
+      {/* Input — sticky at bottom */}
       {canSend ? (
-        <div className="px-3 py-3 border-t border-border flex gap-2 bg-card">
+        <div className="sticky bottom-0 px-3 py-3 border-t border-border flex gap-2 bg-background">
           <Input
             value={messageText}
             onChange={e => setMessageText(e.target.value)}
@@ -234,7 +251,7 @@ export default function ChatRoom() {
           </Button>
         </div>
       ) : (
-        <div className="px-4 py-3 border-t border-border text-center">
+        <div className="sticky bottom-0 px-4 py-3 border-t border-border text-center bg-background">
           <p className="text-xs text-muted-foreground">{t('Only admins can post here', 'Только админы могут писать сюда')}</p>
         </div>
       )}

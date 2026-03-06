@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useCallback } from 'react';
+import { useNavigate, NavigateFunction } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -279,9 +279,103 @@ export default function LoginPage() {
                 </span>
               </button>
             </div>
+
+            {/* Dev Testing Section */}
+            {(window.location.hostname.includes('lovable.app') || window.location.hostname.includes('lovableproject.com') || window.location.hostname === 'localhost') && (
+              <DevQuickLogin navigate={navigate} />
+            )}
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+/* ── Dev Quick Login Component ── */
+const DEV_ACCOUNTS = [
+  { label: '🏊 Coach Alex', email: 'coach.alex@profit.test', password: 'Test1234!', role: 'coach', route: '/coach' },
+  { label: '👨‍👩‍👧 Parent Sarah', email: 'parent.sarah@profit.test', password: 'Test1234!', role: 'parent', route: '/parent' },
+  { label: '🎓 Student Emma', email: 'student.emma@profit.test', password: 'Test1234!', role: 'student', route: '/student' },
+];
+
+function DevQuickLogin({ navigate }: { navigate: NavigateFunction }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
+
+  const handleDevLogin = useCallback(async (acc: typeof DEV_ACCOUNTS[0]) => {
+    setBusy(acc.email);
+    try {
+      // Try sign in first
+      let { data, error } = await supabase.auth.signInWithPassword({
+        email: acc.email,
+        password: acc.password,
+      });
+
+      // If user doesn't exist, sign up then sign in
+      if (error && error.message.includes('Invalid login')) {
+        const { error: signUpErr } = await supabase.auth.signUp({
+          email: acc.email,
+          password: acc.password,
+          options: { data: { full_name: acc.label.replace(/^[^\w]*\s*/, '') } },
+        });
+        if (signUpErr) throw signUpErr;
+
+        // Sign in after signup
+        const result = await supabase.auth.signInWithPassword({
+          email: acc.email,
+          password: acc.password,
+        });
+        data = result.data;
+        error = result.error;
+      }
+
+      if (error) throw error;
+
+      if (data?.session) {
+        // Assign role via RPC
+        try {
+          await supabase.rpc('assign_initial_role', { _role: acc.role });
+        } catch {
+          // Role may already exist
+        }
+        navigate(acc.route, { replace: true });
+        setTimeout(() => window.location.reload(), 100);
+      }
+    } catch (err: any) {
+      console.error('Dev login error:', err);
+      toast.error(err.message || 'Dev login failed');
+    } finally {
+      setBusy(null);
+    }
+  }, [navigate]);
+
+  return (
+    <div className="mt-6 border border-border/50 rounded-xl overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full px-4 py-2 text-xs text-muted-foreground flex items-center justify-between hover:bg-muted/30 transition-colors"
+      >
+        <span>🛠 Dev Testing</span>
+        <span className="text-[10px]">{expanded ? '▲' : '▼'}</span>
+      </button>
+      {expanded && (
+        <div className="px-4 pb-3 pt-1 space-y-2">
+          {DEV_ACCOUNTS.map(acc => (
+            <button
+              key={acc.email}
+              onClick={() => handleDevLogin(acc)}
+              disabled={!!busy}
+              className="w-full text-left px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted/40 transition-colors disabled:opacity-50 flex items-center gap-2"
+            >
+              {busy === acc.email ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : null}
+              <span className="font-medium">{acc.label}</span>
+              <span className="text-[10px] text-muted-foreground ml-auto">{acc.email}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

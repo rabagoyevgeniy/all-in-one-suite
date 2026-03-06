@@ -58,30 +58,17 @@ export function BottomNav({ role }: { role: UserRole }) {
   const { user } = useAuthStore();
   const items = NAV_ITEMS[role] || NAV_ITEMS['student'];
 
-  // Unread messages count
-  const { data: unreadCount } = useQuery({
-    queryKey: ['unread-messages-count', user?.id],
+  // Simple unread dot — check for any chat_members with null last_read_at
+  const { data: hasUnread } = useQuery({
+    queryKey: ['chat-has-unread', user?.id],
     queryFn: async () => {
-      if (!user?.id) return 0;
-      
-      const { data: memberships, error } = await supabase
+      if (!user?.id) return false;
+      const { count } = await supabase
         .from('chat_members')
-        .select('room_id, last_read_at')
-        .eq('user_id', user.id);
-
-      if (error || !memberships?.length) return 0;
-
-      let total = 0;
-      for (const m of memberships) {
-        const { count } = await supabase
-          .from('chat_messages')
-          .select('id', { count: 'exact', head: true })
-          .eq('room_id', m.room_id)
-          .neq('sender_id', user.id)
-          .gt('created_at', m.last_read_at || '2020-01-01');
-        total += count || 0;
-      }
-      return total;
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .is('last_read_at', null);
+      return (count ?? 0) > 0;
     },
     enabled: !!user?.id,
     refetchInterval: 30000,
@@ -107,11 +94,9 @@ export function BottomNav({ role }: { role: UserRole }) {
             >
               <div className="relative">
                 <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
-                {isChatItem && unreadCount && unreadCount > 0 ? (
-                  <span className="absolute -top-1.5 -right-2.5 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                ) : null}
+                {isChatItem && hasUnread && (
+                  <span className="absolute -top-0.5 -right-1 w-2.5 h-2.5 bg-destructive rounded-full" />
+                )}
               </div>
               <span className="text-[10px] font-medium">{label}</span>
             </NavLink>
