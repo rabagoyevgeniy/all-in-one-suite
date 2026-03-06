@@ -56,7 +56,29 @@ export default function ChatRoom() {
     enabled: !!roomId,
   });
 
-  // For direct chats, get the other person
+  // Get current user's last_read_at BEFORE we mark as read (for unread divider)
+  const { data: myMembership } = useQuery({
+    queryKey: ['chat-my-membership', roomId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('chat_members')
+        .select('last_read_at')
+        .eq('room_id', roomId!)
+        .eq('user_id', user!.id)
+        .single();
+      return data;
+    },
+    enabled: !!roomId && !!user?.id,
+    staleTime: Infinity, // Only fetch once
+  });
+
+  useEffect(() => {
+    if (myMembership && initialLastRead === null) {
+      setInitialLastRead(myMembership.last_read_at || '1970-01-01T00:00:00Z');
+    }
+  }, [myMembership, initialLastRead]);
+
+
   const { data: otherMember } = useQuery({
     queryKey: ['chat-other-member', roomId],
     queryFn: async () => {
