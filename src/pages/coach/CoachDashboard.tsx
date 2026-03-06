@@ -44,7 +44,7 @@ export default function CoachDashboard() {
       const { data, error } = await supabase
         .from('bookings')
         .select(`
-          id, status, lesson_fee, currency, created_at, booking_type,
+          id, status, lesson_fee, currency, created_at, booking_type, student_id,
           students(id, swim_belt, profiles:students_id_fkey(full_name)),
           pools(name, address)
         `)
