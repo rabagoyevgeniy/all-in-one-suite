@@ -3,21 +3,28 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Send, Sparkles, Loader2, Trash2, Lock } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
+import { useLanguage } from '@/hooks/useLanguage';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import { ROLE_CONFIG, DEFAULT_ROLE_CONFIG, MODE_LABELS, type AIMode } from '@/lib/ai-config';
 
-type Msg = { role: 'user' | 'assistant'; content: string };
+type Msg = { role: 'user' | 'assistant'; content: string; mode?: AIMode };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
 
 export default function AIAssistant() {
   const navigate = useNavigate();
-  const { profile, role, session, user } = useAuthStore();
+  const { role, session, user } = useAuthStore();
+  const { language, t } = useLanguage();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [activeMode, setActiveMode] = useState<AIMode>('general');
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const config = ROLE_CONFIG[role || 'parent'] || DEFAULT_ROLE_CONFIG;
 
   // Fetch AI permissions
   const { data: permissions, isLoading: permLoading } = useQuery({
@@ -50,10 +57,11 @@ export default function AIAssistant() {
     enabled: !!user?.id,
   });
 
-  const dailyLimit = permissions?.daily_message_limit || 5;
+  const dailyLimit = permissions?.daily_message_limit || config.dailyLimit;
   const messagesUsed = typeof usage === 'number' ? usage : 0;
   const messagesRemaining = Math.max(0, dailyLimit - messagesUsed);
   const canUseAI = permissions?.can_use_ai !== false;
+  const allowedModes = config.modes;
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -87,11 +95,18 @@ export default function AIAssistant() {
     if (!text || isLoading) return;
 
     if (messagesRemaining <= 0) {
-      toast({ title: 'Daily limit reached', description: 'Try again tomorrow or upgrade your plan.', variant: 'destructive' });
+      toast({
+        title: t('Daily limit reached', 'Лимит исчерпан'),
+        description: t(
+          `You've used all ${dailyLimit} messages for today`,
+          `Вы использовали все ${dailyLimit} сообщений на сегодня`
+        ),
+        variant: 'destructive',
+      });
       return;
     }
 
-    const userMsg: Msg = { role: 'user', content: text };
+    const userMsg: Msg = { role: 'user', content: text, mode: activeMode };
     setInput('');
     setMessages(prev => [...prev, userMsg]);
     setIsLoading(true);
@@ -105,11 +120,35 @@ export default function AIAssistant() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session?.access_token}`,
         },
-        body: JSON.stringify({ messages: [...messages, userMsg] }),
+        body: JSON.stringify({ messages: [...messages, userMsg], mode: activeMode }),
       });
 
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({ error: 'Unknown error' }));
+
+        if (err.error === 'daily_limit_reached') {
+          toast({
+            title: t('Daily limit reached', 'Лимит исчерпан'),
+            description: t(
+              `You've used all ${err.limit || dailyLimit} messages for today`,
+              `Вы использовали все ${err.limit || dailyLimit} сообщений на сегодня`
+            ),
+            variant: 'destructive',
+          });
+          setMessages(prev => prev.slice(0, -1));
+          return;
+        }
+
+        if (err.error === 'mode_not_allowed') {
+          toast({
+            title: t('Mode not available', 'Режим недоступен'),
+            description: t('This mode is not available for your role', 'Этот режим недоступен для вашей роли'),
+            variant: 'destructive',
+          });
+          setMessages(prev => prev.slice(0, -1));
+          return;
+        }
+
         throw new Error(err.error || `Error ${resp.status}`);
       }
 
@@ -128,7 +167,7 @@ export default function AIAssistant() {
           if (last?.role === 'assistant') {
             return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
           }
-          return [...prev, { role: 'assistant', content: assistantSoFar }];
+          return [...prev, { role: 'assistant', content: assistantSoFar, mode: activeMode }];
         });
       };
 
@@ -166,7 +205,7 @@ export default function AIAssistant() {
     } finally {
       setIsLoading(false);
     }
-  }, [input, isLoading, messages, session?.access_token, messagesRemaining, incrementUsage]);
+  }, [input, isLoading, messages, session?.access_token, messagesRemaining, incrementUsage, activeMode, dailyLimit, t]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -175,7 +214,8 @@ export default function AIAssistant() {
     }
   };
 
-  const roleLabel = role ? role.replace('_', ' ') : 'user';
+  const lang = language === 'ru' ? 'ru' : 'en';
+  const suggestions = config.suggestions[lang];
 
   if (permLoading) {
     return (
@@ -193,15 +233,17 @@ export default function AIAssistant() {
           <button onClick={() => navigate(-1)} className="p-1">
             <ArrowLeft className="w-5 h-5 text-foreground" />
           </button>
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+          <div className={cn(
+            "w-9 h-9 rounded-xl bg-gradient-to-br flex items-center justify-center",
+            config.color
+          )}>
             <Sparkles className="w-5 h-5 text-white" />
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <h1 className="font-bold text-foreground text-sm">ProFit AI</h1>
-            <p className="text-[11px] text-muted-foreground capitalize">{roleLabel} assistant</p>
-          </div>
-          <div className="text-[10px] text-muted-foreground bg-muted px-2 py-1 rounded-full">
-            {messagesRemaining}/{dailyLimit} left
+            <p className="text-[11px] text-muted-foreground truncate">
+              {config.subtitle[lang]}
+            </p>
           </div>
           {messages.length > 0 && (
             <button
@@ -212,20 +254,62 @@ export default function AIAssistant() {
             </button>
           )}
         </div>
+
+        {/* Mode pills */}
+        {canUseAI && allowedModes.length > 1 && (
+          <div className="max-w-lg mx-auto mt-2">
+            <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+              {allowedModes.map(mode => {
+                const label = MODE_LABELS[mode];
+                return (
+                  <button
+                    key={mode}
+                    onClick={() => setActiveMode(mode)}
+                    className={cn(
+                      "flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors",
+                      activeMode === mode
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    )}
+                  >
+                    <span>{label.icon}</span>
+                    <span>{label[lang]}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Daily limit counter */}
+            <div className="flex items-center justify-between px-1 mt-2">
+              <span className="text-muted-foreground text-xs">
+                {messagesUsed} / {dailyLimit >= 9999 ? '∞' : dailyLimit} {t('messages today', 'сообщений сегодня')}
+              </span>
+              {dailyLimit < 9999 && (
+                <div className="flex gap-0.5">
+                  {Array.from({ length: Math.min(dailyLimit, 10) }).map((_, i) => (
+                    <div key={i} className={cn(
+                      "w-1.5 h-1.5 rounded-full",
+                      i < messagesUsed ? "bg-muted-foreground/30" : "bg-primary/60"
+                    )} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </header>
 
       {!canUseAI ? (
-        /* Upgrade prompt */
         <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
           <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
             <Lock className="w-8 h-8 text-muted-foreground" />
           </div>
-          <h3 className="font-bold text-foreground mb-2">AI Assistant — Premium</h3>
+          <h3 className="font-bold text-foreground mb-2">{t('AI Assistant — Premium', 'AI Помощник — Премиум')}</h3>
           <p className="text-muted-foreground text-sm mb-6">
-            Upgrade to Basic or higher to access ProFit AI
+            {t('Upgrade to Basic or higher to access ProFit AI', 'Обновитесь до Basic или выше для доступа к ProFit AI')}
           </p>
           <button className="px-6 py-3 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-2xl font-medium">
-            Upgrade Plan
+            {t('Upgrade Plan', 'Улучшить план')}
           </button>
         </div>
       ) : (
@@ -234,21 +318,24 @@ export default function AIAssistant() {
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 max-w-lg mx-auto w-full space-y-4">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center gap-4 py-20">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg">
+                <div className={cn(
+                  "w-16 h-16 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-lg",
+                  config.color
+                )}>
                   <Sparkles className="w-8 h-8 text-white" />
                 </div>
                 <div>
-                  <h2 className="font-bold text-lg text-foreground">ProFit AI Assistant</h2>
+                  <h2 className="font-bold text-lg text-foreground">{config.greeting}</h2>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Ask me anything about ProFit Swimming Academy
+                    {config.subtitle[lang]}
                   </p>
                 </div>
                 <div className="grid grid-cols-1 gap-2 w-full max-w-xs">
-                  {getSuggestions(role).map((s, i) => (
+                  {suggestions.map((s, i) => (
                     <button
                       key={i}
                       onClick={() => { setInput(s); inputRef.current?.focus(); }}
-                      className="text-left text-xs px-3 py-2.5 rounded-xl bg-background border border-violet-100 text-foreground hover:border-violet-300 transition-colors"
+                      className="text-left text-xs px-3 py-2.5 rounded-xl bg-background border border-border text-foreground hover:border-primary/40 transition-colors"
                     >
                       {s}
                     </button>
@@ -259,17 +346,36 @@ export default function AIAssistant() {
 
             {messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap ${
-                    msg.role === 'user'
-                      ? 'bg-gradient-to-br from-violet-500 to-purple-600 text-white rounded-br-md'
-                      : 'bg-background border border-border text-foreground rounded-bl-md shadow-sm'
-                  }`}
-                >
-                  {msg.content}
-                  {msg.role === 'assistant' && isLoading && i === messages.length - 1 && (
-                    <span className="inline-block w-1.5 h-4 bg-violet-400 animate-pulse ml-0.5 rounded-full" />
+                <div className="max-w-[85%]">
+                  {/* Mode tag on AI response */}
+                  {msg.role === 'assistant' && msg.mode && msg.mode !== 'general' && (
+                    <div className="flex items-center gap-1 mb-1">
+                      <span className="text-[10px] bg-violet-100 text-violet-600 px-2 py-0.5 rounded-full font-medium">
+                        {MODE_LABELS[msg.mode]?.icon} {MODE_LABELS[msg.mode]?.[lang]}
+                      </span>
+                    </div>
                   )}
+                  {/* Admin access badge */}
+                  {msg.role === 'assistant' && (role === 'admin' || role === 'head_manager') && i === 1 && (
+                    <div className="flex items-center gap-1 mb-1">
+                      <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">
+                        👑 ADMIN ACCESS
+                      </span>
+                    </div>
+                  )}
+                  <div
+                    className={cn(
+                      "rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap",
+                      msg.role === 'user'
+                        ? cn("bg-gradient-to-br text-white rounded-br-md", config.color)
+                        : "bg-background border border-border text-foreground rounded-bl-md shadow-sm"
+                    )}
+                  >
+                    {msg.content}
+                    {msg.role === 'assistant' && isLoading && i === messages.length - 1 && (
+                      <span className="inline-block w-1.5 h-4 bg-violet-400 animate-pulse ml-0.5 rounded-full" />
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -295,7 +401,7 @@ export default function AIAssistant() {
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask ProFit AI..."
+                placeholder={t('Ask ProFit AI...', 'Спросите ProFit AI...')}
                 rows={1}
                 className="flex-1 resize-none rounded-2xl border border-border bg-muted/50 px-4 py-2.5 text-sm
                            focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-transparent
@@ -305,9 +411,10 @@ export default function AIAssistant() {
               <button
                 onClick={sendMessage}
                 disabled={!input.trim() || isLoading || messagesRemaining <= 0}
-                className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600
-                           flex items-center justify-center text-white
-                           disabled:opacity-40 transition-opacity flex-shrink-0"
+                className={cn(
+                  "w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center text-white disabled:opacity-40 transition-opacity flex-shrink-0",
+                  config.color
+                )}
               >
                 {isLoading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -321,22 +428,4 @@ export default function AIAssistant() {
       )}
     </div>
   );
-}
-
-function getSuggestions(role: string | null): string[] {
-  switch (role) {
-    case 'parent':
-      return ["How do I book a lesson?", "Explain the coin system", "What's my child's progress?"];
-    case 'coach':
-      return ["Tips for lesson reports", "How is my salary calculated?", "Best warm-up exercises"];
-    case 'student':
-      return ["How do I earn more coins?", "Tips to swim faster", "How do duels work?"];
-    case 'pro_athlete':
-      return ["How to improve my 100m time?", "Duel strategy tips", "How does the pro arena work?"];
-    case 'admin':
-    case 'head_manager':
-      return ["Show me today's stats", "Coach performance overview", "Revenue analysis tips"];
-    default:
-      return ["What is ProFit Academy?", "How can you help me?", "Tell me about the coin system"];
-  }
 }
