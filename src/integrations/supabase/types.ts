@@ -119,6 +119,7 @@ export type Database = {
           parent_id: string | null
           pool_id: string | null
           reschedule_count: number | null
+          reviewed_at: string | null
           slot_id: string | null
           status: string | null
           student_id: string | null
@@ -139,6 +140,7 @@ export type Database = {
           parent_id?: string | null
           pool_id?: string | null
           reschedule_count?: number | null
+          reviewed_at?: string | null
           slot_id?: string | null
           status?: string | null
           student_id?: string | null
@@ -159,6 +161,7 @@ export type Database = {
           parent_id?: string | null
           pool_id?: string | null
           reschedule_count?: number | null
+          reviewed_at?: string | null
           slot_id?: string | null
           status?: string | null
           student_id?: string | null
@@ -1058,6 +1061,51 @@ export type Database = {
             columns: ["subscription_id"]
             isOneToOne: false
             referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lesson_reviews: {
+        Row: {
+          booking_id: string
+          coach_id: string
+          comment: string | null
+          created_at: string | null
+          id: string
+          parent_id: string
+          rating: number
+        }
+        Insert: {
+          booking_id: string
+          coach_id: string
+          comment?: string | null
+          created_at?: string | null
+          id?: string
+          parent_id: string
+          rating: number
+        }
+        Update: {
+          booking_id?: string
+          coach_id?: string
+          comment?: string | null
+          created_at?: string | null
+          id?: string
+          parent_id?: string
+          rating?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lesson_reviews_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lesson_reviews_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
             referencedColumns: ["id"]
           },
         ]

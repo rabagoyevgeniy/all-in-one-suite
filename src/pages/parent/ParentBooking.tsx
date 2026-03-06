@@ -27,7 +27,7 @@ export default function ParentBooking() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('coaches')
-        .select('*, profiles!coaches_id_fkey(full_name)')
+        .select('*, profiles!coaches_id_fkey(full_name), lesson_reviews(count)')
         .order('avg_rating', { ascending: false });
       if (error) throw error;
       return data;
@@ -156,6 +156,9 @@ export default function ParentBooking() {
                         </Badge>
                         <span className="text-[11px] text-muted-foreground flex items-center gap-0.5">
                           <Star size={10} className="text-warning" /> {Number(c.avg_rating).toFixed(1)}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          ({(c as any).lesson_reviews?.[0]?.count || 0} reviews)
                         </span>
                       </div>
                     </div>

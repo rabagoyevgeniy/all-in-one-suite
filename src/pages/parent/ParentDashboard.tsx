@@ -4,10 +4,11 @@ import { Clock, MapPin, Plus, Loader2, Star } from 'lucide-react';
 import { SwimBeltBadge } from '@/components/SwimBeltBadge';
 import { CoinBalance } from '@/components/CoinBalance';
 import { SubscriptionWarningBanner } from '@/components/SubscriptionWarningBanner';
+import { RatingModal } from '@/components/RatingModal';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/stores/authStore';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 const LOYALTY_COLORS: Record<string, string> = {
@@ -20,6 +21,7 @@ const LOYALTY_COLORS: Record<string, string> = {
 
 export default function ParentDashboard() {
   const { user } = useAuthStore();
+  const queryClient = useQueryClient();
   const [coachLocation, setCoachLocation] = useState<{
     lat: number; lng: number; updatedAt: string; isActive: boolean;
   } | null>(null);
@@ -158,6 +160,13 @@ export default function ParentDashboard() {
 
     return () => { supabase.removeChannel(channel); };
   }, [trackingCoachId]);
+
+  const [ratingModal, setRatingModal] = useState<{
+    bookingId: string;
+    coachId: string;
+    coachName: string;
+    date: string;
+  } | null>(null);
 
   const profile = parentData?.profiles as any;
 
@@ -337,7 +346,12 @@ export default function ParentDashboard() {
                 size="sm"
                 variant="outline"
                 className="rounded-xl gap-1"
-                onClick={() => {/* будет добавлено в следующем шаге */}}
+                onClick={() => setRatingModal({
+                  bookingId: booking.id,
+                  coachId: (booking?.coaches as any)?.id,
+                  coachName: (booking?.coaches as any)?.profiles?.full_name || 'Coach',
+                  date: new Date(booking.created_at).toLocaleDateString(),
+                })}
               >
                 <Star size={14} className="text-warning" /> Rate
               </Button>
@@ -352,6 +366,22 @@ export default function ParentDashboard() {
           Book New Lesson
         </Button>
       </motion.div>
+
+      {ratingModal && (
+        <RatingModal
+          isOpen={!!ratingModal}
+          onClose={() => setRatingModal(null)}
+          booking={{
+            id: ratingModal.bookingId,
+            coachId: ratingModal.coachId,
+            coachName: ratingModal.coachName,
+            date: ratingModal.date,
+          }}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['parent-completed-bookings'] });
+          }}
+        />
+      )}
     </div>
   );
 }
