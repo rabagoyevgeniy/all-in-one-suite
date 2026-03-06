@@ -4,13 +4,13 @@
 // Year 2: ~5000-8000 XP → Yellow/Orange  
 // Year 3-4: ~12000-20000 XP → Red/Black
 export const SWIM_BELTS = [
-  { id: 'white', name: 'Aqua Starter', color: '#FFFFFF', borderColor: '#E2E8F0', coinsOnEarn: 300, minXP: 0, maxXP: 1500 },
-  { id: 'sky_blue', name: 'Water Explorer', color: '#7DD3FC', borderColor: '#0EA5E9', coinsOnEarn: 500, minXP: 1500, maxXP: 4000 },
-  { id: 'green', name: 'Wave Rider', color: '#86EFAC', borderColor: '#22C55E', coinsOnEarn: 800, minXP: 4000, maxXP: 8000 },
-  { id: 'yellow', name: 'Current Master', color: '#FDE047', borderColor: '#EAB308', coinsOnEarn: 1200, minXP: 8000, maxXP: 13000 },
-  { id: 'orange', name: 'Tide Champion', color: '#FB923C', borderColor: '#F97316', coinsOnEarn: 2000, minXP: 13000, maxXP: 20000 },
-  { id: 'red', name: 'ProFit Athlete', color: '#F87171', borderColor: '#EF4444', coinsOnEarn: 3500, minXP: 20000, maxXP: 30000 },
-  { id: 'black', name: 'ProFit Legend', color: '#1F2937', borderColor: '#111827', coinsOnEarn: 7500, minXP: 30000, maxXP: 50000 },
+  { id: 'white', name: 'Aqua Starter', color: '#FFFFFF', borderColor: '#E2E8F0', coinsOnEarn: 300, minXP: 0, maxXP: 1500, classCode: 'B', className: 'Beginner' },
+  { id: 'sky_blue', name: 'Water Explorer', color: '#7DD3FC', borderColor: '#0EA5E9', coinsOnEarn: 500, minXP: 1500, maxXP: 4000, classCode: 'N', className: 'Novice' },
+  { id: 'green', name: 'Wave Rider', color: '#86EFAC', borderColor: '#22C55E', coinsOnEarn: 800, minXP: 4000, maxXP: 8000, classCode: 'I', className: 'Intermediate' },
+  { id: 'yellow', name: 'Current Master', color: '#FDE047', borderColor: '#EAB308', coinsOnEarn: 1200, minXP: 8000, maxXP: 13000, classCode: 'A', className: 'Advanced' },
+  { id: 'orange', name: 'Tide Champion', color: '#FB923C', borderColor: '#F97316', coinsOnEarn: 2000, minXP: 13000, maxXP: 20000, classCode: 'E', className: 'Expert' },
+  { id: 'red', name: 'ProFit Athlete', color: '#F87171', borderColor: '#EF4444', coinsOnEarn: 3500, minXP: 20000, maxXP: 30000, classCode: 'P', className: 'Pro Athlete' },
+  { id: 'black', name: 'ProFit Legend', color: '#1F2937', borderColor: '#111827', coinsOnEarn: 7500, minXP: 30000, maxXP: 50000, classCode: 'L', className: 'Legend' },
 ] as const;
 
 // Balanced XP formula:
