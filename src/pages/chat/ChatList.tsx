@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Plus, MessageCircle, Users, Globe, Megaphone } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { NewDirectChat } from './NewDirectChat';
+import { CommunityInfoSheet } from '@/components/chat/CommunityInfoSheet';
 import { formatDistanceToNow } from 'date-fns';
 
 function timeAgo(date: string | null) {
@@ -32,6 +33,7 @@ export default function ChatList() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [newChatOpen, setNewChatOpen] = useState(false);
+  const [communitySheetRoom, setCommunitySheetRoom] = useState<string | null>(null);
 
   // Direct chats
   const { data: directRooms, isLoading: directLoading } = useQuery({
@@ -270,7 +272,7 @@ export default function ChatList() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 hover:bg-muted/80 active:scale-[0.98] border border-transparent hover:border-border/50"
-                  onClick={() => navigate(`/chat/${room.id}`)}
+                  onClick={() => setCommunitySheetRoom(room.id)}
                 >
                   <div className="h-11 w-11 rounded-full bg-primary/10 flex items-center justify-center text-lg shrink-0">
                     {room.type === 'announcement' ? '📣' : '🌍'}
@@ -296,6 +298,11 @@ export default function ChatList() {
       </Tabs>
 
       <NewDirectChat open={newChatOpen} onOpenChange={setNewChatOpen} />
+      <CommunityInfoSheet
+        roomId={communitySheetRoom}
+        open={!!communitySheetRoom}
+        onOpenChange={(open) => { if (!open) setCommunitySheetRoom(null); }}
+      />
     </div>
   );
 }
