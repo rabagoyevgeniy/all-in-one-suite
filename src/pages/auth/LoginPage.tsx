@@ -279,6 +279,11 @@ export default function LoginPage() {
                 </span>
               </button>
             </div>
+
+            {/* Dev Testing Section */}
+            {(window.location.hostname.includes('lovable.app') || window.location.hostname.includes('lovableproject.com') || window.location.hostname === 'localhost') && (
+              <DevQuickLogin navigate={navigate} />
+            )}
           </motion.div>
         )}
       </AnimatePresence>
