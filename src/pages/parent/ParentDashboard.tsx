@@ -21,6 +21,7 @@ const LOYALTY_COLORS: Record<string, string> = {
 
 export default function ParentDashboard() {
   const { user } = useAuthStore();
+  const queryClient = useQueryClient();
   const [coachLocation, setCoachLocation] = useState<{
     lat: number; lng: number; updatedAt: string; isActive: boolean;
   } | null>(null);
