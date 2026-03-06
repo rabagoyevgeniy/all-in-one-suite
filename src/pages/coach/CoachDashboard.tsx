@@ -20,7 +20,9 @@ const BOOKING_STATUS_COLORS: Record<string, string> = {
 
 export default function CoachDashboard() {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [gpsActive, setGpsActive] = useState(false);
+  const [startingLesson, setStartingLesson] = useState<string | null>(null);
 
   const { data: coachData, isLoading: coachLoading } = useQuery({
     queryKey: ['coach-profile', user?.id],
