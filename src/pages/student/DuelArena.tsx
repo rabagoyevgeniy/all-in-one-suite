@@ -1,18 +1,19 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Swords, Loader2, Plus, Trophy, Eye, Info } from 'lucide-react';
+import { Swords, Loader2, Plus, Trophy, Eye, Info, Shield } from 'lucide-react';
 import { CoinBalance } from '@/components/CoinBalance';
 import { PageHeader } from '@/components/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuthStore } from '@/stores/authStore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { spendCoins, awardCoins } from '@/hooks/useCoins';
-import { calculateXP, getBeltByXP } from '@/lib/constants';
+import { calculateXP, getBeltByXP, SWIM_BELTS, COACH_RANKS } from '@/lib/constants';
 import { SwimBeltBadge } from '@/components/SwimBeltBadge';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
@@ -20,6 +21,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const STATUS_LABELS: Record<string, { label: string; style: string }> = {
   pending: { label: '🔓 OPEN', style: 'bg-warning/15 text-warning border-warning/30' },
@@ -43,8 +45,8 @@ export default function DuelArena() {
   const [selectedSecond, setSelectedSecond] = useState('');
   const [viewProfile, setViewProfile] = useState<any>(null);
   const [previewOpponent, setPreviewOpponent] = useState<any>(null);
+  const [previewSecond, setPreviewSecond] = useState<any>(null);
 
-  // All duels related to this user
   const { data: duels, isLoading } = useQuery({
     queryKey: ['student-all-duels', user?.id],
     queryFn: async () => {
@@ -63,7 +65,6 @@ export default function DuelArena() {
     enabled: !!user?.id,
   });
 
-  // Open challenges from OTHER students
   const { data: openChallenges } = useQuery({
     queryKey: ['open-challenges', user?.id],
     queryFn: async () => {
@@ -109,7 +110,6 @@ export default function DuelArena() {
     enabled: !!user?.id,
   });
 
-  // All students with belt info for dropdown
   const { data: studentsList } = useQuery({
     queryKey: ['students-for-duel-dropdown'],
     queryFn: async () => {
@@ -136,32 +136,55 @@ export default function DuelArena() {
     enabled: !!user?.id && showCreate,
   });
 
-  // Available coaches for seconding
+  // Available seconds: coaches + pro athletes with premium
   const { data: availableSeconds } = useQuery({
-    queryKey: ['available-seconds'],
+    queryKey: ['available-seconds-enhanced'],
     queryFn: async () => {
-      const { data: coaches, error } = await supabase
+      // Get coaches
+      const { data: coaches } = await supabase
         .from('coaches')
-        .select('id, is_available_for_seconding, avg_rating, total_lessons_completed')
+        .select('id, is_available_for_seconding, avg_rating, total_lessons_completed, rank')
         .eq('is_available_for_seconding', true);
-      if (error) throw error;
-      const ids = (coaches || []).map((c: any) => c.id);
-      if (ids.length === 0) return [];
+
+      const coachIds = (coaches || []).map((c: any) => c.id);
+
+      // Count seconding duels per coach
+      let secondingCounts: Record<string, number> = {};
+      if (coachIds.length > 0) {
+        const { data: duelCounts } = await supabase
+          .from('duels')
+          .select('second_id')
+          .in('second_id', coachIds);
+        (duelCounts || []).forEach((d: any) => {
+          secondingCounts[d.second_id] = (secondingCounts[d.second_id] || 0) + 1;
+        });
+      }
+
+      // Get profiles
+      const allIds = [...coachIds];
+      if (allIds.length === 0) return [];
       const { data: profiles } = await supabase
         .from('profiles')
         .select('id, full_name, avatar_url')
-        .in('id', ids);
+        .in('id', allIds);
       const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
-      return (coaches || []).map((c: any) => ({
-        ...c,
-        full_name: profileMap.get(c.id)?.full_name || 'Coach',
-        avatar_url: profileMap.get(c.id)?.avatar_url,
-      }));
+
+      return (coaches || []).map((c: any) => {
+        const rankInfo = COACH_RANKS.find(r => r.id === c.rank) || COACH_RANKS[0];
+        return {
+          ...c,
+          full_name: profileMap.get(c.id)?.full_name || 'Coach',
+          avatar_url: profileMap.get(c.id)?.avatar_url,
+          seconding_count: secondingCounts[c.id] || 0,
+          rankLabel: rankInfo.label,
+          rankColor: rankInfo.color,
+          type: 'coach',
+        };
+      });
     },
     enabled: showCreate,
   });
 
-  // Fetch challenger profile for preview
   const loadChallengerProfile = async (challengerId: string) => {
     const { data: profile } = await supabase
       .from('profiles')
@@ -201,7 +224,7 @@ export default function DuelArena() {
       if (selectedOpponent && selectedOpponent !== 'open') {
         insertData.opponent_id = selectedOpponent;
       }
-      if (selectedSecond) {
+      if (selectedSecond && selectedSecond !== 'none') {
         insertData.second_id = selectedSecond;
       }
 
@@ -267,7 +290,6 @@ export default function DuelArena() {
         reference_id: duel.id,
       });
 
-      // Auto-complete "accept_first_duel" task
       try {
         const { data: duelTask } = await supabase
           .from('task_definitions')
@@ -398,9 +420,12 @@ export default function DuelArena() {
     );
   };
 
-  // Find the selected opponent's data for the info preview
   const selectedOpponentData = selectedOpponent && selectedOpponent !== 'open'
     ? (studentsList || []).find((s: any) => s.id === selectedOpponent)
+    : null;
+
+  const selectedSecondData = selectedSecond && selectedSecond !== 'none'
+    ? (availableSeconds || []).find((s: any) => s.id === selectedSecond)
     : null;
 
   return (
@@ -438,7 +463,7 @@ export default function DuelArena() {
                                 />
                                 <span>{s.full_name}</span>
                                 <span className="text-muted-foreground text-[10px]">
-                                  {s.belt.name} · {s.xp} XP
+                                  Class {s.belt.classCode} · {s.xp} XP
                                 </span>
                               </div>
                             </SelectItem>
@@ -446,7 +471,6 @@ export default function DuelArena() {
                         </SelectContent>
                       </Select>
                     </div>
-                    {/* Info button to preview selected opponent */}
                     {selectedOpponentData && (
                       <button
                         type="button"
@@ -460,28 +484,42 @@ export default function DuelArena() {
                   </div>
                 </div>
 
-                {/* Second (referee) picker */}
+                {/* Second (referee) picker — enhanced */}
                 <div>
                   <Label className="text-xs">Second / Referee (optional)</Label>
-                  <Select value={selectedSecond} onValueChange={setSelectedSecond}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="No second (admin judges)" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-60">
-                      <SelectItem value="none">No second (admin judges)</SelectItem>
-                      {(availableSeconds || []).map((c: any) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          <div className="flex items-center gap-2">
-                            <span>🏅</span>
-                            <span>{c.full_name}</span>
-                            <span className="text-muted-foreground text-[10px]">
-                              ⭐ {Number(c.avg_rating || 0).toFixed(1)} · {c.total_lessons_completed || 0} lessons
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center gap-1 mt-1">
+                    <div className="flex-1">
+                      <Select value={selectedSecond} onValueChange={setSelectedSecond}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="No second (admin judges)" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-60">
+                          <SelectItem value="none">No second (admin judges)</SelectItem>
+                          {(availableSeconds || []).map((c: any) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              <div className="flex items-center gap-2">
+                                <Shield size={12} style={{ color: c.rankColor }} />
+                                <span>{c.full_name}</span>
+                                <span className="text-muted-foreground text-[10px]">
+                                  {c.rankLabel} · {c.seconding_count} duels
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {selectedSecondData && (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewSecond(selectedSecondData)}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary/10 text-primary hover:bg-primary/20 transition-colors shrink-0"
+                        title="View second profile"
+                      >
+                        <Info size={16} />
+                      </button>
+                    )}
+                  </div>
                   <p className="text-[9px] text-muted-foreground mt-0.5">
                     A second officiates the duel, fixes times and ensures fair play
                   </p>
@@ -555,7 +593,6 @@ export default function DuelArena() {
         </div>
       )}
 
-      {/* Active Duels */}
       {myActiveDuels.length > 0 && (
         <div className="space-y-3">
           <h3 className="font-display font-semibold text-sm text-foreground">Active Duels</h3>
@@ -563,7 +600,6 @@ export default function DuelArena() {
         </div>
       )}
 
-      {/* My Open Challenges */}
       {myOpenChallenges.length > 0 && (
         <div className="space-y-3">
           <h3 className="font-display font-semibold text-sm text-foreground">My Open Challenges</h3>
@@ -571,7 +607,6 @@ export default function DuelArena() {
         </div>
       )}
 
-      {/* Past Duels */}
       {pastDuels.length > 0 && (
         <div className="space-y-3">
           <h3 className="font-display font-semibold text-sm text-foreground">Past Duels</h3>
@@ -587,20 +622,29 @@ export default function DuelArena() {
         </div>
       )}
 
-      {/* Challenger Profile Preview Modal */}
+      {/* Athlete Profile Modal (from challenges) */}
       <Dialog open={!!viewProfile} onOpenChange={() => setViewProfile(null)}>
-        <DialogContent className="max-w-xs arena bg-gradient-arena border-border/30">
+        <DialogContent className="max-w-sm arena bg-gradient-arena border-border/30 p-0 overflow-hidden">
           {viewProfile && (
-            <ChallengerProfileCard profile={viewProfile} onClose={() => setViewProfile(null)} />
+            <AthleteProfileCard profileId={viewProfile.id} profile={viewProfile} onClose={() => setViewProfile(null)} />
           )}
         </DialogContent>
       </Dialog>
 
-      {/* Opponent Preview Mini-Modal (from Create Duel) */}
+      {/* Opponent Preview (from Create Duel) */}
       <Dialog open={!!previewOpponent} onOpenChange={() => setPreviewOpponent(null)}>
-        <DialogContent className="max-w-xs">
+        <DialogContent className="max-w-sm arena bg-gradient-arena border-border/30 p-0 overflow-hidden">
           {previewOpponent && (
-            <ChallengerProfileCard profile={previewOpponent} onClose={() => setPreviewOpponent(null)} />
+            <AthleteProfileCard profileId={previewOpponent.id} profile={previewOpponent} onClose={() => setPreviewOpponent(null)} />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Second Preview */}
+      <Dialog open={!!previewSecond} onOpenChange={() => setPreviewSecond(null)}>
+        <DialogContent className="max-w-xs">
+          {previewSecond && (
+            <SecondProfileCard second={previewSecond} onClose={() => setPreviewSecond(null)} />
           )}
         </DialogContent>
       </Dialog>
@@ -608,7 +652,8 @@ export default function DuelArena() {
   );
 }
 
-function ChallengerProfileCard({ profile, onClose }: { profile: any; onClose: () => void }) {
+/* ── Rich Athlete Profile Card with Duel History ── */
+function AthleteProfileCard({ profileId, profile, onClose }: { profileId: string; profile: any; onClose: () => void }) {
   const totalXP = calculateXP(profile);
   const belt = getBeltByXP(totalXP);
   const wins = profile.wins || 0;
@@ -616,34 +661,172 @@ function ChallengerProfileCard({ profile, onClose }: { profile: any; onClose: ()
   const totalDuels = wins + losses;
   const winRate = totalDuels > 0 ? Math.round((wins / totalDuels) * 100) : 0;
 
+  // Fetch duel history for this athlete
+  const { data: duelHistory } = useQuery({
+    queryKey: ['athlete-duel-history', profileId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('duels')
+        .select(`
+          *, pools(name),
+          challenger_profile:profiles!duels_challenger_id_fkey(full_name),
+          opponent_profile:profiles!duels_opponent_id_fkey(full_name),
+          second_profile:profiles!duels_second_id_fkey(full_name)
+        `)
+        .or(`challenger_id.eq.${profileId},opponent_id.eq.${profileId}`)
+        .eq('status', 'completed')
+        .order('completed_at', { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profileId,
+  });
+
+  return (
+    <div className="flex flex-col max-h-[80vh]">
+      {/* Gradient header */}
+      <div
+        className="p-6 text-center relative"
+        style={{
+          background: `linear-gradient(135deg, ${belt.borderColor}60, ${belt.color}30, ${belt.borderColor}20)`,
+        }}
+      >
+        <div
+          className="w-20 h-20 mx-auto rounded-full flex items-center justify-center text-2xl font-bold shadow-xl"
+          style={{ backgroundColor: belt.color, border: `3px solid ${belt.borderColor}`, boxShadow: `0 0 30px ${belt.borderColor}50` }}
+        >
+          {profile.full_name?.[0] || '?'}
+        </div>
+        <h3 className="font-display font-bold text-lg text-foreground mt-3">{profile.full_name}</h3>
+        <div className="flex items-center justify-center gap-2 mt-1">
+          <Badge
+            variant="outline"
+            className="text-[10px] font-bold"
+            style={{ borderColor: belt.borderColor, color: belt.borderColor }}
+          >
+            Class {belt.classCode} · {belt.className}
+          </Badge>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">{totalXP.toLocaleString()} XP · {belt.name}</p>
+        {profile.city && <p className="text-[10px] text-muted-foreground">📍 {profile.city}</p>}
+      </div>
+
+      {/* Tabs */}
+      <Tabs defaultValue="stats" className="flex-1 flex flex-col">
+        <TabsList className="w-full rounded-none border-b border-border">
+          <TabsTrigger value="stats" className="flex-1 text-xs">Stats</TabsTrigger>
+          <TabsTrigger value="history" className="flex-1 text-xs">
+            Duel History ({(duelHistory || []).length})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="stats" className="p-4 space-y-3">
+          <div className="grid grid-cols-3 gap-2">
+            <div className="glass-card rounded-lg p-2 text-center">
+              <p className="font-display font-bold text-foreground">{wins}</p>
+              <p className="text-[9px] text-muted-foreground">Wins</p>
+            </div>
+            <div className="glass-card rounded-lg p-2 text-center">
+              <p className="font-display font-bold text-foreground">{winRate}%</p>
+              <p className="text-[9px] text-muted-foreground">Win Rate</p>
+            </div>
+            <div className="glass-card rounded-lg p-2 text-center">
+              <p className="font-display font-bold text-foreground">{profile.current_streak || 0}🔥</p>
+              <p className="text-[9px] text-muted-foreground">Streak</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="glass-card rounded-lg p-2 text-center">
+              <p className="font-display font-bold text-foreground">{totalDuels}</p>
+              <p className="text-[9px] text-muted-foreground">Total Duels</p>
+            </div>
+            <div className="glass-card rounded-lg p-2 text-center">
+              <p className="font-display font-bold text-foreground">{losses}</p>
+              <p className="text-[9px] text-muted-foreground">Losses</p>
+            </div>
+          </div>
+          <Button variant="outline" className="w-full rounded-xl text-xs" onClick={onClose}>Close</Button>
+        </TabsContent>
+
+        <TabsContent value="history" className="flex-1 overflow-hidden">
+          <ScrollArea className="h-[300px] px-4 py-2">
+            {(duelHistory || []).length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">No duel history yet</div>
+            ) : (
+              <div className="space-y-2">
+                {(duelHistory || []).map((duel: any) => {
+                  const isChallenger = duel.challenger_id === profileId;
+                  const opponentName = isChallenger
+                    ? (duel.opponent_profile as any)?.full_name || 'Unknown'
+                    : (duel.challenger_profile as any)?.full_name || 'Unknown';
+                  const won = duel.winner_id === profileId;
+                  const secondName = (duel.second_profile as any)?.full_name;
+                  const pool = duel.pools as any;
+
+                  return (
+                    <div key={duel.id} className="glass-card rounded-xl p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <Badge
+                          variant="outline"
+                          className={`text-[9px] ${won ? 'border-success/40 text-success' : 'border-destructive/40 text-destructive'}`}
+                        >
+                          {won ? '🏆 WIN' : '💔 LOSS'}
+                        </Badge>
+                        <span className="text-[9px] text-muted-foreground">
+                          {duel.completed_at ? new Date(duel.completed_at).toLocaleDateString() : ''}
+                        </span>
+                      </div>
+                      <p className="text-[11px] font-medium text-foreground">vs {opponentName}</p>
+                      <div className="flex items-center gap-2 mt-1 text-[9px] text-muted-foreground flex-wrap">
+                        <span className="capitalize">{duel.swim_style} · {duel.distance_meters}m</span>
+                        <span>🪙 {duel.stake_coins}</span>
+                        {pool?.name && <span>📍 {pool.name}</span>}
+                        {secondName && <span>🏅 {secondName}</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </ScrollArea>
+          <div className="p-4 pt-0">
+            <Button variant="outline" className="w-full rounded-xl text-xs" onClick={onClose}>Close</Button>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+/* ── Second/Referee Profile Card ── */
+function SecondProfileCard({ second, onClose }: { second: any; onClose: () => void }) {
   return (
     <div className="text-center space-y-4 py-2">
       <div
-        className="w-20 h-20 mx-auto rounded-full flex items-center justify-center text-2xl font-bold"
-        style={{ backgroundColor: belt.color, border: `3px solid ${belt.borderColor}`, boxShadow: `0 0 20px ${belt.borderColor}40` }}
+        className="w-16 h-16 mx-auto rounded-full flex items-center justify-center text-xl font-bold border-2"
+        style={{ borderColor: second.rankColor, backgroundColor: `${second.rankColor}20` }}
       >
-        {profile.full_name?.[0] || '?'}
+        <Shield size={24} style={{ color: second.rankColor }} />
       </div>
       <div>
-        <h3 className="font-display font-bold text-lg text-foreground">{profile.full_name}</h3>
-        <Badge variant="outline" className="text-xs mt-1" style={{ borderColor: belt.borderColor, color: belt.borderColor }}>
-          {belt.name}
+        <h3 className="font-display font-bold text-lg text-foreground">{second.full_name}</h3>
+        <Badge variant="outline" className="text-xs mt-1" style={{ borderColor: second.rankColor, color: second.rankColor }}>
+          {second.rankLabel}
         </Badge>
-        <p className="text-[10px] text-muted-foreground mt-1">{totalXP.toLocaleString()} XP</p>
-        {profile.city && <p className="text-[10px] text-muted-foreground">📍 {profile.city}</p>}
       </div>
       <div className="grid grid-cols-3 gap-2">
         <div className="glass-card rounded-lg p-2 text-center">
-          <p className="font-display font-bold text-foreground">{wins}</p>
-          <p className="text-[9px] text-muted-foreground">Wins</p>
+          <p className="font-display font-bold text-foreground">{second.seconding_count}</p>
+          <p className="text-[9px] text-muted-foreground">Duels Seconded</p>
         </div>
         <div className="glass-card rounded-lg p-2 text-center">
-          <p className="font-display font-bold text-foreground">{winRate}%</p>
-          <p className="text-[9px] text-muted-foreground">Win Rate</p>
+          <p className="font-display font-bold text-foreground">⭐ {Number(second.avg_rating || 0).toFixed(1)}</p>
+          <p className="text-[9px] text-muted-foreground">Rating</p>
         </div>
         <div className="glass-card rounded-lg p-2 text-center">
-          <p className="font-display font-bold text-foreground">{profile.current_streak || 0}🔥</p>
-          <p className="text-[9px] text-muted-foreground">Streak</p>
+          <p className="font-display font-bold text-foreground">{second.total_lessons_completed || 0}</p>
+          <p className="text-[9px] text-muted-foreground">Lessons</p>
         </div>
       </div>
       <Button variant="outline" className="w-full rounded-xl" onClick={onClose}>Close</Button>

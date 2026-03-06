@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Flame, Swords, Trophy, ClipboardList, Loader2 } from 'lucide-react';
+import { Flame, Swords, Trophy, BookOpen, Loader2 } from 'lucide-react';
 import { CoinBalance } from '@/components/CoinBalance';
 import { SwimBeltBadge } from '@/components/SwimBeltBadge';
 import { useAuthStore } from '@/stores/authStore';
@@ -73,7 +73,6 @@ export default function StudentDashboard() {
     enabled: !!user?.id,
   });
 
-  // Pending challenges TO this user (or open challenges from others)
   const { data: pendingChallenges } = useQuery({
     queryKey: ['pending-challenges', user?.id],
     queryFn: async () => {
@@ -120,7 +119,6 @@ export default function StudentDashboard() {
         reference_id: duel.id,
       });
 
-      // Auto-complete "accept first duel" task if exists
       try {
         const { data: duelTask } = await supabase
           .from('task_definitions')
@@ -185,8 +183,11 @@ export default function StudentDashboard() {
         <h2 className="font-display font-bold text-xl text-foreground">
           Hey, {profile?.full_name?.split(' ')[0] || 'Swimmer'}!
         </h2>
-        <div className="mt-2">
+        <div className="mt-2 flex items-center justify-center gap-2">
           <SwimBeltBadge belt={currentBelt.id} size="md" />
+          <Badge variant="outline" className="text-[9px]" style={{ borderColor: currentBelt.borderColor, color: currentBelt.borderColor }}>
+            Class {currentBelt.classCode}
+          </Badge>
         </div>
         <p className="text-[10px] text-muted-foreground mt-1">{totalXP.toLocaleString()} XP</p>
         <div className="flex items-center justify-center gap-6 mt-4">
@@ -205,12 +206,12 @@ export default function StudentDashboard() {
         </div>
       </motion.div>
 
-      {/* Quick actions */}
+      {/* Quick actions — Education instead of Tasks */}
       <div className="grid grid-cols-3 gap-3">
         {[
           { icon: Swords, label: 'Duel Arena', glow: true, path: '/student/duels', badge: activeDuels?.length },
           { icon: Trophy, label: 'Leaderboard', glow: false, path: '/student/leaderboard' },
-          { icon: ClipboardList, label: 'Tasks', glow: false, path: '/student/tasks' },
+          { icon: BookOpen, label: 'Education', glow: false, path: '/student/education' },
         ].map((action, i) => (
           <motion.button
             key={action.label}
