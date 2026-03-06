@@ -29,6 +29,7 @@ import CoachEarnings from "./pages/coach/CoachEarnings";
 import CoachProfile from "./pages/coach/CoachProfile";
 import LessonReport from "./pages/coach/LessonReport";
 import CoachShop from "./pages/coach/CoachShop";
+import CoachActiveLesson from "./pages/coach/CoachActiveLesson";
 
 // Parent
 import ParentDashboard from "./pages/parent/ParentDashboard";
@@ -91,6 +92,7 @@ const App = () => (
               <Route path="/coach/earnings" element={<CoachEarnings />} />
               <Route path="/coach/profile" element={<CoachProfile />} />
               <Route path="/coach/lesson/:id" element={<LessonReport />} />
+              <Route path="/coach/lesson/:bookingId/active" element={<CoachActiveLesson />} />
               <Route path="/coach/shop" element={<CoachShop />} />
             </Route>
 

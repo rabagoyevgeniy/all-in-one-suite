@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MapPin, Clock, Star, Navigation, ChevronRight, Loader2 } from 'lucide-react';
 import { CoinBalance } from '@/components/CoinBalance';
 import { SwimBeltBadge } from '@/components/SwimBeltBadge';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/stores/authStore';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { COACH_RANKS } from '@/lib/constants';
+import { toast } from '@/hooks/use-toast';
 
 const BOOKING_STATUS_COLORS: Record<string, string> = {
   confirmed: 'bg-primary/15 text-primary border-primary/30',
@@ -17,7 +20,9 @@ const BOOKING_STATUS_COLORS: Record<string, string> = {
 
 export default function CoachDashboard() {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [gpsActive, setGpsActive] = useState(false);
+  const [startingLesson, setStartingLesson] = useState<string | null>(null);
 
   const { data: coachData, isLoading: coachLoading } = useQuery({
     queryKey: ['coach-profile', user?.id],
@@ -39,7 +44,7 @@ export default function CoachDashboard() {
       const { data, error } = await supabase
         .from('bookings')
         .select(`
-          id, status, lesson_fee, currency, created_at, booking_type,
+          id, status, lesson_fee, currency, created_at, booking_type, student_id,
           students(id, swim_belt, profiles:students_id_fkey(full_name)),
           pools(name, address)
         `)
@@ -213,13 +218,49 @@ export default function CoachDashboard() {
                   <Badge variant="outline" className={`text-[10px] ${BOOKING_STATUS_COLORS[booking.status || 'confirmed'] || ''}`}>
                     {booking.status === 'in_progress' ? 'LIVE' : booking.status === 'completed' ? 'DONE' : 'NEXT'}
                   </Badge>
-                  {booking.status === 'confirmed' && (
-                    <button className="text-[10px] font-bold text-primary-foreground bg-primary px-2 py-1 rounded-lg">
-                      Start
-                    </button>
-                  )}
                   <ChevronRight size={16} className="text-muted-foreground" />
                 </div>
+                {booking.status === 'confirmed' && (
+                  <Button
+                    className="w-full h-14 text-base font-bold rounded-2xl bg-success hover:bg-success/90 text-success-foreground mt-3"
+                    disabled={startingLesson === booking.id}
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      setStartingLesson(booking.id);
+                      try {
+                        await supabase.from('bookings')
+                          .update({ status: 'in_progress' })
+                          .eq('id', booking.id);
+
+                        const { data: lesson, error } = await supabase
+                          .from('lessons')
+                          .insert({
+                            booking_id: booking.id,
+                            coach_id: user!.id,
+                            student_id: booking.student_id || (booking.students as any)?.id,
+                            started_at: new Date().toISOString(),
+                          })
+                          .select()
+                          .single();
+
+                        if (error) throw error;
+
+                        navigate(`/coach/lesson/${booking.id}/active`, {
+                          state: { lessonId: lesson.id },
+                        });
+                      } catch {
+                        toast({ title: 'Failed to start lesson', variant: 'destructive' });
+                        setStartingLesson(null);
+                      }
+                    }}
+                  >
+                    {startingLesson === booking.id ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      '🏊 Start Lesson'
+                    )}
+                  </Button>
+                )}
               </motion.div>
             );
           })
