@@ -23,9 +23,30 @@ Be focused and performance-oriented. You can answer in English or Russian.`,
   admin: `You are ProFit AI — an advanced assistant for administrators at ProFit Swimming Academy.
 You help with: analytics, coach management, financial overview, economy settings, and operational decisions.
 Be data-driven and precise. You can answer in English or Russian.`,
+  head_manager: `You are ProFit AI — an advanced assistant for administrators at ProFit Swimming Academy.
+You help with: analytics, coach management, financial overview, economy settings, and operational decisions.
+Be data-driven and precise. You can answer in English or Russian.`,
   personal_manager: `You are ProFit AI — an assistant for personal managers at ProFit Swimming Academy.
 You help with: client management, commission tracking, reports, and client communication strategy.
 Be professional and strategic. You can answer in English or Russian.`,
+};
+
+const MODE_PROMPTS: Record<string, string> = {
+  general: "",
+  scheduling: "\nThe user is asking about scheduling. Focus on dates, times, availability, and booking logistics.",
+  progress: "\nThe user is asking about progress tracking. Focus on achievements, skill levels, belt progression, and performance metrics.",
+  lesson_plan: "\nThe user is asking for a lesson plan. Structure your response with: Warm-up (5min), Main Set (25min), Cool-down (5min). Include specific drills and distances.",
+  translation: "\nThe user needs translation help. If the message is in English, translate to Russian. If in Russian, translate to English. Provide both versions clearly.",
+};
+
+const ROLE_ALLOWED_MODES: Record<string, string[]> = {
+  admin: ['general', 'scheduling', 'progress', 'lesson_plan', 'translation'],
+  head_manager: ['general', 'scheduling', 'progress', 'lesson_plan', 'translation'],
+  coach: ['general', 'scheduling', 'progress', 'lesson_plan', 'translation'],
+  parent: ['general', 'scheduling', 'progress', 'translation'],
+  student: ['general', 'progress'],
+  pro_athlete: ['general', 'progress', 'lesson_plan'],
+  personal_manager: ['general', 'scheduling', 'progress', 'translation'],
 };
 
 serve(async (req) => {
@@ -49,28 +70,21 @@ serve(async (req) => {
     );
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const userId = claimsData.claims.sub;
+    const userId = user.id;
 
     // Get user role and profile
-    const { data: roleData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .single();
-
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("full_name, city, language")
-      .eq("id", userId)
-      .single();
+    const [{ data: roleData }, { data: profileData }] = await Promise.all([
+      supabase.from("user_roles").select("role").eq("user_id", userId).single(),
+      supabase.from("profiles").select("full_name, city, language").eq("id", userId).single(),
+    ]);
 
     const role = roleData?.role || "parent";
     const systemPrompt = ROLE_PROMPTS[role] || ROLE_PROMPTS.parent;
@@ -78,9 +92,51 @@ serve(async (req) => {
     const userCity = profileData?.city || "unknown";
     const userLang = profileData?.language || "en";
 
-    const contextLine = `\nCurrent user: ${userName}, role: ${role}, city: ${userCity}, preferred language: ${userLang}.`;
+    const { messages, mode = "general" } = await req.json();
 
-    const { messages } = await req.json();
+    // Validate mode
+    const allowedModes = ROLE_ALLOWED_MODES[role] || ROLE_ALLOWED_MODES.parent;
+    if (!allowedModes.includes(mode)) {
+      return new Response(JSON.stringify({ error: "mode_not_allowed" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Check daily limit
+    const { data: permData } = await supabase
+      .from("ai_permissions")
+      .select("daily_message_limit, can_use_ai")
+      .eq("role", role)
+      .eq("subscription_tier", "basic")
+      .single();
+
+    if (permData && !permData.can_use_ai) {
+      return new Response(JSON.stringify({ error: "ai_not_available" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const dailyLimit = permData?.daily_message_limit || 5;
+    const today = new Date().toISOString().split("T")[0];
+    const { data: usageData } = await supabase
+      .from("ai_usage_log")
+      .select("message_count")
+      .eq("user_id", userId)
+      .eq("usage_date", today)
+      .single();
+
+    const usedToday = usageData?.message_count || 0;
+    if (dailyLimit < 9999 && usedToday >= dailyLimit) {
+      return new Response(JSON.stringify({ error: "daily_limit_reached", limit: dailyLimit }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const modePrompt = MODE_PROMPTS[mode] || "";
+    const contextLine = `\nCurrent user: ${userName}, role: ${role}, city: ${userCity}, preferred language: ${userLang}.`;
 
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) {
@@ -97,7 +153,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
         max_tokens: 1024,
-        system: systemPrompt + contextLine,
+        system: systemPrompt + modePrompt + contextLine,
         messages: messages.map((m: any) => ({
           role: m.role,
           content: m.content,
@@ -109,7 +165,7 @@ serve(async (req) => {
     if (!response.ok) {
       const errText = await response.text();
       console.error("Anthropic error:", response.status, errText);
-      
+
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again shortly." }), {
           status: 429,
@@ -122,13 +178,6 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    // Transform Anthropic SSE to OpenAI-compatible SSE for simpler client parsing
-    const transformStream = new TransformStream({
-      transform(chunk, controller) {
-        controller.enqueue(chunk);
-      },
-    });
 
     return new Response(response.body, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
