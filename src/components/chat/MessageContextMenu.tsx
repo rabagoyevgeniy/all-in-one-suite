@@ -4,9 +4,10 @@ import { Reply, Pencil, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { useLanguage } from '@/hooks/useLanguage';
+import { motion } from 'framer-motion';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥'] as const;
-const EDIT_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+const EDIT_WINDOW_MS = 5 * 60 * 1000;
 
 interface MessageContextMenuProps {
   messageId: string;
@@ -39,13 +40,12 @@ export default function MessageContextMenu({
   const handleReact = useCallback(async (emoji: string) => {
     if (!user?.id) return;
     setOpen(false);
-    const { error } = await supabase
+    await supabase
       .from('chat_reactions')
       .upsert(
         { message_id: messageId, user_id: user.id, emoji },
         { onConflict: 'message_id,user_id,emoji' }
       );
-    if (error) console.error('[Reaction] upsert error:', error);
   }, [messageId, user?.id]);
 
   const onTouchStart = useCallback(() => {
@@ -77,35 +77,39 @@ export default function MessageContextMenu({
           {children}
         </div>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align={isOwn ? 'end' : 'start'} className="w-auto p-1">
-        {/* Quick reactions bar */}
-        <div className="flex gap-1 px-1 py-1.5 border-b border-border mb-1">
+      <DropdownMenuContent
+        align={isOwn ? 'end' : 'start'}
+        className="w-auto p-1.5 rounded-2xl shadow-xl border border-[hsl(var(--border)/0.5)] bg-[hsl(0_0%_100%)]"
+      >
+        {/* Quick reactions bar — floating card style */}
+        <div className="flex gap-1 px-1 pb-1.5 mb-1 border-b border-[hsl(var(--border)/0.5)]">
           {QUICK_EMOJIS.map((emoji) => (
-            <button
+            <motion.button
               key={emoji}
+              whileHover={{ scale: 1.3 }}
+              whileTap={{ scale: 0.9 }}
               onClick={() => handleReact(emoji)}
-              className="text-lg hover:scale-125 transition-transform p-1 rounded-md hover:bg-accent"
+              className="w-9 h-9 flex items-center justify-center text-xl rounded-full hover:bg-[hsl(var(--muted))] transition-colors"
             >
               {emoji}
-            </button>
+            </motion.button>
           ))}
         </div>
 
-        {/* Actions */}
         {onReply && (
-          <DropdownMenuItem onClick={() => { setOpen(false); onReply(); }}>
+          <DropdownMenuItem onClick={() => { setOpen(false); onReply(); }} className="rounded-lg">
             <Reply className="w-4 h-4 mr-2" />
             {t('Reply', 'Ответить')}
           </DropdownMenuItem>
         )}
         {canEdit && onEdit && (
-          <DropdownMenuItem onClick={() => { setOpen(false); onEdit(); }}>
+          <DropdownMenuItem onClick={() => { setOpen(false); onEdit(); }} className="rounded-lg">
             <Pencil className="w-4 h-4 mr-2" />
             {t('Edit', 'Редактировать')}
           </DropdownMenuItem>
         )}
         {isOwn && onDelete && (
-          <DropdownMenuItem onClick={() => { setOpen(false); onDelete(); }} className="text-destructive focus:text-destructive">
+          <DropdownMenuItem onClick={() => { setOpen(false); onDelete(); }} className="text-destructive focus:text-destructive rounded-lg">
             <Trash2 className="w-4 h-4 mr-2" />
             {t('Delete', 'Удалить')}
           </DropdownMenuItem>

@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { useLanguage } from '@/hooks/useLanguage';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface TypingIndicatorProps {
   roomId: string;
@@ -54,7 +55,6 @@ export default function TypingIndicator({ roomId }: TypingIndicatorProps) {
       config: { presence: { key: `watch-${user.id}` } }
     });
 
-    // Actually subscribe to the same typing channel
     const typingChannel = supabase.channel(`typing-${roomId}`);
     typingChannel
       .on('presence', { event: 'sync' }, () => {
@@ -63,7 +63,7 @@ export default function TypingIndicator({ roomId }: TypingIndicatorProps) {
         Object.values(state).forEach((presences: any) => {
           presences.forEach((p: any) => {
             if (p.typing && p.user_id !== user.id && p.name) {
-              names.push(p.name.split(' ')[0]); // First name only
+              names.push(p.name.split(' ')[0]);
             }
           });
         });
@@ -77,22 +77,37 @@ export default function TypingIndicator({ roomId }: TypingIndicatorProps) {
     };
   }, [roomId, user?.id]);
 
-  if (typingUsers.length === 0) return null;
-
-  const text = typingUsers.length === 1
-    ? t(`${typingUsers[0]} is typing`, `${typingUsers[0]} печатает`)
-    : t(`${typingUsers.join(' & ')} are typing`, `${typingUsers.join(' и ')} печатают`);
-
   return (
-    <div className="px-4 py-1">
-      <p className="text-xs text-muted-foreground flex items-center gap-1">
-        <span>{text}</span>
-        <span className="inline-flex gap-0.5">
-          <span className="w-1 h-1 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-          <span className="w-1 h-1 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-          <span className="w-1 h-1 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-        </span>
-      </p>
-    </div>
+    <AnimatePresence>
+      {typingUsers.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          className="px-4 py-1.5"
+        >
+          <div className="flex items-end gap-1.5">
+            <div className="w-6 h-6 rounded-full bg-[hsl(var(--muted))]" />
+            <div className="bg-[hsl(0_0%_100%)] rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm border border-[hsl(var(--border)/0.5)]">
+              <div className="flex gap-1 items-center">
+                {[0, 1, 2].map(i => (
+                  <motion.div
+                    key={i}
+                    className="w-1.5 h-1.5 rounded-full bg-muted-foreground"
+                    animate={{ y: [0, -4, 0] }}
+                    transition={{ duration: 0.8, delay: i * 0.15, repeat: Infinity }}
+                  />
+                ))}
+              </div>
+            </div>
+            <span className="text-[10px] text-muted-foreground ml-1">
+              {typingUsers.length === 1
+                ? t(`${typingUsers[0]} is typing`, `${typingUsers[0]} печатает`)
+                : t(`${typingUsers.join(' & ')} are typing`, `${typingUsers.join(' и ')} печатают`)}
+            </span>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

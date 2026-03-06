@@ -5,15 +5,21 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { useLanguage } from '@/hooks/useLanguage';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ArrowLeft, Send, Loader2, Globe, Users, Check, X } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { ChevronLeft, Send, Loader2, Globe, Users, X, Phone, Video, Mic, Paperclip } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { motion, AnimatePresence } from 'framer-motion';
 import MessageContextMenu from '@/components/chat/MessageContextMenu';
 import MessageReactions from '@/components/chat/MessageReactions';
 import ChatMessageBubble from '@/components/chat/ChatMessageBubble';
 import ChatMediaUpload from '@/components/chat/ChatMediaUpload';
 import ReplyPreview from '@/components/chat/ReplyPreview';
 import TypingIndicator, { useTypingPresence } from '@/components/chat/TypingIndicator';
+
+function getInitials(name: string | null) {
+  if (!name) return '?';
+  return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+}
 
 export default function ChatRoom() {
   const { roomId } = useParams<{ roomId: string }>();
@@ -28,7 +34,7 @@ export default function ChatRoom() {
   const [replyTo, setReplyTo] = useState<{ id: string; body: string; senderName: string } | null>(null);
   const [editingMsg, setEditingMsg] = useState<{ id: string; body: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const { sendTyping } = useTypingPresence(roomId || '');
 
@@ -81,7 +87,6 @@ export default function ChatRoom() {
         .order('created_at', { ascending: true })
         .limit(200);
 
-      // Fetch reply messages separately for any that have reply_to_id
       const msgs = data || [];
       const replyIds = msgs.filter((m: any) => m.reply_to_id).map((m: any) => m.reply_to_id);
       if (replyIds.length > 0) {
@@ -190,7 +195,6 @@ export default function ChatRoom() {
         table: 'chat_messages',
         filter: `room_id=eq.${roomId}`,
       }, () => {
-        // Refetch on edits/deletes
         queryClient.invalidateQueries({ queryKey: ['chat-room-messages', roomId] });
       })
       .subscribe();
@@ -203,12 +207,24 @@ export default function ChatRoom() {
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
   }, [allMessages.length]);
 
+  // Auto-resize textarea
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setMessageText(e.target.value);
+    sendTyping();
+    // auto-resize
+    const ta = e.target;
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(ta.scrollHeight, 128) + 'px';
+  };
+
   const handleSend = async () => {
     if (!messageText.trim() || !roomId) return;
     const text = messageText.trim();
     setMessageText('');
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
 
-    // Handle edit mode
     if (editingMsg) {
       const { error } = await supabase.from('chat_messages')
         .update({ body: text, is_edited: true, edited_at: new Date().toISOString() } as any)
@@ -256,7 +272,7 @@ export default function ChatRoom() {
   const handleEdit = (msgId: string, body: string) => {
     setEditingMsg({ id: msgId, body });
     setMessageText(body);
-    inputRef.current?.focus();
+    textareaRef.current?.focus();
   };
 
   const handleReply = (msg: any) => {
@@ -265,7 +281,7 @@ export default function ChatRoom() {
       body: msg.body,
       senderName: msg.sender?.full_name || '',
     });
-    inputRef.current?.focus();
+    textareaRef.current?.focus();
   };
 
   const isAnnouncement = room?.type === 'announcement';
@@ -275,96 +291,171 @@ export default function ChatRoom() {
   const getReactionsForMessage = (msgId: string) =>
     allReactions.filter((r: any) => r.message_id === msgId);
 
+  // Check if same sender within 5 min for avatar grouping
+  const shouldShowAvatar = (index: number) => {
+    const msg = allMessages[index];
+    if (!msg || msg.sender_id === user?.id) return false;
+    if (index === 0) return true;
+    const prev = allMessages[index - 1];
+    if (prev.sender_id !== msg.sender_id) return true;
+    const diff = new Date(msg.created_at).getTime() - new Date(prev.created_at).getTime();
+    return diff > 5 * 60 * 1000;
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-64px)]">
-      {/* Header */}
-      <div className="sticky top-0 z-10 px-3 py-3 border-b border-border flex items-center gap-3 bg-background/95 backdrop-blur">
-        <Button variant="ghost" size="icon" className="shrink-0" onClick={() => navigate('/chat')}>
-          <ArrowLeft size={20} />
-        </Button>
-        {room?.type === 'direct' && otherMember ? (
-          <>
-            {otherMember.avatar_url ? (
-              <img src={otherMember.avatar_url} className="w-8 h-8 rounded-full object-cover" alt="" />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs">
-                {otherMember.full_name?.charAt(0) ?? '?'}
+      {/* ═══ PREMIUM HEADER ═══ */}
+      {room?.type === 'direct' ? (
+        <div className="sticky top-0 z-20 px-4 py-3" style={{
+          background: 'linear-gradient(135deg, hsl(199 89% 48%) 0%, hsl(199 89% 42%) 100%)'
+        }}>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/chat')}
+              className="p-1.5 rounded-full bg-[hsl(0_0%_100%/0.2)] hover:bg-[hsl(0_0%_100%/0.3)] transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5 text-[hsl(0_0%_100%)]" />
+            </button>
+            <div className="relative">
+              {otherMember?.avatar_url ? (
+                <img
+                  src={otherMember.avatar_url}
+                  alt=""
+                  className="w-9 h-9 rounded-full object-cover ring-2 ring-[hsl(0_0%_100%/0.5)]"
+                />
+              ) : (
+                <div className="w-9 h-9 rounded-full bg-[hsl(0_0%_100%/0.3)] flex items-center justify-center text-[hsl(0_0%_100%)] font-bold text-sm ring-2 ring-[hsl(0_0%_100%/0.5)]">
+                  {getInitials(otherMember?.full_name)}
+                </div>
+              )}
+              <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-[hsl(var(--success))] ring-[1.5px] ring-[hsl(0_0%_100%)] animate-pulse" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-[hsl(0_0%_100%)] text-sm truncate">
+                {otherMember?.full_name || t('Chat', 'Чат')}
               </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <h3 className="font-display font-semibold text-sm text-foreground truncate">
-                {otherMember.full_name}
-              </h3>
+              <div className="text-[hsl(0_0%_100%/0.7)] text-xs">online</div>
             </div>
-          </>
-        ) : (
-          <>
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              {room?.type === 'community' ? <Globe className="w-4 h-4 text-primary" /> : <Users className="w-4 h-4 text-primary" />}
+            <div className="flex gap-1">
+              <button className="p-2 rounded-full bg-[hsl(0_0%_100%/0.2)] hover:bg-[hsl(0_0%_100%/0.3)] transition-colors">
+                <Phone className="w-4 h-4 text-[hsl(0_0%_100%)]" />
+              </button>
+              <button className="p-2 rounded-full bg-[hsl(0_0%_100%/0.2)] hover:bg-[hsl(0_0%_100%/0.3)] transition-colors">
+                <Video className="w-4 h-4 text-[hsl(0_0%_100%)]" />
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="sticky top-0 z-20 px-4 py-3" style={{
+          background: 'linear-gradient(135deg, hsl(199 89% 48%) 0%, hsl(199 89% 42%) 100%)'
+        }}>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/chat')}
+              className="p-1.5 rounded-full bg-[hsl(0_0%_100%/0.2)] hover:bg-[hsl(0_0%_100%/0.3)] transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5 text-[hsl(0_0%_100%)]" />
+            </button>
+            <div className="w-9 h-9 rounded-full bg-[hsl(0_0%_100%/0.2)] flex items-center justify-center ring-2 ring-[hsl(0_0%_100%/0.5)]">
+              {room?.type === 'community' ? (
+                <Globe className="w-4 h-4 text-[hsl(0_0%_100%)]" />
+              ) : (
+                <Users className="w-4 h-4 text-[hsl(0_0%_100%)]" />
+              )}
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-display font-semibold text-sm text-foreground truncate">{headerTitle}</h3>
+              <h3 className="font-display font-semibold text-sm text-[hsl(0_0%_100%)] truncate">{headerTitle}</h3>
               {room?.type && room.type !== 'direct' && (
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-[10px] text-[hsl(0_0%_100%/0.7)]">
                   {room.type === 'announcement' ? '📣 Announcements' : room.type === 'community' ? '🌍 Community' : '👥 Group'}
                 </p>
               )}
             </div>
-          </>
-        )}
-      </div>
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-3 py-3 pb-4 space-y-2">
-        {msgsLoading ? (
-          <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
-        ) : allMessages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <p className="text-sm text-muted-foreground">{t('No messages yet. Say hello! 👋', 'Сообщений пока нет. Напишите первыми! 👋')}</p>
           </div>
-        ) : (
-          allMessages.map((msg: any) => {
-            const isOwn = msg.sender_id === user?.id;
-            const showName = room?.type !== 'direct' && !isOwn;
-            const msgReactions = getReactionsForMessage(msg.id);
+        </div>
+      )}
 
-            return (
-              <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                <div className="max-w-[78%]">
-                  <MessageContextMenu
-                    messageId={msg.id}
-                    senderId={msg.sender_id}
-                    createdAt={msg.created_at}
-                    onReply={() => handleReply(msg)}
-                    onEdit={() => handleEdit(msg.id, msg.body)}
-                    onDelete={() => handleDelete(msg.id)}
-                  >
-                    <ChatMessageBubble
-                      msg={msg}
-                      isOwn={isOwn}
-                      showName={showName}
-                      otherLastRead={otherMember?.last_read_at}
-                      isDirect={room?.type === 'direct'}
-                    />
-                  </MessageContextMenu>
-                  <MessageReactions messageId={msg.id} reactions={msgReactions} isOwn={isOwn} />
+      {/* ═══ MESSAGES AREA ═══ */}
+      <div
+        className="flex-1 overflow-y-auto px-3 py-3 pb-4 space-y-1.5 relative"
+        style={{
+          background: 'radial-gradient(ellipse at top, hsl(210 100% 97%) 0%, hsl(200 100% 98%) 50%, hsl(210 17% 98%) 100%)'
+        }}
+      >
+        {/* Subtle dot pattern */}
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{
+          backgroundImage: 'radial-gradient(circle, hsl(222 47% 30%) 1px, transparent 1px)',
+          backgroundSize: '24px 24px'
+        }} />
+
+        <div className="relative z-10 space-y-1.5">
+          {msgsLoading ? (
+            <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
+          ) : allMessages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <p className="text-sm text-muted-foreground">{t('No messages yet. Say hello! 👋', 'Сообщений пока нет. Напишите первыми! 👋')}</p>
+            </div>
+          ) : (
+            allMessages.map((msg: any, idx: number) => {
+              const isOwn = msg.sender_id === user?.id;
+              const showName = room?.type !== 'direct' && !isOwn;
+              const msgReactions = getReactionsForMessage(msg.id);
+              const showAvatar = shouldShowAvatar(idx);
+
+              return (
+                <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} items-end gap-1.5`}>
+                  {/* Avatar for others */}
+                  {!isOwn && (
+                    <div className="w-6 shrink-0 mb-1">
+                      {showAvatar ? (
+                        msg.sender?.avatar_url ? (
+                          <img src={msg.sender.avatar_url} className="w-6 h-6 rounded-full object-cover" alt="" />
+                        ) : (
+                          <div className="w-6 h-6 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center text-[8px] font-bold text-muted-foreground">
+                            {getInitials(msg.sender?.full_name)}
+                          </div>
+                        )
+                      ) : null}
+                    </div>
+                  )}
+
+                  <div className={`${isOwn ? 'max-w-[72%]' : 'max-w-[72%]'}`}>
+                    <MessageContextMenu
+                      messageId={msg.id}
+                      senderId={msg.sender_id}
+                      createdAt={msg.created_at}
+                      onReply={() => handleReply(msg)}
+                      onEdit={() => handleEdit(msg.id, msg.body)}
+                      onDelete={() => handleDelete(msg.id)}
+                    >
+                      <ChatMessageBubble
+                        msg={msg}
+                        isOwn={isOwn}
+                        showName={showName}
+                        otherLastRead={otherMember?.last_read_at}
+                        isDirect={room?.type === 'direct'}
+                      />
+                    </MessageContextMenu>
+                    <MessageReactions messageId={msg.id} reactions={msgReactions} isOwn={isOwn} />
+                  </div>
                 </div>
-              </div>
-            );
-          })
-        )}
-        <div ref={messagesEndRef} />
+              );
+            })
+          )}
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
-      {/* Typing indicator */}
+      {/* ═══ TYPING INDICATOR ═══ */}
       <TypingIndicator roomId={roomId || ''} />
 
       {/* Reply / Edit preview */}
       <ReplyPreview replyTo={replyTo} onCancel={() => setReplyTo(null)} />
       {editingMsg && (
-        <div className="flex items-center gap-2 px-3 py-2 border-t border-border bg-muted/30">
-          <div className="flex-1 min-w-0 border-l-2 border-yellow-500 pl-2">
-            <p className="text-xs font-semibold text-yellow-600">✏️ {t('Editing message', 'Редактирование')}</p>
+        <div className="flex items-center gap-2 px-3 py-2 border-t border-border bg-[hsl(var(--muted)/0.3)]">
+          <div className="flex-1 min-w-0 border-l-2 border-[hsl(var(--warning))] pl-2">
+            <p className="text-xs font-semibold text-[hsl(var(--warning))]">✏️ {t('Editing message', 'Редактирование')}</p>
             <p className="text-xs text-muted-foreground truncate">{editingMsg.body}</p>
           </div>
           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setEditingMsg(null); setMessageText(''); }}>
@@ -373,24 +464,58 @@ export default function ChatRoom() {
         </div>
       )}
 
-      {/* Input */}
+      {/* ═══ PREMIUM INPUT BAR ═══ */}
       {canSend ? (
-        <div className="sticky bottom-0 px-3 py-3 border-t border-border flex gap-2 bg-background relative">
-          <ChatMediaUpload roomId={roomId || ''} onUploaded={() => queryClient.invalidateQueries({ queryKey: ['chat-room-messages', roomId] })} />
-          <Input
-            ref={inputRef}
-            value={messageText}
-            onChange={e => {
-              setMessageText(e.target.value);
-              sendTyping();
-            }}
-            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
-            placeholder={t('Type a message...', 'Напишите сообщение...')}
-            className="rounded-xl"
-          />
-          <Button size="icon" className="rounded-xl shrink-0" disabled={!messageText.trim()} onClick={handleSend}>
-            <Send size={16} />
-          </Button>
+        <div className="sticky bottom-0 bg-[hsl(0_0%_100%/0.95)] backdrop-blur-sm border-t border-[hsl(var(--border))] px-3 py-2">
+          <div className="flex items-end gap-2">
+            <ChatMediaUpload roomId={roomId || ''} onUploaded={() => queryClient.invalidateQueries({ queryKey: ['chat-room-messages', roomId] })} />
+
+            <div className="flex-1 bg-[hsl(var(--muted))] rounded-2xl px-4 py-2.5 flex items-end gap-2">
+              <textarea
+                ref={textareaRef}
+                value={messageText}
+                onChange={handleTextareaChange}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder={t('Message...', 'Сообщение...')}
+                rows={1}
+                className="flex-1 bg-transparent resize-none text-sm placeholder:text-muted-foreground outline-none max-h-32 min-h-[20px] leading-5"
+              />
+            </div>
+
+            <AnimatePresence mode="wait">
+              {messageText.trim() ? (
+                <motion.button
+                  key="send"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  exit={{ scale: 0 }}
+                  onClick={handleSend}
+                  className="w-10 h-10 rounded-full flex items-center justify-center shadow-md transition-colors shrink-0"
+                  style={{
+                    background: 'hsl(199 89% 48%)',
+                    boxShadow: '0 4px 12px hsl(199 89% 48% / 0.3)'
+                  }}
+                >
+                  <Send className="w-4 h-4 text-[hsl(0_0%_100%)]" />
+                </motion.button>
+              ) : (
+                <motion.button
+                  key="mic"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  exit={{ scale: 0 }}
+                  className="w-10 h-10 rounded-full bg-[hsl(var(--muted))] hover:bg-[hsl(var(--muted)/0.8)] flex items-center justify-center transition-colors shrink-0"
+                >
+                  <Mic className="w-5 h-5 text-muted-foreground" />
+                </motion.button>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       ) : (
         <div className="sticky bottom-0 px-4 py-3 border-t border-border text-center bg-background">

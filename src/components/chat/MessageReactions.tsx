@@ -1,6 +1,7 @@
 import { useAuthStore } from '@/stores/authStore';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface Reaction {
   emoji: string;
@@ -17,7 +18,6 @@ export default function MessageReactions({ messageId, reactions, isOwn }: Messag
   const { user } = useAuthStore();
   if (!reactions.length) return null;
 
-  // Group by emoji
   const grouped = reactions.reduce<Record<string, { count: number; hasOwn: boolean }>>((acc, r) => {
     if (!acc[r.emoji]) acc[r.emoji] = { count: 0, hasOwn: false };
     acc[r.emoji].count++;
@@ -25,7 +25,6 @@ export default function MessageReactions({ messageId, reactions, isOwn }: Messag
     return acc;
   }, {});
 
-  // Sort by count desc, take top 5
   const sorted = Object.entries(grouped)
     .sort((a, b) => b[1].count - a[1].count)
     .slice(0, 5);
@@ -51,21 +50,27 @@ export default function MessageReactions({ messageId, reactions, isOwn }: Messag
 
   return (
     <div className={cn('flex gap-1 mt-0.5 flex-wrap', isOwn ? 'justify-end' : 'justify-start')}>
-      {sorted.map(([emoji, { count, hasOwn }]) => (
-        <button
-          key={emoji}
-          onClick={() => toggleReaction(emoji, hasOwn)}
-          className={cn(
-            'inline-flex items-center gap-0.5 text-xs rounded-full px-1.5 py-0.5 transition-colors border',
-            hasOwn
-              ? 'bg-primary/15 border-primary/30 text-primary'
-              : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted'
-          )}
-        >
-          <span>{emoji}</span>
-          <span className="font-medium">{count}</span>
-        </button>
-      ))}
+      <AnimatePresence>
+        {sorted.map(([emoji, { count, hasOwn }]) => (
+          <motion.button
+            key={emoji}
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            exit={{ scale: 0 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={() => toggleReaction(emoji, hasOwn)}
+            className={cn(
+              'inline-flex items-center gap-0.5 text-xs rounded-full px-2 py-0.5 transition-colors border shadow-sm',
+              hasOwn
+                ? 'bg-[hsl(199_89%_96%)] border-[hsl(199_89%_80%)] text-primary'
+                : 'bg-[hsl(0_0%_100%)] border-[hsl(var(--border))] text-muted-foreground hover:bg-[hsl(var(--muted))]'
+            )}
+          >
+            <span>{emoji}</span>
+            <span className="font-medium">{count}</span>
+          </motion.button>
+        ))}
+      </AnimatePresence>
     </div>
   );
 }
