@@ -2635,6 +2635,11 @@ export type Database = {
         Args: { p_student_id: string }
         Returns: undefined
       }
+      is_chat_member: {
+        Args: { _room_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_public_chat_room: { Args: { _room_id: string }; Returns: boolean }
     }
     Enums: {
       app_role:
