@@ -28,6 +28,7 @@ import CoachStudents from "./pages/coach/CoachStudents";
 import CoachEarnings from "./pages/coach/CoachEarnings";
 import CoachProfile from "./pages/coach/CoachProfile";
 import LessonReport from "./pages/coach/LessonReport";
+import CoachShop from "./pages/coach/CoachShop";
 
 // Parent
 import ParentDashboard from "./pages/parent/ParentDashboard";
