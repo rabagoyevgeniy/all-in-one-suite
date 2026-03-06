@@ -6,8 +6,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/hooks/use-toast';
+import { useLanguage } from '@/hooks/useLanguage';
 
-const RATING_LABELS = ['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent!'];
+const RATING_LABELS_EN = ['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent!'];
+const RATING_LABELS_RU = ['', 'Плохо', 'Удовл.', 'Хорошо', 'Отлично', 'Превосходно!'];
 
 interface RatingModalProps {
   isOpen: boolean;
@@ -23,10 +25,13 @@ interface RatingModalProps {
 
 export function RatingModal({ isOpen, onClose, booking, onSuccess }: RatingModalProps) {
   const { user } = useAuthStore();
+  const { t, language } = useLanguage();
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const ratingLabels = language === 'ru' ? RATING_LABELS_RU : RATING_LABELS_EN;
 
   const handleSubmit = async () => {
     if (!rating || !user?.id) return;
@@ -43,15 +48,15 @@ export function RatingModal({ isOpen, onClose, booking, onSuccess }: RatingModal
         });
 
       if (error) {
-        toast({ title: 'Failed to submit review', variant: 'destructive' });
+        toast({ title: t('Failed to submit review', 'Не удалось отправить отзыв'), variant: 'destructive' });
         return;
       }
 
-      toast({ title: 'Review submitted! ⭐ Thank you!' });
+      toast({ title: t('Thank you for your feedback! ⭐', 'Спасибо за ваш отзыв! ⭐') });
       onSuccess();
       onClose();
     } catch {
-      toast({ title: 'Failed to submit review', variant: 'destructive' });
+      toast({ title: t('Failed to submit review', 'Не удалось отправить отзыв'), variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
@@ -64,9 +69,12 @@ export function RatingModal({ isOpen, onClose, booking, onSuccess }: RatingModal
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-display">
-            Rate Your Lesson
+            {t('Rate Your Lesson', 'Оцените занятие')}
           </DialogTitle>
           <p className="text-sm text-muted-foreground">
+            {t('How was your swimming lesson?', 'Как прошло занятие?')}
+          </p>
+          <p className="text-xs text-muted-foreground">
             {booking.coachName} · {booking.date}
           </p>
         </DialogHeader>
@@ -97,14 +105,14 @@ export function RatingModal({ isOpen, onClose, booking, onSuccess }: RatingModal
             </div>
             {activeRating > 0 && (
               <span className="text-sm font-medium text-foreground">
-                {RATING_LABELS[activeRating]}
+                {ratingLabels[activeRating]}
               </span>
             )}
           </div>
 
           {/* Comment */}
           <Textarea
-            placeholder="Share your experience (optional)"
+            placeholder={t('Write a short comment (optional)', 'Напишите комментарий (необязательно)')}
             maxLength={300}
             className="resize-none"
             rows={3}
@@ -118,7 +126,7 @@ export function RatingModal({ isOpen, onClose, booking, onSuccess }: RatingModal
 
         <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" className="rounded-xl" onClick={onClose}>
-            Cancel
+            {t('Cancel', 'Отмена')}
           </Button>
           <Button
             className="rounded-xl gap-1"
@@ -126,7 +134,7 @@ export function RatingModal({ isOpen, onClose, booking, onSuccess }: RatingModal
             onClick={handleSubmit}
           >
             {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            Submit Review
+            {t('Submit Review', 'Отправить отзыв')}
           </Button>
         </DialogFooter>
       </DialogContent>

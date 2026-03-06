@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from '@/hooks/use-toast';
+import { useLanguage } from '@/hooks/useLanguage';
 
 const SKILLS = [
   'Freestyle', 'Backstroke', 'Breaststroke',
@@ -22,6 +23,7 @@ export default function CoachActiveLesson() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { t } = useLanguage();
 
   const lessonId = (location.state as any)?.lessonId as string | undefined;
   const startTimeRef = useRef(Date.now());
@@ -33,7 +35,6 @@ export default function CoachActiveLesson() {
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Fetch booking data
   const { data: booking } = useQuery({
     queryKey: ['active-lesson-booking', bookingId],
     queryFn: async () => {
@@ -52,7 +53,6 @@ export default function CoachActiveLesson() {
     enabled: !!bookingId,
   });
 
-  // Fetch lesson start time
   const { data: lessonData } = useQuery({
     queryKey: ['active-lesson', lessonId],
     queryFn: async () => {
@@ -73,7 +73,6 @@ export default function CoachActiveLesson() {
     }
   }, [lessonData?.started_at]);
 
-  // Timer
   useEffect(() => {
     const interval = setInterval(() => {
       setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000));
@@ -99,12 +98,10 @@ export default function CoachActiveLesson() {
     if (!bookingId || !lessonId || !user?.id) return;
     setSubmitting(true);
     try {
-      // 1. Complete booking
       await supabase.from('bookings')
         .update({ status: 'completed' })
         .eq('id', bookingId);
 
-      // 2. Update lesson
       await supabase.from('lessons')
         .update({
           ended_at: new Date().toISOString(),
@@ -115,34 +112,32 @@ export default function CoachActiveLesson() {
         })
         .eq('id', lessonId);
 
-      // 3. Increment used lessons for student
       if (booking?.student_id) {
         await supabase.rpc('increment_used_lessons', {
           p_student_id: booking.student_id,
         });
       }
 
-      // 4. Notify parent
       if (booking?.parent_id) {
         await supabase.from('notifications').insert({
           user_id: booking.parent_id,
           title: '✅ Lesson completed!',
-          body: 'Your coach left a report. Tap to view.',
+          body: t('Your coach left a report. Tap to view.', 'Тренер оставил отчёт. Нажмите для просмотра.'),
           type: 'lesson_completed',
           reference_id: lessonId,
         });
       }
 
-      toast({ title: 'Report sent! Great work 💪' });
+      toast({ title: t('Report sent! Great work 💪', 'Отчёт отправлен! Отличная работа 💪') });
       navigate('/coach');
     } catch {
-      toast({ title: 'Error finishing lesson', variant: 'destructive' });
+      toast({ title: t('Error finishing lesson', 'Ошибка при завершении занятия'), variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const studentName = (booking?.students as any)?.profiles?.full_name || 'Student';
+  const studentName = (booking?.students as any)?.profiles?.full_name || t('Student', 'Ученик');
   const poolName = (booking?.pools as any)?.name || '';
 
   return (
@@ -159,7 +154,7 @@ export default function CoachActiveLesson() {
             <span className="relative inline-flex rounded-full h-3 w-3 bg-success" />
           </span>
           <span className="font-display font-semibold text-sm text-success">
-            🏊 Lesson in Progress
+            🏊 {t('Lesson in Progress', 'Занятие идёт')}
           </span>
         </div>
         <p className="font-display font-bold text-2xl text-foreground">{studentName}</p>
@@ -179,7 +174,7 @@ export default function CoachActiveLesson() {
         className="space-y-3"
       >
         <h3 className="font-display font-semibold text-sm text-foreground">
-          Skills worked today
+          {t('Skills worked today', 'Навыки на сегодня')}
         </h3>
         <div className="flex flex-wrap gap-2">
           {SKILLS.map(skill => {
@@ -209,7 +204,7 @@ export default function CoachActiveLesson() {
         className="space-y-3"
       >
         <h3 className="font-display font-semibold text-sm text-foreground">
-          Quick rating
+          {t('Quick rating', 'Быстрая оценка')}
         </h3>
         <div className="flex flex-col items-center gap-2">
           <div className="flex gap-1">
@@ -248,7 +243,7 @@ export default function CoachActiveLesson() {
         transition={{ delay: 0.3 }}
       >
         <Textarea
-          placeholder="Quick note (optional)..."
+          placeholder={t('Quick note (optional)...', 'Краткая заметка (необязательно)...')}
           rows={2}
           className="resize-none text-base"
           value={notes}
@@ -266,7 +261,7 @@ export default function CoachActiveLesson() {
           {submitting ? (
             <Loader2 className="h-6 w-6 animate-spin" />
           ) : (
-            '✅ Finish & Send Report'
+            `✅ ${t('Finish & Send Report', 'Завершить и отправить отчёт')}`
           )}
         </Button>
       </div>

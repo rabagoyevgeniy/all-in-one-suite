@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { Clock, MapPin, Plus, Loader2, Star } from 'lucide-react';
 import { SwimBeltBadge } from '@/components/SwimBeltBadge';
 import { CoinBalance } from '@/components/CoinBalance';
@@ -10,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/stores/authStore';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useLanguage } from '@/hooks/useLanguage';
 
 const LOYALTY_COLORS: Record<string, string> = {
   aqua: 'bg-primary/15 text-primary border-primary/30',
@@ -21,6 +23,8 @@ const LOYALTY_COLORS: Record<string, string> = {
 
 export default function ParentDashboard() {
   const { user } = useAuthStore();
+  const { t } = useLanguage();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [coachLocation, setCoachLocation] = useState<{
     lat: number; lng: number; updatedAt: string; isActive: boolean;
@@ -118,8 +122,6 @@ export default function ParentDashboard() {
 
   useEffect(() => {
     if (!trackingCoachId) return;
-
-    // Initial fetch
     supabase
       .from('coaches')
       .select('current_lat, current_lng, last_location_update, gps_tracking_active')
@@ -174,6 +176,8 @@ export default function ParentDashboard() {
     ? Math.floor((Date.now() - new Date(coachLocation.updatedAt).getTime()) / 60000)
     : null;
 
+  const hasNoContent = !children?.length && !upcomingBookings?.length && !completedBookings?.length && !activeSub;
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -187,8 +191,14 @@ export default function ParentDashboard() {
       <SubscriptionWarningBanner />
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
         <h2 className="font-display font-bold text-xl text-foreground">
-          Hello, {profile?.full_name?.split(' ')[0] || 'Parent'}! 👋
+          {t('Hello', 'Привет')}, {profile?.full_name?.split(' ')[0] || t('Parent', 'Родитель')}! 👋
         </h2>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          {t(
+            'Track lessons, progress and coach arrival in real time',
+            'Следите за занятиями, прогрессом и прибытием тренера в реальном времени'
+          )}
+        </p>
         <div className="flex items-center gap-2 mt-1">
           <Badge variant="outline" className={`text-[10px] ${LOYALTY_COLORS[parentData?.loyalty_rank || 'aqua'] || ''}`}>
             {parentData?.loyalty_rank?.replace('_', ' ') || 'Aqua'}
@@ -196,6 +206,30 @@ export default function ParentDashboard() {
           <CoinBalance amount={parentData?.coin_balance || 0} size="sm" />
         </div>
       </motion.div>
+
+      {/* Empty state */}
+      {hasNoContent && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card rounded-2xl p-6 text-center space-y-4"
+        >
+          <div className="text-4xl">🏊</div>
+          <p className="text-sm text-muted-foreground whitespace-pre-line">
+            {t(
+              'No lessons scheduled yet.\nBook your first swimming lesson to start your child\'s journey.',
+              'У вас пока нет запланированных занятий.\nЗапишитесь на первое занятие, чтобы начать обучение.'
+            )}
+          </p>
+          <Button
+            className="rounded-2xl font-display font-semibold gap-2"
+            onClick={() => navigate('/parent/booking')}
+          >
+            <Plus size={18} />
+            {t('Book Lesson', 'Записаться на занятие')}
+          </Button>
+        </motion.div>
+      )}
 
       {/* Coach Tracker Card */}
       {coachLocation && activeBooking && (
@@ -210,15 +244,19 @@ export default function ParentDashboard() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-success" />
               </span>
-              <span className="font-display font-semibold text-sm text-foreground">🚗 Coach is on the way!</span>
+              <span className="font-display font-semibold text-sm text-foreground">
+                🚗 {t('Coach is on the way!', 'Тренер в пути!')}
+              </span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Coach: {(activeBooking?.coaches as any)?.profiles?.full_name || 'Coach'}
+              {t('Coach', 'Тренер')}: {(activeBooking?.coaches as any)?.profiles?.full_name || t('Coach', 'Тренер')}
             </p>
             <p className="text-xs text-muted-foreground">
-              📍 Last seen: {locationAge !== null ? (locationAge < 1 ? 'just now' : `${locationAge}m ago`) : '—'}
+              📍 {t('Last seen', 'Последний раз')}: {locationAge !== null ? (locationAge < 1 ? t('just now', 'только что') : `${locationAge}${t('m ago', 'м назад')}`) : '—'}
             </p>
-            <p className="text-xs text-muted-foreground">Estimated arrival: ~15 min</p>
+            <p className="text-xs text-muted-foreground">
+              {t('Estimated arrival', 'Примерное прибытие')}: ~15 {t('min', 'мин')}
+            </p>
           </div>
           <iframe
             src={`https://maps.google.com/maps?q=${coachLocation.lat},${coachLocation.lng}&z=15&output=embed`}
@@ -239,18 +277,20 @@ export default function ParentDashboard() {
           transition={{ delay: 0.1 }}
           className="glass-card rounded-2xl p-4"
         >
-          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Active Subscription</p>
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            {t('Active Subscription', 'Активный абонемент')}
+          </p>
           <div className="flex items-center justify-between">
             <div>
               <p className="font-display font-bold text-foreground">{activeSub.package_type?.replace('_', ' ').toUpperCase()}</p>
               <p className="text-sm text-muted-foreground">
-                {activeSub.used_lessons}/{activeSub.total_lessons} lessons used
+                {activeSub.used_lessons}/{activeSub.total_lessons} {t('lessons used', 'занятий использовано')}
               </p>
             </div>
             <div className="text-right">
               <p className="font-display font-bold text-foreground">{Number(activeSub.price).toLocaleString()} {activeSub.currency}</p>
               <p className="text-xs text-muted-foreground">
-                Expires {new Date(activeSub.expires_at!).toLocaleDateString()}
+                {t('Expires', 'Истекает')} {new Date(activeSub.expires_at!).toLocaleDateString()}
               </p>
             </div>
           </div>
@@ -277,12 +317,12 @@ export default function ParentDashboard() {
               {child.age_group === 'children_4_12' ? '🧒' : '👦'}
             </div>
             <div className="flex-1">
-              <p className="font-display font-bold text-foreground">{child.profiles?.full_name || 'Child'}</p>
+              <p className="font-display font-bold text-foreground">{child.profiles?.full_name || t('Child', 'Ребёнок')}</p>
               <SwimBeltBadge belt={child.swim_belt || 'white'} size="sm" />
             </div>
             <div className="text-right">
               <CoinBalance amount={child.coin_balance || 0} size="sm" />
-              <p className="text-[10px] text-muted-foreground mt-0.5">🔥 {child.current_streak || 0} streak</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">🔥 {child.current_streak || 0} {t('streak', 'серия')}</p>
             </div>
           </div>
         </motion.div>
@@ -291,7 +331,9 @@ export default function ParentDashboard() {
       {/* Upcoming bookings */}
       {upcomingBookings && upcomingBookings.length > 0 && (
         <div className="space-y-3">
-          <h3 className="font-display font-semibold text-sm text-foreground">Upcoming Lessons</h3>
+          <h3 className="font-display font-semibold text-sm text-foreground">
+            {t('Upcoming Lessons', 'Предстоящие занятия')}
+          </h3>
           {upcomingBookings.map((booking: any, i: number) => {
             const pool = booking.pools as any;
             return (
@@ -308,7 +350,7 @@ export default function ParentDashboard() {
                     {new Date(booking.created_at!).toLocaleDateString()}
                   </span>
                   <Badge variant="outline" className="text-[10px] ml-auto">
-                    {booking.status === 'in_progress' ? 'In Progress' : 'Confirmed'}
+                    {booking.status === 'in_progress' ? t('In Progress', 'В процессе') : t('Confirmed', 'Подтверждено')}
                   </Badge>
                 </div>
                 {pool && (
@@ -325,7 +367,9 @@ export default function ParentDashboard() {
 
       {completedBookings && completedBookings.length > 0 && (
         <div className="space-y-3">
-          <h3 className="font-display font-semibold text-sm text-foreground">Rate Your Lessons ⭐</h3>
+          <h3 className="font-display font-semibold text-sm text-foreground">
+            {t('Rate Your Lessons ⭐', 'Оцените занятия ⭐')}
+          </h3>
           {completedBookings.map((booking: any, i: number) => (
             <motion.div
               key={booking.id}
@@ -336,7 +380,7 @@ export default function ParentDashboard() {
             >
               <div>
                 <p className="text-sm font-medium text-foreground">
-                  {(booking?.coaches as any)?.profiles?.full_name || 'Coach'}
+                  {(booking?.coaches as any)?.profiles?.full_name || t('Coach', 'Тренер')}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {new Date(booking.created_at).toLocaleDateString()}
@@ -349,11 +393,11 @@ export default function ParentDashboard() {
                 onClick={() => setRatingModal({
                   bookingId: booking.id,
                   coachId: (booking?.coaches as any)?.id,
-                  coachName: (booking?.coaches as any)?.profiles?.full_name || 'Coach',
+                  coachName: (booking?.coaches as any)?.profiles?.full_name || t('Coach', 'Тренер'),
                   date: new Date(booking.created_at).toLocaleDateString(),
                 })}
               >
-                <Star size={14} className="text-warning" /> Rate
+                <Star size={14} className="text-warning" /> {t('Rate', 'Оценить')}
               </Button>
             </motion.div>
           ))}
@@ -361,9 +405,12 @@ export default function ParentDashboard() {
       )}
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
-        <Button className="w-full h-14 rounded-2xl font-display font-semibold text-base gap-2">
+        <Button
+          className="w-full h-14 rounded-2xl font-display font-semibold text-base gap-2"
+          onClick={() => navigate('/parent/booking')}
+        >
           <Plus size={20} />
-          Book New Lesson
+          {t('Book Lesson', 'Записаться на занятие')}
         </Button>
       </motion.div>
 
