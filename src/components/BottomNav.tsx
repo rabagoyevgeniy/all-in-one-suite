@@ -92,7 +92,8 @@ export function BottomNav({ role }: { role: UserRole }) {
       <div className="flex justify-around items-center h-16 max-w-lg mx-auto px-2">
         {items.map(({ path, label, icon: Icon }) => {
           const isActive = location.pathname === path ||
-            (path !== '/' && location.pathname.startsWith(path) && path.split('/').length > 2 ? false : location.pathname === path);
+            (path !== '/' && path.split('/').length <= 2 && location.pathname.startsWith(path + '/')) ||
+            (path === '/chat' && location.pathname.startsWith('/chat'));
           const isChatItem = path === '/chat';
           return (
             <NavLink
