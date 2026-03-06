@@ -15,7 +15,7 @@ const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
 
 export default function AIAssistant() {
   const navigate = useNavigate();
-  const { role, session, user } = useAuthStore();
+  const { role, session, user, isLoading: authLoading } = useAuthStore();
   const { language, t } = useLanguage();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
@@ -24,7 +24,10 @@ export default function AIAssistant() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const config = ROLE_CONFIG[role || 'parent'] || DEFAULT_ROLE_CONFIG;
+  const effectiveRole = role || null;
+  const config = effectiveRole ? (ROLE_CONFIG[effectiveRole] || DEFAULT_ROLE_CONFIG) : DEFAULT_ROLE_CONFIG;
+
+  console.log('[AIAssistant] authStore role:', role, '| effectiveRole:', effectiveRole);
 
   // Fetch AI permissions
   const { data: permissions, isLoading: permLoading } = useQuery({
