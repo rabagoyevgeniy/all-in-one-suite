@@ -261,6 +261,8 @@ export type Database = {
           created_at: string | null
           deleted_at: string | null
           edited_at: string | null
+          forwarded_from_id: string | null
+          forwarded_from_name: string | null
           id: string
           is_edited: boolean
           media_mime_type: string | null
@@ -277,6 +279,8 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           edited_at?: string | null
+          forwarded_from_id?: string | null
+          forwarded_from_name?: string | null
           id?: string
           is_edited?: boolean
           media_mime_type?: string | null
@@ -293,6 +297,8 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           edited_at?: string | null
+          forwarded_from_id?: string | null
+          forwarded_from_name?: string | null
           id?: string
           is_edited?: boolean
           media_mime_type?: string | null
@@ -305,6 +311,13 @@ export type Database = {
           sender_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "chat_messages_forwarded_from_id_fkey"
+            columns: ["forwarded_from_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "chat_messages_reply_to_id_fkey"
             columns: ["reply_to_id"]
@@ -369,6 +382,8 @@ export type Database = {
           last_message: string | null
           last_message_at: string | null
           name: string | null
+          pinned_message_id: string | null
+          pinned_message_text: string | null
           type: string
         }
         Insert: {
@@ -379,6 +394,8 @@ export type Database = {
           last_message?: string | null
           last_message_at?: string | null
           name?: string | null
+          pinned_message_id?: string | null
+          pinned_message_text?: string | null
           type?: string
         }
         Update: {
@@ -389,6 +406,8 @@ export type Database = {
           last_message?: string | null
           last_message_at?: string | null
           name?: string | null
+          pinned_message_id?: string | null
+          pinned_message_text?: string | null
           type?: string
         }
         Relationships: [
@@ -397,6 +416,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_rooms_pinned_message_id_fkey"
+            columns: ["pinned_message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
             referencedColumns: ["id"]
           },
         ]
