@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ArrowLeft, Send, Loader2, Globe, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import MessageContextMenu from '@/components/chat/MessageContextMenu';
+import MessageReactions from '@/components/chat/MessageReactions';
 
 export default function ChatRoom() {
   const { roomId } = useParams<{ roomId: string }>();
@@ -17,6 +19,7 @@ export default function ChatRoom() {
   const { toast } = useToast();
   const [messageText, setMessageText] = useState('');
   const [realtimeMessages, setRealtimeMessages] = useState<any[]>([]);
+  const [realtimeReactions, setRealtimeReactions] = useState<any[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Room info
@@ -72,7 +75,30 @@ export default function ChatRoom() {
     enabled: !!roomId,
   });
 
-  // Combine db + realtime, dedup
+  // Reactions query
+  const { data: dbReactions } = useQuery({
+    queryKey: ['chat-room-reactions', roomId],
+    queryFn: async () => {
+      const msgIds = (dbMessages || []).map((m: any) => m.id);
+      if (!msgIds.length) return [];
+      const { data } = await supabase
+        .from('chat_reactions')
+        .select('id, message_id, user_id, emoji')
+        .in('message_id', msgIds);
+      return data || [];
+    },
+    enabled: !!roomId && !!dbMessages && dbMessages.length > 0,
+  });
+
+  // All reactions = db + realtime deduped
+  const allReactions = (() => {
+    const db = dbReactions || [];
+    const dbIds = new Set(db.map((r: any) => r.id));
+    const newOnes = realtimeReactions.filter(r => !dbIds.has(r.id));
+    return [...db, ...newOnes];
+  })();
+
+  // Combine db + realtime messages, dedup
   const allMessages = (() => {
     const db = dbMessages || [];
     const dbIds = new Set(db.map((m: any) => m.id));
@@ -91,10 +117,12 @@ export default function ChatRoom() {
       .then(() => {});
   }, [roomId, user?.id]);
 
-  // Realtime subscription
+  // Realtime subscription for messages + reactions
   useEffect(() => {
     if (!roomId) return;
     setRealtimeMessages([]);
+    setRealtimeReactions([]);
+
     const channel = supabase
       .channel(`room-${roomId}`)
       .on('postgres_changes', {
@@ -124,7 +152,21 @@ export default function ChatRoom() {
           messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
         }, 50);
       })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'chat_reactions',
+      }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const r = payload.new as any;
+          setRealtimeReactions(prev => [...prev, r]);
+        } else if (payload.eventType === 'DELETE') {
+          const old = payload.old as any;
+          setRealtimeReactions(prev => prev.filter(r => r.id !== old.id));
+        }
+      })
       .subscribe();
+
     return () => { supabase.removeChannel(channel); };
   }, [roomId, user?.id]);
 
@@ -162,6 +204,9 @@ export default function ChatRoom() {
   const isAnnouncement = room?.type === 'announcement';
   const isAdmin = useAuthStore.getState().role === 'admin' || useAuthStore.getState().role === 'head_manager';
   const canSend = !isAnnouncement || isAdmin;
+
+  const getReactionsForMessage = (msgId: string) =>
+    allReactions.filter((r: any) => r.message_id === msgId);
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)]">
@@ -216,18 +261,42 @@ export default function ChatRoom() {
           allMessages.map((msg: any) => {
             const isOwn = msg.sender_id === user?.id;
             const showName = room?.type !== 'direct' && !isOwn;
+            const msgReactions = getReactionsForMessage(msg.id);
+
             return (
               <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[78%] rounded-2xl px-3.5 py-2 text-sm ${isOwn ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'}`}>
-                  {showName && (
-                    <p className="text-[10px] font-semibold mb-0.5 opacity-70">
-                      {(msg.sender as any)?.full_name || ''}
-                    </p>
-                  )}
-                  <p className="whitespace-pre-wrap break-words">{msg.body}</p>
-                  <p className={`text-[9px] mt-1 ${isOwn ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
-                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </p>
+                <div className="max-w-[78%]">
+                  <MessageContextMenu
+                    messageId={msg.id}
+                    senderId={msg.sender_id}
+                    createdAt={msg.created_at}
+                    onReply={() => {
+                      toast({ title: t('Reply coming soon', 'Ответ скоро будет') });
+                    }}
+                    onEdit={() => {
+                      toast({ title: t('Edit coming soon', 'Редактирование скоро') });
+                    }}
+                    onDelete={() => {
+                      toast({ title: t('Delete coming soon', 'Удаление скоро') });
+                    }}
+                  >
+                    <div className={`rounded-2xl px-3.5 py-2 text-sm ${isOwn ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'}`}>
+                      {showName && (
+                        <p className="text-[10px] font-semibold mb-0.5 opacity-70">
+                          {(msg.sender as any)?.full_name || ''}
+                        </p>
+                      )}
+                      <p className="whitespace-pre-wrap break-words">{msg.body}</p>
+                      <p className={`text-[9px] mt-1 ${isOwn ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
+                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  </MessageContextMenu>
+                  <MessageReactions
+                    messageId={msg.id}
+                    reactions={msgReactions}
+                    isOwn={isOwn}
+                  />
                 </div>
               </div>
             );
