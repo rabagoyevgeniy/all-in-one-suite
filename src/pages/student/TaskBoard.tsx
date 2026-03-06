@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, CheckCircle2, Lock, Gift, ChevronDown, Info, Coins } from 'lucide-react';
+import { Loader2, CheckCircle2, Lock, Gift, ChevronDown, Info, Coins, Flame, ArrowRight } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { spendCoins } from '@/hooks/useCoins';
 import { SWIM_BELTS, calculateXP, getBeltByXP, getBeltIndex } from '@/lib/constants';
+import { useNavigate } from 'react-router-dom';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -25,6 +26,15 @@ function getPeriodKey(resetPeriod: string | null): string {
   return 'once';
 }
 
+// Task key → navigation route mapping
+const TASK_NAVIGATION: Record<string, { path: string; label: string }> = {
+  watch_technique_video: { path: '/student/education', label: 'Education' },
+  watch_3_streams: { path: '/student/live-duels', label: 'Live Duels' },
+  accept_first_duel: { path: '/student/duels', label: 'Duel Arena' },
+  complete_a_purchase: { path: '/student/store', label: 'Store' },
+  complete_purchase: { path: '/student/store', label: 'Store' },
+};
+
 const CATEGORY_CHIPS = [
   { key: 'all', label: 'All', icon: '🎯' },
   { key: 'daily', label: 'Daily', icon: '📅' },
@@ -39,6 +49,7 @@ const UNLOCK_COST = 25;
 export default function TaskBoard() {
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('all');
   const [expandedTask, setExpandedTask] = useState<string | null>(null);
   const [unlockingTask, setUnlockingTask] = useState<string | null>(null);
@@ -66,7 +77,6 @@ export default function TaskBoard() {
     },
   });
 
-  // Admin-assigned tasks for this user
   const { data: adminTasks } = useQuery({
     queryKey: ['my-admin-tasks', user?.id],
     queryFn: async () => {
@@ -94,7 +104,6 @@ export default function TaskBoard() {
     enabled: !!user?.id,
   });
 
-  // Unlock a completed task for re-do by spending coins
   const unlockMutation = useMutation({
     mutationFn: async (taskId: string) => {
       const task = tasks?.find((t: any) => t.id === taskId);
@@ -146,9 +155,11 @@ export default function TaskBoard() {
   const completedCount = completedForPeriod.size;
   const progressPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
 
-  // Admin tasks counts
   const pendingAdminTasks = (adminTasks || []).filter((t: any) => t.status === 'assigned');
   const completedAdminTasks = (adminTasks || []).filter((t: any) => t.status === 'completed');
+
+  // Streak calculation — days with 100% completion
+  const taskStreak = student?.current_streak || 0;
 
   // XP & Belt for Class Journey
   const totalXP = calculateXP(student || {});
@@ -188,10 +199,10 @@ export default function TaskBoard() {
             className="w-10 h-10 rounded-full border-2 flex items-center justify-center shadow-md"
             style={{ backgroundColor: currentBelt.color, borderColor: currentBelt.borderColor }}
           >
-            <span className="text-sm">🧢</span>
+            <span className="text-sm font-bold">{currentBelt.classCode}</span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-display font-bold text-sm text-foreground">Class Journey</p>
+            <p className="font-display font-bold text-sm text-foreground">Class {currentBelt.classCode} · {currentBelt.className}</p>
             <p className="text-[10px] text-muted-foreground">{currentBelt.name}</p>
           </div>
           <div className="text-right">
@@ -202,7 +213,6 @@ export default function TaskBoard() {
           </div>
         </div>
 
-        {/* Belt steps */}
         <div className="flex items-end gap-1 mb-2">
           {SWIM_BELTS.map((belt, i) => {
             const isActive = i === currentBeltIdx;
@@ -242,7 +252,7 @@ export default function TaskBoard() {
         </div>
       </motion.div>
 
-      {/* Daily Progress — single bar */}
+      {/* Daily Progress with Streak */}
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
@@ -250,7 +260,15 @@ export default function TaskBoard() {
         className="glass-card rounded-2xl p-4"
       >
         <div className="flex items-center justify-between mb-2">
-          <p className="font-display font-bold text-sm text-foreground">Daily Progress</p>
+          <div className="flex items-center gap-2">
+            <p className="font-display font-bold text-sm text-foreground">Daily Progress</p>
+            {taskStreak > 0 && (
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-warning/15">
+                <Flame size={12} className="text-warning" />
+                <span className="text-[10px] font-bold text-warning">{taskStreak} day streak</span>
+              </div>
+            )}
+          </div>
           <span className="text-[11px] text-muted-foreground">{completedCount}/{totalTasks}</span>
         </div>
         <div className="h-3 rounded-full bg-muted/30 overflow-hidden">
@@ -267,7 +285,8 @@ export default function TaskBoard() {
             animate={{ opacity: 1 }}
             className="flex items-center gap-1 text-success text-[11px] font-medium mt-2"
           >
-            <Gift size={14} /> All tasks complete! 🎉
+            <Gift size={14} /> All tasks complete! 🎉 
+            {taskStreak >= 30 && <span className="text-warning ml-1">🏆 Monthly achievement unlocked!</span>}
           </motion.div>
         )}
       </motion.div>
@@ -344,13 +363,14 @@ export default function TaskBoard() {
         })}
       </div>
 
-      {/* Task Cards — ALL tasks are system/admin-validated, NO "Do" button */}
+      {/* Task Cards */}
       <div className="space-y-2.5">
         <AnimatePresence mode="popLayout">
           {filteredTasks.map((task: any, i: number) => {
             const done = completedForPeriod.has(task.id);
             const isExpanded = expandedTask === task.id;
             const xpReward = Math.round((task.coin_reward || 0) * 0.5);
+            const navTarget = TASK_NAVIGATION[task.key];
             return (
               <motion.div
                 key={task.id}
@@ -363,7 +383,6 @@ export default function TaskBoard() {
               >
                 <div className="p-4">
                   <div className="flex items-start gap-3">
-                    {/* Task Icon */}
                     <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-lg ${
                       done ? 'bg-success/20' : 'bg-primary/10'
                     }`}>
@@ -374,7 +393,6 @@ export default function TaskBoard() {
                       )}
                     </div>
 
-                    {/* Task Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className={`text-sm font-semibold ${done ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
@@ -387,7 +405,6 @@ export default function TaskBoard() {
                         )}
                       </div>
 
-                      {/* Rewards row */}
                       <div className="flex items-center gap-3 mt-1.5">
                         <div className="flex items-center gap-1">
                           <span className="text-xs">🪙</span>
@@ -399,8 +416,17 @@ export default function TaskBoard() {
                         </div>
                       </div>
 
-                      {/* Validation info */}
-                      {!done && (
+                      {/* Navigation link for in-app tasks */}
+                      {!done && navTarget && (
+                        <button
+                          onClick={() => navigate(navTarget.path)}
+                          className="flex items-center gap-1 mt-1.5 text-[10px] text-primary hover:underline font-medium"
+                        >
+                          Go to {navTarget.label} <ArrowRight size={10} />
+                        </button>
+                      )}
+
+                      {!done && !navTarget && (
                         <div className="flex items-center gap-1 mt-1.5">
                           <Lock size={10} className="text-muted-foreground" />
                           <span className="text-[10px] text-muted-foreground">
@@ -412,7 +438,6 @@ export default function TaskBoard() {
                       )}
                     </div>
 
-                    {/* Actions column */}
                     <div className="flex flex-col items-end gap-1.5 shrink-0">
                       {done ? (
                         <div className="flex flex-col items-end gap-1">
@@ -432,7 +457,6 @@ export default function TaskBoard() {
                           Locked
                         </Badge>
                       )}
-                      {/* Info toggle */}
                       {task.description && (
                         <button
                           onClick={() => setExpandedTask(isExpanded ? null : task.id)}
@@ -446,7 +470,6 @@ export default function TaskBoard() {
                   </div>
                 </div>
 
-                {/* Expandable description */}
                 <AnimatePresence>
                   {isExpanded && task.description && (
                     <motion.div
@@ -482,7 +505,6 @@ export default function TaskBoard() {
         </div>
       )}
 
-      {/* Completed Admin Tasks History */}
       {completedAdminTasks.length > 0 && (
         <div className="space-y-2">
           <h3 className="font-display font-semibold text-sm text-muted-foreground">Completed Admin Tasks</h3>

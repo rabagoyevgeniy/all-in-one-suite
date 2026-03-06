@@ -896,6 +896,92 @@ export type Database = {
           },
         ]
       }
+      education_videos: {
+        Row: {
+          category: string | null
+          coach_id: string | null
+          coin_cost: number
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          thumbnail_url: string | null
+          title: string
+          video_url: string | null
+        }
+        Insert: {
+          category?: string | null
+          coach_id?: string | null
+          coin_cost?: number
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          thumbnail_url?: string | null
+          title: string
+          video_url?: string | null
+        }
+        Update: {
+          category?: string | null
+          coach_id?: string | null
+          coin_cost?: number
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          thumbnail_url?: string | null
+          title?: string
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "education_videos_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      education_views: {
+        Row: {
+          coins_paid: number
+          id: string
+          user_id: string
+          video_id: string | null
+          viewed_at: string | null
+        }
+        Insert: {
+          coins_paid?: number
+          id?: string
+          user_id: string
+          video_id?: string | null
+          viewed_at?: string | null
+        }
+        Update: {
+          coins_paid?: number
+          id?: string
+          user_id?: string
+          video_id?: string | null
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "education_views_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "education_views_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "education_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financial_transactions: {
         Row: {
           amount: number

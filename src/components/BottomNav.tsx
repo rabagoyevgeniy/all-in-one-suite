@@ -2,7 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   Home, Calendar, MessageSquare, User, Trophy,
   BarChart3, Users, Wallet, Swords, Store,
-  ClipboardList, MapPin
+  ClipboardList, MapPin, BookOpen
 } from 'lucide-react';
 import type { UserRole } from '@/lib/constants';
 
@@ -37,6 +37,7 @@ const NAV_ITEMS: Record<string, { path: string; label: string; icon: React.Eleme
     { path: '/student', label: 'Home', icon: Home },
     { path: '/student/duels', label: 'Duels', icon: Swords },
     { path: '/student/tasks', label: 'Tasks', icon: ClipboardList },
+    { path: '/student/education', label: 'Learn', icon: BookOpen },
     { path: '/student/profile', label: 'Profile', icon: User },
   ],
   pro_athlete: [

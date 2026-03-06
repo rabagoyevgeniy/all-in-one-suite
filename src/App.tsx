@@ -41,6 +41,8 @@ import TaskBoard from "./pages/student/TaskBoard";
 import StudentStore from "./pages/student/StudentStore";
 import DuelArena from "./pages/student/DuelArena";
 import StudentProfile from "./pages/student/StudentProfile";
+import Education from "./pages/student/Education";
+import LiveDuels from "./pages/student/LiveDuels";
 
 // Pro
 import ProDashboard from "./pages/pro/ProDashboard";
@@ -113,6 +115,8 @@ const App = () => (
               <Route path="/student/tasks" element={<TaskBoard />} />
               <Route path="/student/store" element={<StudentStore />} />
               <Route path="/student/duels" element={<DuelArena />} />
+              <Route path="/student/education" element={<Education />} />
+              <Route path="/student/live-duels" element={<LiveDuels />} />
               <Route path="/student/leaderboard" element={<ComingSoon />} />
               <Route path="/student/skills" element={<ComingSoon />} />
               <Route path="/student/profile" element={<StudentProfile />} />
