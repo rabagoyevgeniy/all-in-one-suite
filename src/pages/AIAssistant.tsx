@@ -220,7 +220,7 @@ export default function AIAssistant() {
   const lang = language === 'ru' ? 'ru' : 'en';
   const suggestions = config.suggestions[lang];
 
-  if (permLoading) {
+  if (permLoading || authLoading || !effectiveRole) {
     return (
       <div className="flex items-center justify-center h-screen">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
