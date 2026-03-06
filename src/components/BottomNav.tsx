@@ -62,12 +62,14 @@ export function BottomNav({ role }: { role: UserRole }) {
   const { data: unreadCount } = useQuery({
     queryKey: ['unread-messages-count', user?.id],
     queryFn: async () => {
-      const { data: memberships } = await supabase
+      if (!user?.id) return 0;
+      
+      const { data: memberships, error } = await supabase
         .from('chat_members')
         .select('room_id, last_read_at')
-        .eq('user_id', user!.id);
+        .eq('user_id', user.id);
 
-      if (!memberships?.length) return 0;
+      if (error || !memberships?.length) return 0;
 
       let total = 0;
       for (const m of memberships) {
@@ -75,8 +77,8 @@ export function BottomNav({ role }: { role: UserRole }) {
           .from('chat_messages')
           .select('id', { count: 'exact', head: true })
           .eq('room_id', m.room_id)
-          .gt('created_at', m.last_read_at || '2000-01-01')
-          .neq('sender_id', user!.id);
+          .neq('sender_id', user.id)
+          .gt('created_at', m.last_read_at || '2020-01-01');
         total += count || 0;
       }
       return total;
@@ -105,8 +107,8 @@ export function BottomNav({ role }: { role: UserRole }) {
               <div className="relative">
                 <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
                 {isChatItem && unreadCount && unreadCount > 0 ? (
-                  <span className="absolute -top-1.5 -right-2.5 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
-                    {unreadCount > 99 ? '99+' : unreadCount}
+                  <span className="absolute -top-1.5 -right-2.5 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">
+                    {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 ) : null}
               </div>

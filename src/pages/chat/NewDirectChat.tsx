@@ -5,11 +5,22 @@ import { useAuthStore } from '@/stores/authStore';
 import { useLanguage } from '@/hooks/useLanguage';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Loader2, Search } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
+
+const ROLE_COLORS: Record<string, string> = {
+  coach: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+  parent: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+  admin: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+  head_manager: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+  student: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+  pro_athlete: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+  personal_manager: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
+};
 
 const ROLE_ICONS: Record<string, string> = {
   coach: '🏊',
@@ -22,18 +33,18 @@ const ROLE_ICONS: Record<string, string> = {
 };
 
 export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
-  const { user } = useAuthStore();
+  const { user, profile } = useAuthStore();
   const { t } = useLanguage();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [creating, setCreating] = useState(false);
 
-  // Load all users with roles
+  // Load all users from profiles table
   const { data: allUsers, isLoading } = useQuery({
-    queryKey: ['all-users-for-chat', user?.id],
+    queryKey: ['chat-users', user?.id],
     queryFn: async () => {
-      const { data: profiles, error } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, avatar_url, city')
         .neq('id', user!.id)
@@ -44,19 +55,7 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
         console.error('Users fetch error:', error);
         throw error;
       }
-      if (!profiles?.length) return [];
-
-      const { data: roles } = await supabase
-        .from('user_roles')
-        .select('user_id, role')
-        .in('user_id', profiles.map(p => p.id));
-
-      const roleMap = new Map((roles || []).map(r => [r.user_id, r.role]));
-
-      return profiles.map(p => ({
-        ...p,
-        role: roleMap.get(p.id) || null,
-      }));
+      return data || [];
     },
     enabled: !!user?.id && open,
   });
@@ -69,60 +68,72 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
     if (creating) return;
     setCreating(true);
     try {
-      // Check existing direct chat
+      // Step 1: Get my room memberships
       const { data: myMemberships } = await supabase
         .from('chat_members')
         .select('room_id')
         .eq('user_id', user!.id);
 
-      const { data: theirMemberships } = await supabase
-        .from('chat_members')
-        .select('room_id')
-        .eq('user_id', selectedUser.id);
+      const myRoomIds = (myMemberships || []).map(m => m.room_id);
+      let roomId: string | null = null;
 
-      const myRoomIds = new Set((myMemberships || []).map(m => m.room_id));
-      const sharedRoomIds = (theirMemberships || [])
-        .filter(m => myRoomIds.has(m.room_id))
-        .map(m => m.room_id);
-
-      if (sharedRoomIds.length > 0) {
-        const { data: directRooms } = await supabase
+      if (myRoomIds.length > 0) {
+        // Find direct rooms I'm in
+        const { data: myDirectRooms } = await supabase
           .from('chat_rooms')
           .select('id')
           .eq('type', 'direct')
-          .in('id', sharedRoomIds)
-          .limit(1);
+          .in('id', myRoomIds);
 
-        if (directRooms && directRooms.length > 0) {
-          onOpenChange(false);
-          navigate(`/chat/${directRooms[0].id}`);
-          return;
+        if (myDirectRooms && myDirectRooms.length > 0) {
+          // Check if selected user is in any of these direct rooms
+          for (const dr of myDirectRooms) {
+            const { data: otherMember } = await supabase
+              .from('chat_members')
+              .select('id')
+              .eq('room_id', dr.id)
+              .eq('user_id', selectedUser.id)
+              .maybeSingle();
+
+            if (otherMember) {
+              roomId = dr.id;
+              break;
+            }
+          }
         }
       }
 
-      // Create new room
-      const { data: newRoom, error: roomError } = await supabase
-        .from('chat_rooms')
-        .insert({ type: 'direct', created_by: user!.id })
-        .select()
-        .single();
+      // Step 2: Create new room if not found
+      if (!roomId) {
+        const { data: newRoom, error: roomError } = await supabase
+          .from('chat_rooms')
+          .insert({
+            type: 'direct',
+            name: `${profile?.full_name || 'User'} & ${selectedUser.full_name}`,
+            created_by: user!.id,
+          })
+          .select('id')
+          .single();
 
-      if (roomError) throw roomError;
+        if (roomError) throw roomError;
+        roomId = newRoom.id;
 
-      // Add both members
-      const { error: memberError } = await supabase
-        .from('chat_members')
-        .insert([
-          { room_id: newRoom.id, user_id: user!.id },
-          { room_id: newRoom.id, user_id: selectedUser.id },
-        ]);
+        // Step 3: Add both members
+        const { error: membersError } = await supabase
+          .from('chat_members')
+          .insert([
+            { room_id: roomId, user_id: user!.id, role: 'member' },
+            { room_id: roomId, user_id: selectedUser.id, role: 'member' },
+          ]);
 
-      if (memberError) throw memberError;
+        if (membersError) throw membersError;
+      }
 
+      // Step 4: Close and navigate
       onOpenChange(false);
-      navigate(`/chat/${newRoom.id}`);
+      navigate(`/chat/${roomId}`);
     } catch (err) {
-      console.error('Failed to create chat:', err);
+      console.error('Chat creation error:', err);
       toast({
         title: t('Failed to start conversation', 'Не удалось начать диалог'),
         variant: 'destructive',
@@ -159,7 +170,7 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
           <ScrollArea className="h-[calc(70vh-160px)]">
             {isLoading ? (
               <div className="space-y-3 pr-3">
-                {[1, 2, 3, 4, 5].map(i => (
+                {[1, 2, 3].map(i => (
                   <div key={i} className="flex items-center gap-3 p-3">
                     <Skeleton className="w-10 h-10 rounded-full" />
                     <div className="space-y-1.5 flex-1">
@@ -174,19 +185,19 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
                 {filtered.map((u: any) => (
                   <div
                     key={u.id}
-                    className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 hover:bg-muted/80 active:scale-[0.98] border border-transparent hover:border-border/50"
+                    className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 hover:bg-muted/40 active:scale-[0.98] border border-transparent hover:border-border/50"
                     onClick={() => handleSelectUser(u)}
                   >
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary shrink-0">
                       {u.full_name?.[0]?.toUpperCase() || '?'}
                     </div>
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm text-foreground truncate">
-                        {ROLE_ICONS[u.role] || '👤'} {u.full_name}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm text-foreground truncate">
+                        {u.full_name}
                       </p>
-                      {u.role && (
+                      {u.city && (
                         <p className="text-xs text-muted-foreground capitalize">
-                          {u.role.replace('_', ' ')}
+                          {u.city}
                         </p>
                       )}
                     </div>

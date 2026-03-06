@@ -6,23 +6,18 @@ import { useAuthStore } from '@/stores/authStore';
 import { useLanguage } from '@/hooks/useLanguage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ArrowLeft, Send, Loader2 } from 'lucide-react';
-
-function initials(name: string | null) {
-  if (!name) return '?';
-  return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-}
+import { useToast } from '@/hooks/use-toast';
 
 export default function ChatRoom() {
   const { roomId } = useParams<{ roomId: string }>();
   const { user } = useAuthStore();
   const { t } = useLanguage();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const [message, setMessage] = useState('');
-  const [sending, setSending] = useState(false);
+  const { toast } = useToast();
+  const [messageText, setMessageText] = useState('');
   const [realtimeMessages, setRealtimeMessages] = useState<any[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Room info
@@ -39,7 +34,7 @@ export default function ChatRoom() {
     enabled: !!roomId,
   });
 
-  // Room title (for direct chats, show other user's name)
+  // Room title
   const { data: roomTitle } = useQuery({
     queryKey: ['chat-room-title', roomId, room?.type],
     queryFn: async () => {
@@ -52,7 +47,7 @@ export default function ChatRoom() {
       if (!members?.length) return t('Chat', 'Чат');
       const { data: profile } = await supabase
         .from('profiles')
-        .select('full_name, avatar_url')
+        .select('full_name')
         .eq('id', members[0].user_id)
         .single();
       return profile?.full_name || t('Chat', 'Чат');
@@ -75,7 +70,7 @@ export default function ChatRoom() {
     enabled: !!roomId,
   });
 
-  // Combine db + realtime messages, dedup
+  // Combine db + realtime, dedup
   const allMessages = (() => {
     const db = dbMessages || [];
     const dbIds = new Set(db.map((m: any) => m.id));
@@ -94,7 +89,7 @@ export default function ChatRoom() {
       .then(() => {});
   }, [roomId, user?.id]);
 
-  // Realtime
+  // Realtime subscription
   useEffect(() => {
     if (!roomId) return;
     setRealtimeMessages([]);
@@ -115,8 +110,8 @@ export default function ChatRoom() {
           .single();
         newMsg.sender = profile;
         setRealtimeMessages(prev => [...prev, newMsg]);
-        
-        // Update last_read_at
+
+        // Update last_read_at if not own message
         if (newMsg.sender_id !== user?.id) {
           await supabase
             .from('chat_members')
@@ -124,36 +119,47 @@ export default function ChatRoom() {
             .eq('room_id', roomId)
             .eq('user_id', user!.id);
         }
+
+        // Scroll to bottom
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 50);
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [roomId, user?.id]);
 
-  // Auto-scroll
+  // Auto-scroll on new messages
   useEffect(() => {
     setTimeout(() => {
-      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
   }, [allMessages.length]);
 
   const handleSend = async () => {
-    if (!message.trim() || !roomId || sending) return;
-    setSending(true);
-    try {
-      await supabase.from('chat_messages').insert({
-        room_id: roomId,
-        sender_id: user!.id,
-        body: message.trim(),
-      });
-      // Update room's last_message
-      await supabase.from('chat_rooms').update({
-        last_message: message.trim().slice(0, 100),
-        last_message_at: new Date().toISOString(),
-      }).eq('id', roomId);
-      setMessage('');
-    } finally {
-      setSending(false);
+    if (!messageText.trim() || !roomId) return;
+
+    const text = messageText.trim();
+    setMessageText(''); // Clear optimistically
+
+    const { error } = await supabase.from('chat_messages').insert({
+      room_id: roomId,
+      sender_id: user!.id,
+      body: text,
+    });
+
+    if (error) {
+      console.error('Send error:', error);
+      setMessageText(text); // Restore on failure
+      toast({ title: t('Failed to send message', 'Не удалось отправить сообщение'), variant: 'destructive' });
+      return;
     }
+
+    // Update room's last_message
+    await supabase.from('chat_rooms').update({
+      last_message: text.slice(0, 100),
+      last_message_at: new Date().toISOString(),
+    }).eq('id', roomId);
   };
 
   const isAnnouncement = room?.type === 'announcement';
@@ -210,20 +216,21 @@ export default function ChatRoom() {
             );
           })
         )}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Input */}
       {canSend ? (
         <div className="px-3 py-3 border-t border-border flex gap-2 bg-card">
           <Input
-            value={message}
-            onChange={e => setMessage(e.target.value)}
+            value={messageText}
+            onChange={e => setMessageText(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
             placeholder={t('Type a message...', 'Напишите сообщение...')}
             className="rounded-xl"
           />
-          <Button size="icon" className="rounded-xl shrink-0" disabled={!message.trim() || sending} onClick={handleSend}>
-            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send size={16} />}
+          <Button size="icon" className="rounded-xl shrink-0" disabled={!messageText.trim()} onClick={handleSend}>
+            <Send size={16} />
           </Button>
         </div>
       ) : (
