@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, ChevronRight, ChevronLeft, Star, MapPin, CheckCircle } from 'lucide-react';
 import { COACH_RANKS } from '@/lib/constants';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 
 export default function ParentBooking() {
   const { user, profile } = useAuthStore();
@@ -104,9 +104,9 @@ export default function ParentBooking() {
         type: 'system',
       });
       navigate('/parent');
-      toast.success('Урок забронирован! ✅');
+      toast({ title: 'Урок забронирован! ✅' });
     } catch (e) {
-      toast.error('Ошибка при бронировании');
+      toast({ title: 'Ошибка при бронировании', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
