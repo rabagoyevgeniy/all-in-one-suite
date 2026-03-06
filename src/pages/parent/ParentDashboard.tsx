@@ -152,6 +152,7 @@ export default function ParentDashboard() {
 
   return (
     <div className="px-4 py-6 space-y-6">
+      <SubscriptionWarningBanner />
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
         <h2 className="font-display font-bold text-xl text-foreground">
           Hello, {profile?.full_name?.split(' ')[0] || 'Parent'}! 👋

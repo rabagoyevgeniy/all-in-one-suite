@@ -109,6 +109,7 @@ const App = () => (
               <Route path="/parent/children/:id" element={<ComingSoon />} />
               <Route path="/parent/booking" element={<ParentBooking />} />
               <Route path="/parent/financial" element={<ComingSoon />} />
+              <Route path="/parent/payments" element={<ParentPayments />} />
               <Route path="/parent/coins" element={<ParentCoins />} />
               <Route path="/parent/referrals" element={<ComingSoon />} />
               <Route path="/parent/chat" element={<ParentChat />} />
