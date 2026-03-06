@@ -19,10 +19,26 @@ function formatFileSize(bytes: number) {
 
 export default function ChatMessageBubble({ msg, isOwn, showName, otherLastRead, isDirect }: ChatMessageBubbleProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const isDeleted = !!msg.deleted_at;
   const messageType = msg.message_type || 'text';
   const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const isRead = isDirect && isOwn && otherLastRead && new Date(otherLastRead) >= new Date(msg.created_at);
+
+  // System message — centered pill
+  if (messageType === 'system') {
+    return (
+      <div className="flex justify-center my-2 px-4">
+        <div className="bg-[hsl(var(--muted))] text-muted-foreground text-xs px-3 py-1 rounded-full">
+          {msg.body}
+        </div>
+      </div>
+    );
+  }
 
   const isRead = isDirect && isOwn && otherLastRead && new Date(otherLastRead) >= new Date(msg.created_at);
 
