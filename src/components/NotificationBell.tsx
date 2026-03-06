@@ -23,8 +23,11 @@ const TYPE_ICONS: Record<string, string> = {
   lesson_completed: '✅',
   duel_challenge: '⚔️',
   coin_earned: '🪙',
+  coin_received: '🪙',
   achievement: '🏆',
   booking_confirmed: '📅',
+  subscription_warning: '⏰',
+  subscription_penalty: '🚨',
 };
 
 export function NotificationBell() {
@@ -117,11 +120,19 @@ export function NotificationBell() {
                 key={n.id}
                 className={`px-4 py-3 border-b border-border last:border-0 ${!n.is_read ? 'bg-primary/5' : ''}`}
               >
-                <div className="flex items-start gap-2">
+              <div className="flex items-start gap-2">
                   <span className="text-base mt-0.5">{TYPE_ICONS[n.type || ''] || '🔔'}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground">{n.title}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.body}</p>
+                    <p className={`text-xs mt-0.5 line-clamp-2 ${n.type === 'subscription_penalty' ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>{n.body}</p>
+                    {n.type === 'subscription_warning' && (
+                      <button
+                        onClick={() => window.location.href = '/parent/payments'}
+                        className="text-[11px] font-semibold text-primary mt-1 hover:underline"
+                      >
+                        Renew →
+                      </button>
+                    )}
                   </div>
                   <span className="text-[10px] text-muted-foreground whitespace-nowrap">{timeAgo(n.sent_at)}</span>
                 </div>

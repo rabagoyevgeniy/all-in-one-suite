@@ -1969,6 +1969,7 @@ export type Database = {
           parent_id: string | null
           pause_reason: string | null
           paused_at: string | null
+          penalty_applied: boolean | null
           price: number
           starts_at: string | null
           status: string | null
@@ -1976,6 +1977,7 @@ export type Database = {
           total_lessons: number | null
           transport_included: boolean | null
           used_lessons: number | null
+          warnings_sent: number[] | null
         }
         Insert: {
           city?: string | null
@@ -1991,6 +1993,7 @@ export type Database = {
           parent_id?: string | null
           pause_reason?: string | null
           paused_at?: string | null
+          penalty_applied?: boolean | null
           price: number
           starts_at?: string | null
           status?: string | null
@@ -1998,6 +2001,7 @@ export type Database = {
           total_lessons?: number | null
           transport_included?: boolean | null
           used_lessons?: number | null
+          warnings_sent?: number[] | null
         }
         Update: {
           city?: string | null
@@ -2013,6 +2017,7 @@ export type Database = {
           parent_id?: string | null
           pause_reason?: string | null
           paused_at?: string | null
+          penalty_applied?: boolean | null
           price?: number
           starts_at?: string | null
           status?: string | null
@@ -2020,6 +2025,7 @@ export type Database = {
           total_lessons?: number | null
           transport_included?: boolean | null
           used_lessons?: number | null
+          warnings_sent?: number[] | null
         }
         Relationships: [
           {

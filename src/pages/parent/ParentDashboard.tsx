@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Clock, MapPin, Plus, Loader2 } from 'lucide-react';
 import { SwimBeltBadge } from '@/components/SwimBeltBadge';
 import { CoinBalance } from '@/components/CoinBalance';
+import { SubscriptionWarningBanner } from '@/components/SubscriptionWarningBanner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/stores/authStore';
@@ -151,6 +152,7 @@ export default function ParentDashboard() {
 
   return (
     <div className="px-4 py-6 space-y-6">
+      <SubscriptionWarningBanner />
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
         <h2 className="font-display font-bold text-xl text-foreground">
           Hello, {profile?.full_name?.split(' ')[0] || 'Parent'}! 👋

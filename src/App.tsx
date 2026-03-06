@@ -36,6 +36,7 @@ import ParentBooking from "./pages/parent/ParentBooking";
 import ParentCoins from "./pages/parent/ParentCoins";
 import ParentChat from "./pages/parent/ParentChat";
 import ParentShop from "./pages/parent/ParentShop";
+import ParentPayments from "./pages/parent/ParentPayments";
 
 // Student
 import StudentDashboard from "./pages/student/StudentDashboard";
@@ -108,6 +109,7 @@ const App = () => (
               <Route path="/parent/children/:id" element={<ComingSoon />} />
               <Route path="/parent/booking" element={<ParentBooking />} />
               <Route path="/parent/financial" element={<ComingSoon />} />
+              <Route path="/parent/payments" element={<ParentPayments />} />
               <Route path="/parent/coins" element={<ParentCoins />} />
               <Route path="/parent/referrals" element={<ComingSoon />} />
               <Route path="/parent/chat" element={<ParentChat />} />
