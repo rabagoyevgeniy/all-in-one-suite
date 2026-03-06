@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, MapPin, Plus, Loader2 } from 'lucide-react';
+import { Clock, MapPin, Plus, Loader2, Star } from 'lucide-react';
 import { SwimBeltBadge } from '@/components/SwimBeltBadge';
 import { CoinBalance } from '@/components/CoinBalance';
 import { SubscriptionWarningBanner } from '@/components/SubscriptionWarningBanner';
