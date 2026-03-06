@@ -40,7 +40,6 @@ export default function ChatMessageBubble({ msg, isOwn, showName, otherLastRead,
     );
   }
 
-  const isRead = isDirect && isOwn && otherLastRead && new Date(otherLastRead) >= new Date(msg.created_at);
 
   if (isDeleted) {
     return (
