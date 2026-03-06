@@ -272,7 +272,7 @@ export default function ChatList() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 hover:bg-muted/80 active:scale-[0.98] border border-transparent hover:border-border/50"
-                  onClick={() => navigate(`/chat/${room.id}`)}
+                  onClick={() => setCommunitySheetRoom(room.id)}
                 >
                   <div className="h-11 w-11 rounded-full bg-primary/10 flex items-center justify-center text-lg shrink-0">
                     {room.type === 'announcement' ? '📣' : '🌍'}
