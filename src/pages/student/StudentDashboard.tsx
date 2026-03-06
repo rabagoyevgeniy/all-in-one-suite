@@ -236,7 +236,7 @@ export default function StudentDashboard() {
             {action.isCustom ? (
               <div className="w-6 h-6 flex items-center justify-center">🥋</div>
             ) : (
-              <action.icon size={22} className="text-primary" />
+              <action.icon size={22 as any} className="text-primary" />
             )}
             <span className="text-[10px] font-medium text-foreground leading-tight text-center">{action.label}</span>
             {action.badge && action.badge > 0 && (
