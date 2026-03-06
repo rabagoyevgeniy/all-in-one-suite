@@ -6,6 +6,7 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Loader2, Search } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -17,7 +18,7 @@ const ROLE_ICONS: Record<string, string> = {
   student: '🎓',
   pro_athlete: '🏆',
   head_manager: '👔',
-  personal_manager: '📋',
+  personal_manager: '🤝',
 };
 
 export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
@@ -28,11 +29,10 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
   const [search, setSearch] = useState('');
   const [creating, setCreating] = useState(false);
 
-  // Load all users upfront (with their roles)
+  // Load all users with roles
   const { data: allUsers, isLoading } = useQuery({
-    queryKey: ['chat-users-list', user?.id],
+    queryKey: ['all-users-for-chat', user?.id],
     queryFn: async () => {
-      // Get all profiles except current user
       const { data: profiles, error } = await supabase
         .from('profiles')
         .select('id, full_name, avatar_url, city')
@@ -40,10 +40,12 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
         .eq('is_active', true)
         .order('full_name');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Users fetch error:', error);
+        throw error;
+      }
       if (!profiles?.length) return [];
 
-      // Get roles for these users
       const { data: roles } = await supabase
         .from('user_roles')
         .select('user_id, role')
@@ -59,16 +61,15 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
     enabled: !!user?.id && open,
   });
 
-  // Filter locally
   const filtered = (allUsers || []).filter(u =>
-    search === '' || u.full_name?.toLowerCase().includes(search.toLowerCase())
+    !search || u.full_name?.toLowerCase().includes(search.toLowerCase())
   );
 
   const handleSelectUser = async (selectedUser: any) => {
     if (creating) return;
     setCreating(true);
     try {
-      // 1. Check if direct chat already exists
+      // Check existing direct chat
       const { data: myMemberships } = await supabase
         .from('chat_members')
         .select('room_id')
@@ -99,7 +100,7 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
         }
       }
 
-      // 2. Create new room
+      // Create new room
       const { data: newRoom, error: roomError } = await supabase
         .from('chat_rooms')
         .insert({ type: 'direct', created_by: user!.id })
@@ -108,7 +109,7 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
 
       if (roomError) throw roomError;
 
-      // 3. Add both members
+      // Add both members
       const { error: memberError } = await supabase
         .from('chat_members')
         .insert([
@@ -118,7 +119,6 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
 
       if (memberError) throw memberError;
 
-      // 4. Navigate
       onOpenChange(false);
       navigate(`/chat/${newRoom.id}`);
     } catch (err) {
@@ -158,15 +158,23 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
 
           <ScrollArea className="h-[calc(70vh-160px)]">
             {isLoading ? (
-              <div className="flex justify-center py-6">
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <div className="space-y-3 pr-3">
+                {[1, 2, 3, 4, 5].map(i => (
+                  <div key={i} className="flex items-center gap-3 p-3">
+                    <Skeleton className="w-10 h-10 rounded-full" />
+                    <div className="space-y-1.5 flex-1">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : filtered.length > 0 ? (
               <div className="space-y-1 pr-3">
                 {filtered.map((u: any) => (
                   <div
                     key={u.id}
-                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted cursor-pointer active:bg-primary/10 transition-colors"
+                    className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 hover:bg-muted/80 active:scale-[0.98] border border-transparent hover:border-border/50"
                     onClick={() => handleSelectUser(u)}
                   >
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary shrink-0">
@@ -174,7 +182,7 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
                     </div>
                     <div className="min-w-0">
                       <p className="font-medium text-sm text-foreground truncate">
-                        {ROLE_ICONS[u.role] || ''} {u.full_name}
+                        {ROLE_ICONS[u.role] || '👤'} {u.full_name}
                       </p>
                       {u.role && (
                         <p className="text-xs text-muted-foreground capitalize">
@@ -187,7 +195,9 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
               </div>
             ) : (
               <p className="text-center text-sm text-muted-foreground py-6">
-                {t('No users found', 'Пользователи не найдены')}
+                {search
+                  ? t(`No users found matching "${search}"`, `Пользователи не найдены по запросу "${search}"`)
+                  : t('No users found', 'Пользователи не найдены')}
               </p>
             )}
           </ScrollArea>
