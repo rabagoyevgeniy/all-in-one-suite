@@ -215,10 +215,10 @@ export default function CoachDashboard() {
         </div>
       </motion.div>
 
-      {/* Today's Route */}
+      {/* Today's Route — Timeline */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="font-display font-semibold text-sm text-foreground">
+          <h3 className="font-semibold text-sm text-foreground">
             {t("Today's Route", 'Маршрут сегодня')}
           </h3>
           <button className="text-xs text-primary font-medium flex items-center gap-1">
@@ -227,91 +227,113 @@ export default function CoachDashboard() {
         </div>
 
         {todayBookings && todayBookings.length > 0 ? (
-          todayBookings.map((booking, i) => {
-            const student = booking.students as any;
-            const pool = booking.pools as any;
-            const studentProfile = student?.profiles as any;
-            return (
-              <motion.div
-                key={booking.id}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.2 + i * 0.1 }}
-                className="glass-card rounded-xl p-4 space-y-3"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex flex-col items-center min-w-[48px]">
-                    <Clock size={14} className="text-muted-foreground mb-1" />
-                    <span className="font-display font-bold text-sm text-foreground">
-                      {new Date(booking.created_at!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm text-foreground truncate">
-                      {studentProfile?.full_name || t('Student', 'Ученик')}
-                    </p>
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <MapPin size={12} className="text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground truncate">{pool?.name || 'TBD'}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className={`text-[10px] ${BOOKING_STATUS_COLORS[booking.status || 'confirmed'] || ''}`}>
-                      {booking.status === 'in_progress' ? 'LIVE' : booking.status === 'completed' ? t('DONE', 'ГОТОВО') : t('NEXT', 'СЛЕД')}
-                    </Badge>
-                    <ChevronRight size={16} className="text-muted-foreground" />
-                  </div>
-                </div>
-                {booking.status === 'confirmed' && (
-                  <Button
-                    className="w-full h-14 text-base font-bold rounded-2xl bg-success hover:bg-success/90 text-success-foreground"
-                    disabled={startingLesson === booking.id}
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      setStartingLesson(booking.id);
-                      try {
-                        await supabase.from('bookings')
-                          .update({ status: 'in_progress' })
-                          .eq('id', booking.id);
-
-                        const { data: lesson, error } = await supabase
-                          .from('lessons')
-                          .insert({
-                            booking_id: booking.id,
-                            coach_id: user!.id,
-                            student_id: booking.student_id || (booking.students as any)?.id,
-                            started_at: new Date().toISOString(),
-                          })
-                          .select()
-                          .single();
-
-                        if (error) throw error;
-
-                        navigate(`/coach/lesson/${booking.id}/active`, {
-                          state: { lessonId: lesson.id },
-                        });
-                      } catch {
-                        toast({ title: t('Failed to start lesson', 'Не удалось начать занятие'), variant: 'destructive' });
-                        setStartingLesson(null);
-                      }
-                    }}
-                  >
-                    {startingLesson === booking.id ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                      `🏊 ${t('Start Lesson', 'Начать занятие')}`
+          <div className="space-y-0">
+            {todayBookings.map((booking, i) => {
+              const student = booking.students as any;
+              const pool = booking.pools as any;
+              const studentProfile = student?.profiles as any;
+              return (
+                <div key={booking.id} className="flex gap-3">
+                  {/* Timeline dot + line */}
+                  <div className="flex flex-col items-center">
+                    <div className={cn(
+                      "w-3 h-3 rounded-full mt-4 flex-shrink-0",
+                      booking.status === 'completed' ? 'bg-emerald-500' :
+                      booking.status === 'in_progress' ? 'bg-primary animate-pulse' :
+                      'bg-muted-foreground/30'
+                    )} />
+                    {i < todayBookings.length - 1 && (
+                      <div className="w-0.5 flex-1 bg-border mt-1" />
                     )}
-                  </Button>
-                )}
-              </motion.div>
-            );
-          })
+                  </div>
+
+                  {/* Lesson card */}
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.2 + i * 0.1 }}
+                    className="flex-1 bg-card rounded-2xl p-4 shadow-sm border border-border mb-3 space-y-3"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="font-semibold text-sm text-foreground">
+                          {new Date(booking.created_at!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {' — '}{studentProfile?.full_name || t('Student', 'Ученик')}
+                        </div>
+                        <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                          <MapPin className="w-3 h-3" />
+                          {pool?.name || pool?.address || 'TBD'}
+                        </div>
+                      </div>
+                      <Badge variant="outline" className={cn(
+                        "text-[10px]",
+                        booking.status === 'completed' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-200' :
+                        booking.status === 'in_progress' ? 'bg-primary/10 text-primary border-primary/30 animate-pulse' :
+                        'bg-muted text-muted-foreground'
+                      )}>
+                        {booking.status === 'in_progress' ? 'LIVE' : booking.status === 'completed' ? t('DONE', 'ГОТОВО') : t('NEXT', 'СЛЕД')}
+                      </Badge>
+                    </div>
+
+                    {booking.status === 'confirmed' && (
+                      <Button
+                        className="w-full h-12 text-base font-bold rounded-2xl"
+                        disabled={startingLesson === booking.id}
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          setStartingLesson(booking.id);
+                          try {
+                            await supabase.from('bookings')
+                              .update({ status: 'in_progress' })
+                              .eq('id', booking.id);
+                            const { data: lesson, error } = await supabase
+                              .from('lessons')
+                              .insert({
+                                booking_id: booking.id,
+                                coach_id: user!.id,
+                                student_id: booking.student_id || student?.id,
+                                started_at: new Date().toISOString(),
+                              })
+                              .select()
+                              .single();
+                            if (error) throw error;
+                            navigate(`/coach/lesson/${booking.id}/active`, {
+                              state: { lessonId: lesson.id },
+                            });
+                          } catch {
+                            toast({ title: t('Failed to start lesson', 'Не удалось начать занятие'), variant: 'destructive' });
+                            setStartingLesson(null);
+                          }
+                        }}
+                      >
+                        {startingLesson === booking.id ? (
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : (
+                          `🏊 ${t('Start Lesson', 'Начать занятие')}`
+                        )}
+                      </Button>
+                    )}
+                    {booking.status === 'in_progress' && (
+                      <Button
+                        variant="outline"
+                        className="w-full h-10 rounded-xl text-sm"
+                        onClick={() => navigate(`/coach/lesson/${booking.id}/active`)}
+                      >
+                        {t('Continue → Report', 'Продолжить → Отчёт')}
+                      </Button>
+                    )}
+                  </motion.div>
+                </div>
+              );
+            })}
+          </div>
         ) : (
-          <div className="glass-card rounded-xl p-6 text-center text-muted-foreground text-sm whitespace-pre-line">
-            {t(
-              'You have no lessons today.\nEnjoy your free day or check upcoming bookings.',
-              'Сегодня занятий нет.\nВы можете отдохнуть или посмотреть будущие записи.'
-            )}
+          <div className="bg-card rounded-2xl p-6 text-center border border-border">
+            <div className="text-4xl mb-2">🏖️</div>
+            <div className="font-semibold text-foreground">{t('Free day!', 'Свободный день!')}</div>
+            <div className="text-sm text-muted-foreground mt-1">
+              {t('Enjoy your rest or check upcoming bookings', 'Отдыхайте или посмотрите будущие записи')}
+            </div>
           </div>
         )}
       </div>
