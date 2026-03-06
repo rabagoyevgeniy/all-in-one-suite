@@ -18,10 +18,10 @@ const NAV_ITEMS: Record<string, { path: string; label: string; icon: React.Eleme
     { path: '/admin/tasks', label: 'Tasks', icon: ClipboardList },
   ],
   coach: [
-    { path: '/coach', label: 'Dashboard', icon: Home },
+    { path: '/coach', label: 'Home', icon: Home },
     { path: '/coach/schedule', label: 'Schedule', icon: Calendar },
     { path: '/coach/students', label: 'Students', icon: Users },
-    { path: '/coach/shop', label: 'Shop', icon: Store },
+    { path: '/chat', label: 'Chat', icon: MessageSquare },
     { path: '/coach/profile', label: 'Profile', icon: User },
   ],
   personal_manager: [
