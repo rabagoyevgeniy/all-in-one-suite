@@ -7,6 +7,7 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ChevronLeft, Send, Loader2, Globe, Users, X, Phone, Video, Mic, Paperclip } from 'lucide-react';
+import VoiceRecorder from '@/components/chat/VoiceRecorder';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import MessageContextMenu from '@/components/chat/MessageContextMenu';
