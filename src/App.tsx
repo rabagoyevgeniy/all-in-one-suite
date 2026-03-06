@@ -28,12 +28,14 @@ import CoachStudents from "./pages/coach/CoachStudents";
 import CoachEarnings from "./pages/coach/CoachEarnings";
 import CoachProfile from "./pages/coach/CoachProfile";
 import LessonReport from "./pages/coach/LessonReport";
+import CoachShop from "./pages/coach/CoachShop";
 
 // Parent
 import ParentDashboard from "./pages/parent/ParentDashboard";
 import ParentBooking from "./pages/parent/ParentBooking";
 import ParentCoins from "./pages/parent/ParentCoins";
 import ParentChat from "./pages/parent/ParentChat";
+import ParentShop from "./pages/parent/ParentShop";
 
 // Student
 import StudentDashboard from "./pages/student/StudentDashboard";
@@ -49,6 +51,7 @@ import ProDashboard from "./pages/pro/ProDashboard";
 import ProArena from "./pages/pro/ProArena";
 import ProRecords from "./pages/pro/ProRecords";
 import ProProfile from "./pages/pro/ProProfile";
+import ProShop from "./pages/pro/ProShop";
 
 // PM
 import PMDashboard from "./pages/pm/PMDashboard";
@@ -87,6 +90,7 @@ const App = () => (
               <Route path="/coach/earnings" element={<CoachEarnings />} />
               <Route path="/coach/profile" element={<CoachProfile />} />
               <Route path="/coach/lesson/:id" element={<LessonReport />} />
+              <Route path="/coach/shop" element={<CoachShop />} />
             </Route>
 
             {/* PM routes */}
@@ -107,6 +111,7 @@ const App = () => (
               <Route path="/parent/coins" element={<ParentCoins />} />
               <Route path="/parent/referrals" element={<ComingSoon />} />
               <Route path="/parent/chat" element={<ParentChat />} />
+              <Route path="/parent/shop" element={<ParentShop />} />
             </Route>
 
             {/* Student routes (Arena theme) */}
@@ -127,6 +132,7 @@ const App = () => (
               <Route path="/pro" element={<ProDashboard />} />
               <Route path="/pro/arena" element={<ProArena />} />
               <Route path="/pro/records" element={<ProRecords />} />
+              <Route path="/pro/shop" element={<ProShop />} />
               <Route path="/pro/profile" element={<ProProfile />} />
             </Route>
 

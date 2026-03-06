@@ -2,7 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   Home, Calendar, MessageSquare, User, Trophy,
   BarChart3, Users, Wallet, Swords, Store,
-  ClipboardList, MapPin, BookOpen
+  ClipboardList, BookOpen
 } from 'lucide-react';
 import type { UserRole } from '@/lib/constants';
 
@@ -18,7 +18,7 @@ const NAV_ITEMS: Record<string, { path: string; label: string; icon: React.Eleme
     { path: '/coach', label: 'Dashboard', icon: Home },
     { path: '/coach/schedule', label: 'Schedule', icon: Calendar },
     { path: '/coach/students', label: 'Students', icon: Users },
-    { path: '/coach/earnings', label: 'Earnings', icon: Wallet },
+    { path: '/coach/shop', label: 'Shop', icon: Store },
     { path: '/coach/profile', label: 'Profile', icon: User },
   ],
   personal_manager: [
@@ -30,7 +30,8 @@ const NAV_ITEMS: Record<string, { path: string; label: string; icon: React.Eleme
   parent: [
     { path: '/parent', label: 'Home', icon: Home },
     { path: '/parent/booking', label: 'Book', icon: Calendar },
-    { path: '/parent/coins', label: 'Coins', icon: Store },
+    { path: '/parent/shop', label: 'Shop', icon: Store },
+    { path: '/parent/coins', label: 'Coins', icon: Wallet },
     { path: '/parent/chat', label: 'Chat', icon: MessageSquare },
   ],
   student: [
@@ -43,6 +44,7 @@ const NAV_ITEMS: Record<string, { path: string; label: string; icon: React.Eleme
   pro_athlete: [
     { path: '/pro', label: 'Dashboard', icon: Home },
     { path: '/pro/arena', label: 'Arena', icon: Trophy },
+    { path: '/pro/shop', label: 'Shop', icon: Store },
     { path: '/pro/records', label: 'Records', icon: BarChart3 },
     { path: '/pro/profile', label: 'Profile', icon: User },
   ],
