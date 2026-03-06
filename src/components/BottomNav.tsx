@@ -44,6 +44,7 @@ const NAV_ITEMS: Record<string, { path: string; label: string; icon: React.Eleme
   pro_athlete: [
     { path: '/pro', label: 'Dashboard', icon: Home },
     { path: '/pro/arena', label: 'Arena', icon: Trophy },
+    { path: '/pro/shop', label: 'Shop', icon: Store },
     { path: '/pro/records', label: 'Records', icon: BarChart3 },
     { path: '/pro/profile', label: 'Profile', icon: User },
   ],

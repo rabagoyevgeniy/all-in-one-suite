@@ -132,6 +132,7 @@ const App = () => (
               <Route path="/pro" element={<ProDashboard />} />
               <Route path="/pro/arena" element={<ProArena />} />
               <Route path="/pro/records" element={<ProRecords />} />
+              <Route path="/pro/shop" element={<ProShop />} />
               <Route path="/pro/profile" element={<ProProfile />} />
             </Route>
 
