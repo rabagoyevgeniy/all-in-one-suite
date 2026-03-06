@@ -37,6 +37,7 @@ const NAV_ITEMS: Record<string, { path: string; label: string; icon: React.Eleme
     { path: '/student', label: 'Home', icon: Home },
     { path: '/student/duels', label: 'Duels', icon: Swords },
     { path: '/student/tasks', label: 'Tasks', icon: ClipboardList },
+    { path: '/student/education', label: 'Learn', icon: BookOpen },
     { path: '/student/profile', label: 'Profile', icon: User },
   ],
   pro_athlete: [
