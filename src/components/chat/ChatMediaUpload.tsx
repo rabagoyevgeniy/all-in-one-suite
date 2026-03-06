@@ -99,24 +99,22 @@ export default function ChatMediaUpload({ roomId, onUploaded }: ChatMediaUploadP
   return (
     <>
       <input ref={fileRef} type="file" accept={ACCEPT} className="hidden" onChange={handleFileSelect} />
-      <Button
+      <button
         type="button"
-        variant="ghost"
-        size="icon"
-        className="shrink-0 rounded-xl"
         onClick={() => fileRef.current?.click()}
         disabled={uploading}
+        className="p-2 rounded-full hover:bg-[hsl(var(--muted))] text-muted-foreground hover:text-primary transition-colors mb-0.5 shrink-0"
       >
-        <Paperclip size={18} />
-      </Button>
+        {uploading ? <Loader2 size={18} className="animate-spin" /> : <Paperclip size={18} />}
+      </button>
 
       {preview && (
-        <div className="absolute bottom-full left-0 right-0 p-3 bg-background border-t border-border">
+        <div className="absolute bottom-full left-0 right-0 p-3 bg-[hsl(0_0%_100%/0.95)] backdrop-blur-sm border-t border-[hsl(var(--border))]">
           <div className="flex items-center gap-3">
             {preview.url ? (
               <img src={preview.url} alt="" className="w-16 h-16 rounded-lg object-cover" />
             ) : (
-              <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center text-xs text-muted-foreground">
+              <div className="w-16 h-16 rounded-lg bg-[hsl(var(--muted))] flex items-center justify-center text-xs text-muted-foreground">
                 {preview.file.name.split('.').pop()?.toUpperCase()}
               </div>
             )}
