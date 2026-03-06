@@ -427,53 +427,83 @@ export default function ChatRoom() {
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <p className="text-sm text-muted-foreground">{t('No messages yet. Say hello! 👋', 'Сообщений пока нет. Напишите первыми! 👋')}</p>
             </div>
-          ) : (
-            allMessages.map((msg: any, idx: number) => {
+          ) : (() => {
+            // Calculate unread divider position
+            let unreadIndex = -1;
+            let unreadCount = 0;
+            if (initialLastRead) {
+              const readTime = new Date(initialLastRead).getTime();
+              for (let i = 0; i < allMessages.length; i++) {
+                const msgTime = new Date(allMessages[i].created_at).getTime();
+                if (msgTime > readTime && allMessages[i].sender_id !== user?.id) {
+                  if (unreadIndex === -1) unreadIndex = i;
+                  unreadCount++;
+                }
+              }
+            }
+
+            return allMessages.map((msg: any, idx: number) => {
               const isOwn = msg.sender_id === user?.id;
-              const showName = room?.type !== 'direct' && !isOwn;
+              const isSystem = msg.message_type === 'system';
+              const showName = room?.type !== 'direct' && !isOwn && !isSystem;
               const msgReactions = getReactionsForMessage(msg.id);
               const showAvatar = shouldShowAvatar(idx);
 
               return (
-                <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} items-end gap-1.5`}>
-                  {/* Avatar for others */}
-                  {!isOwn && (
-                    <div className="w-6 shrink-0 mb-1">
-                      {showAvatar ? (
-                        msg.sender?.avatar_url ? (
-                          <img src={msg.sender.avatar_url} className="w-6 h-6 rounded-full object-cover" alt="" />
-                        ) : (
-                          <div className="w-6 h-6 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center text-[8px] font-bold text-muted-foreground">
-                            {getInitials(msg.sender?.full_name)}
-                          </div>
-                        )
-                      ) : null}
+                <div key={msg.id}>
+                  {idx === unreadIndex && unreadCount > 0 && (
+                    <div ref={unreadDividerRef} className="flex items-center gap-3 my-4 px-4">
+                      <div className="flex-1 h-px bg-primary/30" />
+                      <span className="text-xs text-primary/60 font-medium whitespace-nowrap">
+                        {unreadCount} new message{unreadCount > 1 ? 's' : ''} • {unreadCount} {unreadCount === 1 ? 'новое' : 'новых'}
+                      </span>
+                      <div className="flex-1 h-px bg-primary/30" />
                     </div>
                   )}
 
-                  <div className={`${isOwn ? 'max-w-[72%]' : 'max-w-[72%]'}`}>
-                    <MessageContextMenu
-                      messageId={msg.id}
-                      senderId={msg.sender_id}
-                      createdAt={msg.created_at}
-                      onReply={() => handleReply(msg)}
-                      onEdit={() => handleEdit(msg.id, msg.body)}
-                      onDelete={() => handleDelete(msg.id)}
-                    >
-                      <ChatMessageBubble
-                        msg={msg}
-                        isOwn={isOwn}
-                        showName={showName}
-                        otherLastRead={otherMember?.last_read_at}
-                        isDirect={room?.type === 'direct'}
-                      />
-                    </MessageContextMenu>
-                    <MessageReactions messageId={msg.id} reactions={msgReactions} isOwn={isOwn} />
-                  </div>
+                  {isSystem ? (
+                    <ChatMessageBubble msg={msg} isOwn={false} showName={false} />
+                  ) : (
+                    <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} items-end gap-1.5`}>
+                      {!isOwn && (
+                        <div className="w-6 shrink-0 mb-1">
+                          {showAvatar ? (
+                            msg.sender?.avatar_url ? (
+                              <img src={msg.sender.avatar_url} className="w-6 h-6 rounded-full object-cover" alt="" />
+                            ) : (
+                              <div className="w-6 h-6 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center text-[8px] font-bold text-muted-foreground">
+                                {getInitials(msg.sender?.full_name)}
+                              </div>
+                            )
+                          ) : null}
+                        </div>
+                      )}
+
+                      <div className={`${isOwn ? 'max-w-[72%]' : 'max-w-[72%]'}`}>
+                        <MessageContextMenu
+                          messageId={msg.id}
+                          senderId={msg.sender_id}
+                          createdAt={msg.created_at}
+                          onReply={() => handleReply(msg)}
+                          onEdit={() => handleEdit(msg.id, msg.body)}
+                          onDelete={() => handleDelete(msg.id)}
+                        >
+                          <ChatMessageBubble
+                            msg={msg}
+                            isOwn={isOwn}
+                            showName={showName}
+                            otherLastRead={otherMember?.last_read_at}
+                            isDirect={room?.type === 'direct'}
+                          />
+                        </MessageContextMenu>
+                        <MessageReactions messageId={msg.id} reactions={msgReactions} isOwn={isOwn} />
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
-            })
-          )}
+            });
+          })()}
           <div ref={messagesEndRef} />
         </div>
       </div>
