@@ -2,7 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   Home, Calendar, MessageSquare, User, Trophy,
   BarChart3, Users, Wallet, Swords, Store,
-  ClipboardList, MapPin
+  ClipboardList, MapPin, BookOpen
 } from 'lucide-react';
 import type { UserRole } from '@/lib/constants';
 
