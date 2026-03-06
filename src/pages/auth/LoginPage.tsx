@@ -139,26 +139,28 @@ export default function LoginPage() {
 
     try {
       if (isSignUp) {
-        const { data, error } = await supabase.auth.signUp({
+        const { error: signUpError } = await supabase.auth.signUp({
           email: form.email,
           password: form.password,
           options: {
             data: { full_name: form.fullName, signup_role: selectedRole },
-            emailRedirectTo: window.location.origin,
           },
         });
-        if (error) throw error;
+        if (signUpError) throw signUpError;
 
-        // If auto-confirm is on, assign role immediately
-        if (data.session) {
-          const { error: roleError } = await supabase.rpc('assign_initial_role', {
-            _role: selectedRole!,
-          });
-          if (roleError) throw roleError;
-          navigate('/');
-        } else {
-          toast.success('Check your email to verify your account!');
-        }
+        // Immediately sign in (auto-confirm is enabled)
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: form.email,
+          password: form.password,
+        });
+        if (signInError) throw signInError;
+
+        // Assign role
+        const { error: roleError } = await supabase.rpc('assign_initial_role', {
+          _role: selectedRole!,
+        });
+        if (roleError) throw roleError;
+        navigate('/');
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email: form.email,
