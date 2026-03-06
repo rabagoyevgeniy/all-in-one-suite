@@ -298,6 +298,11 @@ export default function ChatList() {
       </Tabs>
 
       <NewDirectChat open={newChatOpen} onOpenChange={setNewChatOpen} />
+      <CommunityInfoSheet
+        roomId={communitySheetRoom}
+        open={!!communitySheetRoom}
+        onOpenChange={(open) => { if (!open) setCommunitySheetRoom(null); }}
+      />
     </div>
   );
 }
