@@ -90,6 +90,7 @@ const App = () => (
               <Route path="/coach/earnings" element={<CoachEarnings />} />
               <Route path="/coach/profile" element={<CoachProfile />} />
               <Route path="/coach/lesson/:id" element={<LessonReport />} />
+              <Route path="/coach/shop" element={<CoachShop />} />
             </Route>
 
             {/* PM routes */}
