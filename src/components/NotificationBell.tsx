@@ -23,8 +23,11 @@ const TYPE_ICONS: Record<string, string> = {
   lesson_completed: '✅',
   duel_challenge: '⚔️',
   coin_earned: '🪙',
+  coin_received: '🪙',
   achievement: '🏆',
   booking_confirmed: '📅',
+  subscription_warning: '⏰',
+  subscription_penalty: '🚨',
 };
 
 export function NotificationBell() {
