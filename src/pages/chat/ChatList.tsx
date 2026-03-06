@@ -33,6 +33,7 @@ export default function ChatList() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [newChatOpen, setNewChatOpen] = useState(false);
+  const [communitySheetRoom, setCommunitySheetRoom] = useState<string | null>(null);
 
   // Direct chats
   const { data: directRooms, isLoading: directLoading } = useQuery({
