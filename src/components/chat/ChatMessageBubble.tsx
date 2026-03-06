@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Download, FileText } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Download, FileText, Play, Pause } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 
