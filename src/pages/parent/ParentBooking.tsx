@@ -27,7 +27,7 @@ export default function ParentBooking() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('coaches')
-        .select('*, profiles!coaches_id_fkey(full_name)')
+        .select('*, profiles!coaches_id_fkey(full_name), lesson_reviews(count)')
         .order('avg_rating', { ascending: false });
       if (error) throw error;
       return data;
