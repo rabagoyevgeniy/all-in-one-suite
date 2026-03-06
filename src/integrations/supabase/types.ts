@@ -53,6 +53,68 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_permissions: {
+        Row: {
+          allowed_modes: string[] | null
+          can_use_ai: boolean
+          created_at: string | null
+          daily_message_limit: number
+          id: string
+          role: string
+          subscription_tier: string
+          updated_at: string | null
+        }
+        Insert: {
+          allowed_modes?: string[] | null
+          can_use_ai?: boolean
+          created_at?: string | null
+          daily_message_limit?: number
+          id?: string
+          role: string
+          subscription_tier?: string
+          updated_at?: string | null
+        }
+        Update: {
+          allowed_modes?: string[] | null
+          can_use_ai?: boolean
+          created_at?: string | null
+          daily_message_limit?: number
+          id?: string
+          role?: string
+          subscription_tier?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      ai_usage_log: {
+        Row: {
+          id: string
+          message_count: number
+          usage_date: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          message_count?: number
+          usage_date?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          message_count?: number
+          usage_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_logs: {
         Row: {
           booking_id: string | null
@@ -376,39 +438,57 @@ export type Database = {
       chat_rooms: {
         Row: {
           city: string | null
+          community_rules: string[] | null
           created_at: string | null
           created_by: string | null
+          description: string | null
           id: string
+          is_joinable: boolean | null
           last_message: string | null
           last_message_at: string | null
+          member_count: number | null
           name: string | null
           pinned_message_id: string | null
           pinned_message_text: string | null
           type: string
+          upcoming_event_date: string | null
+          upcoming_event_title: string | null
         }
         Insert: {
           city?: string | null
+          community_rules?: string[] | null
           created_at?: string | null
           created_by?: string | null
+          description?: string | null
           id?: string
+          is_joinable?: boolean | null
           last_message?: string | null
           last_message_at?: string | null
+          member_count?: number | null
           name?: string | null
           pinned_message_id?: string | null
           pinned_message_text?: string | null
           type?: string
+          upcoming_event_date?: string | null
+          upcoming_event_title?: string | null
         }
         Update: {
           city?: string | null
+          community_rules?: string[] | null
           created_at?: string | null
           created_by?: string | null
+          description?: string | null
           id?: string
+          is_joinable?: boolean | null
           last_message?: string | null
           last_message_at?: string | null
+          member_count?: number | null
           name?: string | null
           pinned_message_id?: string | null
           pinned_message_text?: string | null
           type?: string
+          upcoming_event_date?: string | null
+          upcoming_event_title?: string | null
         }
         Relationships: [
           {
