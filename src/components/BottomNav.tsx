@@ -30,7 +30,8 @@ const NAV_ITEMS: Record<string, { path: string; label: string; icon: React.Eleme
   parent: [
     { path: '/parent', label: 'Home', icon: Home },
     { path: '/parent/booking', label: 'Book', icon: Calendar },
-    { path: '/parent/coins', label: 'Coins', icon: Store },
+    { path: '/parent/shop', label: 'Shop', icon: Store },
+    { path: '/parent/coins', label: 'Coins', icon: Wallet },
     { path: '/parent/chat', label: 'Chat', icon: MessageSquare },
   ],
   student: [
