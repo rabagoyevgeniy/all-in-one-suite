@@ -150,8 +150,14 @@ const App = () => (
               <Route path="/pro/profile" element={<ProProfile />} />
             </Route>
 
+            {/* AI Assistant (all authenticated roles) */}
+            <Route element={<RoleGuard allowedRoles={['parent', 'coach', 'student', 'pro_athlete', 'personal_manager', 'admin', 'head_manager']}><AppLayout /></RoleGuard>}>
+              <Route path="/ai-assistant" element={<AIAssistant />} />
+            </Route>
+
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <AIAssistantFAB />
           <DevAccountSwitcher />
         </AuthProvider>
       </BrowserRouter>
