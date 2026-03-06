@@ -67,79 +67,97 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
     );
   }, [allUsers, search]);
 
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+
   const handleSelectUser = async (selectedUser: any) => {
     if (creating) return;
     setCreating(true);
+    setSelectedUserId(selectedUser.id);
+
     try {
-      // Step 1: Get my room memberships
+      // Get current user ID reliably
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      if (authError || !authUser) throw new Error('Not authenticated');
+      const currentUserId = authUser.id;
+
+      // Step 1: Find existing direct room between these two users
       const { data: myMemberships } = await supabase
         .from('chat_members')
         .select('room_id')
-        .eq('user_id', user!.id);
+        .eq('user_id', currentUserId);
 
-      const myRoomIds = (myMemberships || []).map(m => m.room_id);
-      let roomId: string | null = null;
+      let existingRoomId: string | null = null;
 
-      if (myRoomIds.length > 0) {
-        // Find direct rooms I'm in
-        const { data: myDirectRooms } = await supabase
-          .from('chat_rooms')
-          .select('id')
-          .eq('type', 'direct')
-          .in('id', myRoomIds);
+      if (myMemberships && myMemberships.length > 0) {
+        const myRoomIds = myMemberships.map(m => m.room_id);
 
-        if (myDirectRooms && myDirectRooms.length > 0) {
-          for (const dr of myDirectRooms) {
-            const { data: otherMember } = await supabase
-              .from('chat_members')
-              .select('id')
-              .eq('room_id', dr.id)
-              .eq('user_id', selectedUser.id)
-              .maybeSingle();
+        const { data: otherMemberships } = await supabase
+          .from('chat_members')
+          .select('room_id')
+          .eq('user_id', selectedUser.id)
+          .in('room_id', myRoomIds);
 
-            if (otherMember) {
-              roomId = dr.id;
-              break;
-            }
-          }
+        if (otherMemberships && otherMemberships.length > 0) {
+          const sharedRoomIds = otherMemberships.map(m => m.room_id);
+
+          const { data: directRoom } = await supabase
+            .from('chat_rooms')
+            .select('id')
+            .eq('type', 'direct')
+            .in('id', sharedRoomIds)
+            .limit(1)
+            .maybeSingle();
+
+          if (directRoom) existingRoomId = directRoom.id;
         }
       }
 
-      // Step 2: Create new room if not found
-      if (!roomId) {
+      // Step 2: Create new room if none exists
+      if (!existingRoomId) {
+        const roomName = `${profile?.full_name || 'User'} & ${selectedUser.full_name}`;
+
         const { data: newRoom, error: roomError } = await supabase
           .from('chat_rooms')
           .insert({
             type: 'direct',
-            name: `${profile?.full_name || 'User'} & ${selectedUser.full_name}`,
-            created_by: user!.id,
+            name: roomName,
+            created_by: currentUserId,
           })
           .select('id')
           .single();
 
-        if (roomError) throw roomError;
-        roomId = newRoom.id;
+        if (roomError) {
+          console.error('[Chat] Room creation error:', roomError);
+          throw new Error(`Room creation failed: ${roomError.message}`);
+        }
 
         const { error: membersError } = await supabase
           .from('chat_members')
           .insert([
-            { room_id: roomId, user_id: user!.id, role: 'member' },
-            { room_id: roomId, user_id: selectedUser.id, role: 'member' },
+            { room_id: newRoom.id, user_id: currentUserId, role: 'member' },
+            { room_id: newRoom.id, user_id: selectedUser.id, role: 'member' },
           ]);
 
-        if (membersError) throw membersError;
+        if (membersError) {
+          console.error('[Chat] Members insert error:', membersError);
+          throw new Error(`Adding members failed: ${membersError.message}`);
+        }
+
+        existingRoomId = newRoom.id;
       }
 
       onOpenChange(false);
-      navigate(`/chat/${roomId}`);
-    } catch (err) {
-      console.error('Chat creation error:', err);
+      navigate(`/chat/${existingRoomId}`);
+    } catch (err: any) {
+      console.error('[Chat] handleSelectUser error:', err);
       toast({
         title: t('Failed to start conversation', 'Не удалось начать диалог'),
+        description: err.message ?? '',
         variant: 'destructive',
       });
     } finally {
       setCreating(false);
+      setSelectedUserId(null);
     }
   };
 
@@ -191,7 +209,7 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
                   <button
                     key={u.id}
                     disabled={creating}
-                    className="w-full flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 hover:bg-muted/40 active:scale-[0.98] border border-transparent hover:border-border/50 text-left"
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 hover:bg-muted/40 active:scale-[0.98] border border-transparent hover:border-border/50 text-left ${creating && selectedUserId !== u.id ? 'opacity-50 pointer-events-none' : ''}`}
                     onClick={() => handleSelectUser(u)}
                   >
                     {u.avatar_url ? (
@@ -211,6 +229,9 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
                         </p>
                       )}
                     </div>
+                    {creating && selectedUserId === u.id && (
+                      <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+                    )}
                   </button>
                 ))}
               </div>

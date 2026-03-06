@@ -51,14 +51,15 @@ function DevQuickLogin({ navigate }: { navigate: NavigateFunction }) {
         password: acc.password,
       });
 
-      if (error && error.message.includes('Invalid login')) {
-        const { error: signUpErr } = await supabase.auth.signUp({
+      if (error && (error.message.includes('Invalid login') || error.message.includes('Email not confirmed'))) {
+        // Sign up (auto-confirm enabled)
+        await supabase.auth.signUp({
           email: acc.email,
           password: acc.password,
           options: { data: { full_name: acc.label.replace(/^[^\w]*\s*/, '') } },
         });
-        if (signUpErr) throw signUpErr;
 
+        // Immediately sign in
         const result = await supabase.auth.signInWithPassword({
           email: acc.email,
           password: acc.password,
