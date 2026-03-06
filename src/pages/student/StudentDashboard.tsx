@@ -220,10 +220,10 @@ export default function StudentDashboard() {
       {/* Quick actions */}
       <div className="grid grid-cols-4 gap-2">
         {[
-          { icon: SwimBeltBadge, label: t('My Swim Belt', 'Мой уровень'), path: '/student/skills', isCustom: true },
-          { icon: Swords, label: t('Duel Arena', 'Арена дуэлей'), glow: true, path: '/student/duels', badge: activeDuels?.length },
-          { icon: ShoppingBag, label: t('ProFit Store', 'Магазин ProFit'), path: '/student/store' },
-          { icon: Award, label: t('Achievements', 'Достижения'), path: '/student/leaderboard' },
+          { emoji: '🥋', label: t('My Swim Belt', 'Мой уровень'), path: '/student/skills' },
+          { Icon: Swords, label: t('Duel Arena', 'Арена дуэлей'), glow: true, path: '/student/duels', badge: activeDuels?.length },
+          { Icon: ShoppingBag, label: t('ProFit Store', 'Магазин ProFit'), path: '/student/store' },
+          { Icon: Award, label: t('Achievements', 'Достижения'), path: '/student/leaderboard' },
         ].map((action, i) => (
           <motion.button
             key={action.label}
@@ -233,11 +233,11 @@ export default function StudentDashboard() {
             onClick={() => navigate(action.path)}
             className={`glass-card rounded-xl p-3 flex flex-col items-center gap-2 relative ${action.glow ? 'glow-primary' : ''}`}
           >
-            {action.isCustom ? (
-              <div className="w-6 h-6 flex items-center justify-center">🥋</div>
-            ) : (
-              <action.icon size={22 as any} className="text-primary" />
-            )}
+            {action.emoji ? (
+              <span className="text-xl">{action.emoji}</span>
+            ) : action.Icon ? (
+              <action.Icon size={22} className="text-primary" />
+            ) : null}
             <span className="text-[10px] font-medium text-foreground leading-tight text-center">{action.label}</span>
             {action.badge && action.badge > 0 && (
               <span className="absolute top-1.5 right-1.5 w-5 h-5 bg-destructive text-destructive-foreground rounded-full text-[10px] font-bold flex items-center justify-center">
