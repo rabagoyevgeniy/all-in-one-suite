@@ -36,6 +36,7 @@ import ParentBooking from "./pages/parent/ParentBooking";
 import ParentCoins from "./pages/parent/ParentCoins";
 import ParentChat from "./pages/parent/ParentChat";
 import ParentShop from "./pages/parent/ParentShop";
+import ParentPayments from "./pages/parent/ParentPayments";
 
 // Student
 import StudentDashboard from "./pages/student/StudentDashboard";
