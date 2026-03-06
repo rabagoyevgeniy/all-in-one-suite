@@ -35,7 +35,8 @@ import CoachActiveLesson from "./pages/coach/CoachActiveLesson";
 import ParentDashboard from "./pages/parent/ParentDashboard";
 import ParentBooking from "./pages/parent/ParentBooking";
 import ParentCoins from "./pages/parent/ParentCoins";
-import ParentChat from "./pages/parent/ParentChat";
+import ChatList from "./pages/chat/ChatList";
+import ChatRoom from "./pages/chat/ChatRoom";
 import ParentShop from "./pages/parent/ParentShop";
 import ParentPayments from "./pages/parent/ParentPayments";
 
@@ -114,8 +115,13 @@ const App = () => (
               <Route path="/parent/payments" element={<ParentPayments />} />
               <Route path="/parent/coins" element={<ParentCoins />} />
               <Route path="/parent/referrals" element={<ComingSoon />} />
-              <Route path="/parent/chat" element={<ParentChat />} />
               <Route path="/parent/shop" element={<ParentShop />} />
+            </Route>
+
+            {/* Chat routes (all authenticated roles) */}
+            <Route element={<RoleGuard allowedRoles={['parent', 'coach', 'student', 'pro_athlete', 'personal_manager', 'admin', 'head_manager']}><AppLayout /></RoleGuard>}>
+              <Route path="/chat" element={<ChatList />} />
+              <Route path="/chat/:roomId" element={<ChatRoom />} />
             </Route>
 
             {/* Student routes (Arena theme) */}
