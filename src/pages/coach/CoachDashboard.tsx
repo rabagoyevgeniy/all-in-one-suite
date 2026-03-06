@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MapPin, Clock, Star, Navigation, ChevronRight, Loader2 } from 'lucide-react';
+import { MapPin, Clock, Star, Navigation, ChevronRight, Loader2, Wallet } from 'lucide-react';
 import { CoinBalance } from '@/components/CoinBalance';
 import { SwimBeltBadge } from '@/components/SwimBeltBadge';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { COACH_RANKS } from '@/lib/constants';
 import { toast } from '@/hooks/use-toast';
 import { useLanguage } from '@/hooks/useLanguage';
+import { cn } from '@/lib/utils';
 
 const BOOKING_STATUS_COLORS: Record<string, string> = {
   confirmed: 'bg-primary/15 text-primary border-primary/30',
