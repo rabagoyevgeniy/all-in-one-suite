@@ -2620,6 +2620,7 @@ export type Database = {
     }
     Functions: {
       assign_initial_role: { Args: { _role: string }; Returns: undefined }
+      create_direct_chat: { Args: { other_user_id: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
