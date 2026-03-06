@@ -5,92 +5,128 @@ import { useAuthStore } from '@/stores/authStore';
 import { useLanguage } from '@/hooks/useLanguage';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, Search } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
-function initials(name: string | null) {
-  if (!name) return '?';
-  return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-}
+const ROLE_ICONS: Record<string, string> = {
+  coach: '🏊',
+  parent: '👨‍👩‍👧',
+  admin: '⚙️',
+  student: '🎓',
+  pro_athlete: '🏆',
+  head_manager: '👔',
+  personal_manager: '📋',
+};
 
 export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const { user } = useAuthStore();
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [creating, setCreating] = useState(false);
 
-  const { data: users, isLoading } = useQuery({
-    queryKey: ['search-users', search],
+  // Load all users upfront (with their roles)
+  const { data: allUsers, isLoading } = useQuery({
+    queryKey: ['chat-users-list', user?.id],
     queryFn: async () => {
-      if (search.trim().length < 2) return [];
-      const { data } = await supabase
+      // Get all profiles except current user
+      const { data: profiles, error } = await supabase
         .from('profiles')
-        .select('id, full_name, avatar_url')
+        .select('id, full_name, avatar_url, city')
         .neq('id', user!.id)
-        .ilike('full_name', `%${search.trim()}%`)
-        .limit(10);
-      return data || [];
+        .eq('is_active', true)
+        .order('full_name');
+
+      if (error) throw error;
+      if (!profiles?.length) return [];
+
+      // Get roles for these users
+      const { data: roles } = await supabase
+        .from('user_roles')
+        .select('user_id, role')
+        .in('user_id', profiles.map(p => p.id));
+
+      const roleMap = new Map((roles || []).map(r => [r.user_id, r.role]));
+
+      return profiles.map(p => ({
+        ...p,
+        role: roleMap.get(p.id) || null,
+      }));
     },
-    enabled: !!user?.id && search.trim().length >= 2,
+    enabled: !!user?.id && open,
   });
 
-  const handleSelect = async (selectedUserId: string) => {
+  // Filter locally
+  const filtered = (allUsers || []).filter(u =>
+    search === '' || u.full_name?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const handleSelectUser = async (selectedUser: any) => {
     if (creating) return;
     setCreating(true);
     try {
-      // Check if direct chat already exists between these two users
+      // 1. Check if direct chat already exists
       const { data: myMemberships } = await supabase
         .from('chat_members')
         .select('room_id')
         .eq('user_id', user!.id);
 
-      const myRoomIds = (myMemberships || []).map(m => m.room_id);
+      const { data: theirMemberships } = await supabase
+        .from('chat_members')
+        .select('room_id')
+        .eq('user_id', selectedUser.id);
 
-      if (myRoomIds.length > 0) {
-        const { data: theirMemberships } = await supabase
-          .from('chat_members')
-          .select('room_id')
-          .eq('user_id', selectedUserId)
-          .in('room_id', myRoomIds);
+      const myRoomIds = new Set((myMemberships || []).map(m => m.room_id));
+      const sharedRoomIds = (theirMemberships || [])
+        .filter(m => myRoomIds.has(m.room_id))
+        .map(m => m.room_id);
 
-        const sharedRoomIds = (theirMemberships || []).map(m => m.room_id);
+      if (sharedRoomIds.length > 0) {
+        const { data: directRooms } = await supabase
+          .from('chat_rooms')
+          .select('id')
+          .eq('type', 'direct')
+          .in('id', sharedRoomIds)
+          .limit(1);
 
-        if (sharedRoomIds.length > 0) {
-          // Check if any of these shared rooms are direct
-          const { data: directRooms } = await supabase
-            .from('chat_rooms')
-            .select('id')
-            .eq('type', 'direct')
-            .in('id', sharedRoomIds)
-            .limit(1);
-
-          if (directRooms && directRooms.length > 0) {
-            onOpenChange(false);
-            navigate(`/chat/${directRooms[0].id}`);
-            return;
-          }
+        if (directRooms && directRooms.length > 0) {
+          onOpenChange(false);
+          navigate(`/chat/${directRooms[0].id}`);
+          return;
         }
       }
 
-      // Create new room
-      const { data: newRoom } = await supabase
+      // 2. Create new room
+      const { data: newRoom, error: roomError } = await supabase
         .from('chat_rooms')
         .insert({ type: 'direct', created_by: user!.id })
         .select()
         .single();
 
-      if (!newRoom) return;
+      if (roomError) throw roomError;
 
-      // Add both members
-      await supabase.from('chat_members').insert([
-        { room_id: newRoom.id, user_id: user!.id },
-        { room_id: newRoom.id, user_id: selectedUserId },
-      ]);
+      // 3. Add both members
+      const { error: memberError } = await supabase
+        .from('chat_members')
+        .insert([
+          { room_id: newRoom.id, user_id: user!.id },
+          { room_id: newRoom.id, user_id: selectedUser.id },
+        ]);
 
+      if (memberError) throw memberError;
+
+      // 4. Navigate
       onOpenChange(false);
       navigate(`/chat/${newRoom.id}`);
+    } catch (err) {
+      console.error('Failed to create chat:', err);
+      toast({
+        title: t('Failed to start conversation', 'Не удалось начать диалог'),
+        variant: 'destructive',
+      });
     } finally {
       setCreating(false);
     }
@@ -102,7 +138,7 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
         <SheetHeader>
           <SheetTitle>{t('New conversation', 'Новый диалог')}</SheetTitle>
         </SheetHeader>
-        <div className="mt-4 space-y-4">
+        <div className="mt-4 space-y-3">
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -115,38 +151,46 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
           </div>
 
           {creating && (
-            <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
+            <div className="flex justify-center py-6">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            </div>
           )}
 
-          {isLoading ? (
-            <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
-          ) : search.trim().length < 2 ? (
-            <p className="text-center text-sm text-muted-foreground py-6">
-              {t('Type at least 2 characters', 'Введите минимум 2 символа')}
-            </p>
-          ) : users && users.length > 0 ? (
-            <div className="space-y-1">
-              {users.map((u: any) => (
-                <div
-                  key={u.id}
-                  className="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => handleSelect(u.id)}
-                >
-                  <Avatar className="h-10 w-10">
-                    {u.avatar_url && <AvatarImage src={u.avatar_url} />}
-                    <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
-                      {initials(u.full_name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <p className="text-sm font-medium text-foreground">{u.full_name}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-center text-sm text-muted-foreground py-6">
-              {t('No users found', 'Пользователи не найдены')}
-            </p>
-          )}
+          <ScrollArea className="h-[calc(70vh-160px)]">
+            {isLoading ? (
+              <div className="flex justify-center py-6">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              </div>
+            ) : filtered.length > 0 ? (
+              <div className="space-y-1 pr-3">
+                {filtered.map((u: any) => (
+                  <div
+                    key={u.id}
+                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted cursor-pointer active:bg-primary/10 transition-colors"
+                    onClick={() => handleSelectUser(u)}
+                  >
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary shrink-0">
+                      {u.full_name?.[0]?.toUpperCase() || '?'}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm text-foreground truncate">
+                        {ROLE_ICONS[u.role] || ''} {u.full_name}
+                      </p>
+                      {u.role && (
+                        <p className="text-xs text-muted-foreground capitalize">
+                          {u.role.replace('_', ' ')}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-sm text-muted-foreground py-6">
+                {t('No users found', 'Пользователи не найдены')}
+              </p>
+            )}
+          </ScrollArea>
         </div>
       </SheetContent>
     </Sheet>
