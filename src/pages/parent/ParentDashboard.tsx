@@ -87,6 +87,29 @@ export default function ParentDashboard() {
     enabled: !!user?.id,
   });
 
+  const { data: completedBookings } = useQuery({
+    queryKey: ['parent-completed-bookings', user?.id],
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .from('bookings')
+          .select(`
+            id, status, created_at,
+            coaches(id, profiles:coaches_id_fkey(full_name))
+          `)
+          .eq('parent_id', user!.id)
+          .eq('status', 'completed')
+          .order('created_at', { ascending: false })
+          .limit(3);
+        if (error) throw error;
+        return data;
+      } catch {
+        return [];
+      }
+    },
+    enabled: !!user?.id,
+  });
+
   // Realtime coach GPS tracking
   const activeBooking = upcomingBookings?.[0] as any;
   const trackingCoachId = activeBooking?.coach_id;
