@@ -229,6 +229,9 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
                         </p>
                       )}
                     </div>
+                    {creating && selectedUserId === u.id && (
+                      <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+                    )}
                   </button>
                 ))}
               </div>
