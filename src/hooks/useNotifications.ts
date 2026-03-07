@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
+import { toast } from '@/hooks/use-toast';
 
 export interface AppNotification {
   id: string;
@@ -35,7 +36,7 @@ export function useNotifications() {
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
-  // Real-time: listen for new notifications
+  // Real-time: listen for new notifications + show toast
   useEffect(() => {
     if (!user?.id) return;
     const channel = supabase
@@ -45,8 +46,17 @@ export function useNotifications() {
         schema: 'public',
         table: 'notifications',
         filter: `user_id=eq.${user.id}`,
-      }, () => {
+      }, (payload) => {
         queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
+        
+        // Show toast for new notification
+        const newNotif = payload.new as AppNotification;
+        if (newNotif?.title) {
+          toast({
+            title: newNotif.title,
+            description: newNotif.body,
+          });
+        }
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };

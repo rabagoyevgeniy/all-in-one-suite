@@ -1,12 +1,16 @@
+import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '@/hooks/useNotifications';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Bell, CreditCard, Trophy, Swords, MessageCircle, AlertCircle, Star, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
+import type { AppNotification } from '@/hooks/useNotifications';
 
 const TYPE_CONFIG: Record<string, { icon: LucideIcon; color: string; bg: string }> = {
   lesson_reminder:      { icon: Bell,          color: 'text-primary',      bg: 'bg-primary/10' },
+  lesson_reminder_24h:  { icon: Bell,          color: 'text-primary',      bg: 'bg-primary/10' },
+  lesson_reminder_1h:   { icon: Bell,          color: 'text-primary',      bg: 'bg-primary/10' },
   lesson_cancelled:     { icon: AlertCircle,   color: 'text-destructive',  bg: 'bg-destructive/10' },
   lesson_confirmed:     { icon: Check,         color: 'text-success',      bg: 'bg-success/10' },
   lesson_completed:     { icon: Check,         color: 'text-success',      bg: 'bg-success/10' },
@@ -18,8 +22,10 @@ const TYPE_CONFIG: Record<string, { icon: LucideIcon; color: string; bg: string 
   achievement:          { icon: Trophy,        color: 'text-coin',         bg: 'bg-coin/10' },
   belt_upgraded:        { icon: Star,          color: 'text-primary',      bg: 'bg-primary/10' },
   duel_challenge:       { icon: Swords,        color: 'text-destructive',  bg: 'bg-destructive/10' },
+  duel_result_win:      { icon: Trophy,        color: 'text-success',      bg: 'bg-success/10' },
   new_message:          { icon: MessageCircle, color: 'text-primary',      bg: 'bg-primary/10' },
   subscription_warning: { icon: AlertCircle,   color: 'text-warning',      bg: 'bg-warning/10' },
+  subscription_expiring:{ icon: AlertCircle,   color: 'text-warning',      bg: 'bg-warning/10' },
   subscription_penalty: { icon: AlertCircle,   color: 'text-destructive',  bg: 'bg-destructive/10' },
   system:               { icon: Bell,          color: 'text-muted-foreground', bg: 'bg-muted' },
 };
@@ -33,7 +39,47 @@ function timeAgo(dateStr: string) {
 }
 
 export default function NotificationsPage() {
+  const navigate = useNavigate();
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
+
+  const handleNotificationTap = (notif: AppNotification) => {
+    if (!notif.is_read) {
+      markRead.mutate(notif.id);
+    }
+
+    switch (notif.type) {
+      case 'lesson_confirmed':
+      case 'lesson_cancelled':
+      case 'lesson_completed':
+      case 'lesson_reminder_24h':
+      case 'lesson_reminder_1h':
+      case 'lesson_reminder':
+        navigate('/parent/booking');
+        break;
+      case 'new_message':
+        navigate('/chat');
+        break;
+      case 'achievement_unlocked':
+      case 'achievement_earned':
+      case 'achievement':
+      case 'belt_upgraded':
+        navigate('/student/profile');
+        break;
+      case 'duel_challenge':
+      case 'duel_result_win':
+        navigate('/student/duels');
+        break;
+      case 'payment_received':
+      case 'payment_due':
+      case 'subscription_warning':
+      case 'subscription_expiring':
+      case 'subscription_penalty':
+        navigate('/payment');
+        break;
+      default:
+        break;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-operations">
@@ -74,7 +120,7 @@ export default function NotificationsPage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.03 }}
-                onClick={() => !notif.is_read && markRead.mutate(notif.id)}
+                onClick={() => handleNotificationTap(notif)}
                 className={cn(
                   "w-full text-left p-4 rounded-2xl border transition-all",
                   notif.is_read

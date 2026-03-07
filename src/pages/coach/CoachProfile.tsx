@@ -4,6 +4,7 @@ import { User, Loader2, Star, QrCode } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { CoinBalance } from '@/components/CoinBalance';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { NotificationSettings } from '@/components/NotificationSettings';
 import { useAuthStore } from '@/stores/authStore';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -77,6 +78,8 @@ export default function CoachProfile() {
           <Stat label="Specializations" value={(coachData?.specializations || []).join(', ') || '—'} />
         </div>
       </div>
+
+      <NotificationSettings />
 
       <QRProfileSheet open={qrOpen} onOpenChange={setQrOpen} />
     </div>

@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { SWIM_BELTS, calculateXP, getBeltByXP, getBeltIndex } from '@/lib/constants';
 import { Loader2, Trophy, Flame, Target, Lock, Swords, Medal, Star, X } from 'lucide-react';
+import { NotificationSettings } from '@/components/NotificationSettings';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 
@@ -272,6 +273,9 @@ export default function StudentProfile() {
           </div>
         )}
       </motion.div>
+
+      {/* Notification Settings */}
+      <NotificationSettings />
 
       {/* Achievement Detail Modal */}
       <Dialog open={!!selectedAchievement} onOpenChange={() => setSelectedAchievement(null)}>

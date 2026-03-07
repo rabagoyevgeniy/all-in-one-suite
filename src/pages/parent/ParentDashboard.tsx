@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Clock, MapPin, Plus, Loader2, Star, CreditCard, TrendingUp, ShoppingBag } from 'lucide-react';
+import { Clock, MapPin, Plus, Loader2, Star, CreditCard, TrendingUp, ShoppingBag, AlertTriangle } from 'lucide-react';
 import { SwimBeltBadge } from '@/components/SwimBeltBadge';
 import { CoinBalance } from '@/components/CoinBalance';
 import { SubscriptionWarningBanner } from '@/components/SubscriptionWarningBanner';
@@ -459,6 +459,36 @@ export default function ParentDashboard() {
             );
           })}
         </div>
+      )}
+
+      {/* Low Lessons Warning */}
+      {activeSub && (activeSub.total_lessons - activeSub.used_lessons) <= 2 && (activeSub.total_lessons - activeSub.used_lessons) > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mx-4 bg-warning/10 border border-warning/30 rounded-2xl p-4 flex items-center gap-3"
+        >
+          <div className="w-10 h-10 bg-warning/20 rounded-xl flex items-center justify-center shrink-0">
+            <AlertTriangle className="w-5 h-5 text-warning" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm text-foreground">
+              {t(
+                `Only ${activeSub.total_lessons - activeSub.used_lessons} lesson${(activeSub.total_lessons - activeSub.used_lessons) === 1 ? '' : 's'} remaining`,
+                `Осталось ${activeSub.total_lessons - activeSub.used_lessons} ${(activeSub.total_lessons - activeSub.used_lessons) === 1 ? 'занятие' : 'занятия'}`
+              )}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {t('Top up to continue your progress', 'Пополните, чтобы продолжить')}
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/payment')}
+            className="bg-warning text-warning-foreground text-xs px-3 py-2 rounded-xl font-medium shrink-0"
+          >
+            {t('Buy Now', 'Купить')}
+          </button>
+        </motion.div>
       )}
 
       {/* Recent Messages */}
