@@ -1,0 +1,1 @@
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS notification_prefs JSONB DEFAULT '{"lesson_reminders": true, "payment_alerts": true, "achievements": true, "messages": true, "duels": true, "promotions": false, "progress_reports": true, "coach_notes": true, "personal_bests": true, "new_slots": true}'::jsonb;

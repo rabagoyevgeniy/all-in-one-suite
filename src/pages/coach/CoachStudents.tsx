@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Loader2 } from 'lucide-react';
+import { Users, Loader2, ClipboardList } from 'lucide-react';
 import { SwimBeltBadge } from '@/components/SwimBeltBadge';
 import { CoinBalance } from '@/components/CoinBalance';
 import { CoachStudentDetailSheet } from '@/components/coach/CoachStudentDetailSheet';
@@ -8,10 +8,20 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { useAuthStore } from '@/stores/authStore';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 export default function CoachStudents() {
   const { user } = useAuthStore();
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+
+  const { data: profile } = useQuery({
+    queryKey: ['profile', user?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from('profiles').select('full_name').eq('id', user!.id).single();
+      return data;
+    },
+    enabled: !!user?.id,
+  });
 
   const { data: students, isLoading } = useQuery({
     queryKey: ['coach-students', user?.id],
@@ -35,6 +45,25 @@ export default function CoachStudents() {
     enabled: !!user?.id,
   });
 
+  const sendCoachNote = async (e: React.MouseEvent, studentId: string) => {
+    e.stopPropagation();
+    const note = prompt('Enter your tip for this student:');
+    if (!note) return;
+
+    const { error } = await supabase.from('notifications').insert({
+      user_id: studentId,
+      type: 'coach_note',
+      title: '📋 Coach feedback',
+      body: `${profile?.full_name ?? 'Your coach'} shared tips for your next swim.`,
+    } as any);
+
+    if (error) {
+      toast({ title: 'Failed to send note', variant: 'destructive' });
+    } else {
+      toast({ title: '✅ Note sent to student!' });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -50,7 +79,7 @@ export default function CoachStudents() {
       </motion.div>
 
       {students && students.length > 0 ? students.map((s: any, i: number) => {
-        const profile = s.profiles as any;
+        const studentProfile = s.profiles as any;
         return (
           <motion.div
             key={s.id}
@@ -62,11 +91,18 @@ export default function CoachStudents() {
           >
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-xl font-bold text-primary">
-                {profile?.full_name?.[0] || '?'}
+                {studentProfile?.full_name?.[0] || '?'}
               </div>
               <div className="flex-1">
-                <p className="font-display font-bold text-foreground">{profile?.full_name || 'Student'}</p>
+                <p className="font-display font-bold text-foreground">{studentProfile?.full_name || 'Student'}</p>
                 <SwimBeltBadge belt={s.swim_belt || 'white'} size="sm" />
+                <button
+                  onClick={(e) => sendCoachNote(e, s.id)}
+                  className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors mt-1"
+                >
+                  <ClipboardList size={12} />
+                  Send note
+                </button>
               </div>
               <div className="text-right">
                 <CoinBalance amount={s.coin_balance || 0} size="sm" />
