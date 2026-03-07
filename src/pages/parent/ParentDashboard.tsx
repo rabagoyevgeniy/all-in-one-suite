@@ -5,6 +5,7 @@ import { Clock, MapPin, Plus, Loader2, Star, CreditCard, TrendingUp } from 'luci
 import { SwimBeltBadge } from '@/components/SwimBeltBadge';
 import { CoinBalance } from '@/components/CoinBalance';
 import { SubscriptionWarningBanner } from '@/components/SubscriptionWarningBanner';
+import { RecentMessagesWidget } from '@/components/RecentMessagesWidget';
 import { RatingModal } from '@/components/RatingModal';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -452,6 +453,9 @@ export default function ParentDashboard() {
           })}
         </div>
       )}
+
+      {/* Recent Messages */}
+      <RecentMessagesWidget />
 
       {/* Quick Book Button */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="px-4">
