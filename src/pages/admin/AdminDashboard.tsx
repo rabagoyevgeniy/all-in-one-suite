@@ -1,14 +1,18 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { DollarSign, Calendar, Users, AlertTriangle, UserPlus, CreditCard, BarChart3, Heart, Settings } from 'lucide-react';
+import { DollarSign, Calendar, Users, AlertTriangle, UserPlus, CreditCard, BarChart3, Heart, Settings, Loader2 } from 'lucide-react';
 import { useAdminDashboardStats, useRevenueChart, useActiveCoaches, useRecentBookings, useActiveSubscriptions } from '@/hooks/useAdminDashboardStats';
 import { useAdminStore } from '@/stores/adminStore';
+import { useAuthStore } from '@/stores/authStore';
 import { COACH_RANKS } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { formatDistanceToNow } from 'date-fns';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 const BOOKING_STATUS_COLORS: Record<string, string> = {
   confirmed: 'bg-primary/15 text-primary border-primary/30',
