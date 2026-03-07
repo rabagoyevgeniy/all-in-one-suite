@@ -2086,6 +2086,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           language: string | null
+          notification_prefs: Json | null
           phone: string | null
           updated_at: string | null
         }
@@ -2097,6 +2098,7 @@ export type Database = {
           id: string
           is_active?: boolean | null
           language?: string | null
+          notification_prefs?: Json | null
           phone?: string | null
           updated_at?: string | null
         }
@@ -2108,6 +2110,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           language?: string | null
+          notification_prefs?: Json | null
           phone?: string | null
           updated_at?: string | null
         }
