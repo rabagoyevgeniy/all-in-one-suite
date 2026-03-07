@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { Wallet, Loader2 } from 'lucide-react';
 import { CoinBalance } from '@/components/CoinBalance';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { useAuthStore } from '@/stores/authStore';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
