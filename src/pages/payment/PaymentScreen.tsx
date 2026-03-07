@@ -19,7 +19,9 @@ export default function PaymentScreen() {
     profile?.city?.toLowerCase() === 'baku' ? 'baku' : 'dubai'
   );
 
-  const { currency, plans } = PRICING[activeCity];
+  const { currency, plans: allPlans } = PRICING[activeCity];
+  const showTestPlan = window.location.search.includes('test=true') || window.location.hostname === 'localhost';
+  const plans = showTestPlan ? allPlans : allPlans.filter(p => !p.isTest);
 
   const handleCheckout = async () => {
     if (!selectedPlan) return;
