@@ -553,12 +553,17 @@ export default function AIAssistant() {
             {messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className="max-w-[85%]">
-                  {msg.role === 'assistant' && msg.mode && msg.mode !== 'general' && (
-                    <div className="flex items-center gap-1 mb-1">
-                      <span className="text-[10px] bg-violet-100 text-violet-600 px-2 py-0.5 rounded-full font-medium">
-                        {MODE_LABELS[msg.mode]?.icon} {MODE_LABELS[msg.mode]?.[lang]}
-                      </span>
-                    </div>
+                  {msg.role === 'assistant' && msg.mode && (
+                    (() => {
+                      const modeLabel = roleModes.find(m => m.id === msg.mode);
+                      return modeLabel ? (
+                        <div className="flex items-center gap-1 mb-1">
+                          <span className="text-[10px] bg-accent text-accent-foreground px-2 py-0.5 rounded-full font-medium">
+                            {modeLabel.label}
+                          </span>
+                        </div>
+                      ) : null;
+                    })()
                   )}
                   {msg.role === 'assistant' && (role === 'admin' || role === 'head_manager') && i === 1 && (
                     <div className="flex items-center gap-1 mb-1">
