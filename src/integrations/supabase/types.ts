@@ -450,6 +450,11 @@ export type Database = {
           name: string | null
           pinned_message_id: string | null
           pinned_message_text: string | null
+          request_reason: string | null
+          requested_by: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string | null
           type: string
           upcoming_event_date: string | null
           upcoming_event_title: string | null
@@ -468,6 +473,11 @@ export type Database = {
           name?: string | null
           pinned_message_id?: string | null
           pinned_message_text?: string | null
+          request_reason?: string | null
+          requested_by?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
           type?: string
           upcoming_event_date?: string | null
           upcoming_event_title?: string | null
@@ -486,6 +496,11 @@ export type Database = {
           name?: string | null
           pinned_message_id?: string | null
           pinned_message_text?: string | null
+          request_reason?: string | null
+          requested_by?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
           type?: string
           upcoming_event_date?: string | null
           upcoming_event_title?: string | null
@@ -503,6 +518,20 @@ export type Database = {
             columns: ["pinned_message_id"]
             isOneToOne: false
             referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_rooms_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_rooms_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
