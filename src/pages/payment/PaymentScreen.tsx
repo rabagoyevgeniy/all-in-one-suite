@@ -4,7 +4,7 @@ import { ArrowLeft, CreditCard, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { useLanguage } from '@/hooks/useLanguage';
-import { PRICING, type PricingPlan } from '@/lib/pricing';
+import { PRICING, PLAN_SECTIONS, type PricingPlan } from '@/lib/pricing';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -28,6 +28,18 @@ export default function PaymentScreen() {
       return;
     }
     window.open(selectedPlan.paymentLink, '_blank');
+  };
+
+  const badgeStyle = (badge?: string) => {
+    switch (badge) {
+      case 'Elite': return 'bg-gradient-to-r from-violet-500 to-purple-600 text-white';
+      case 'Premium': return 'bg-gradient-to-r from-amber-400 to-orange-500 text-white';
+      case 'Best Value':
+      case 'Max Savings': return 'bg-emerald-500 text-white';
+      case 'Family': return 'bg-gradient-to-r from-pink-400 to-rose-500 text-white';
+      case 'Subscribe': return 'bg-gradient-to-r from-sky-400 to-blue-500 text-white';
+      default: return 'bg-primary text-primary-foreground';
+    }
   };
 
   return (
@@ -71,68 +83,45 @@ export default function PaymentScreen() {
         ))}
       </div>
 
-      {/* Plan Cards */}
-      <div className="px-4 mt-3 space-y-3 pb-36">
-        {plans.map((plan, i) => (
-          <motion.button
+      {/* Plan Cards grouped by section */}
+      <div className="px-4 mt-3 space-y-4 pb-36">
+        {/* Test plan (outside sections) */}
+        {showTestPlan && plans.filter(p => p.isTest).map((plan, i) => (
+          <PlanCard
             key={plan.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.08 }}
-            onClick={() => setSelectedPlan(plan)}
-            className={cn(
-              'w-full p-4 rounded-2xl border-2 text-left transition-all relative',
-              plan.isTest
-                ? selectedPlan?.id === plan.id
-                  ? 'border-dashed border-muted-foreground bg-muted/30 shadow-md'
-                  : 'border-dashed border-muted-foreground/40 bg-muted/10'
-                : selectedPlan?.id === plan.id
-                  ? 'border-primary bg-primary/5 shadow-md'
-                  : 'border-border bg-card hover:border-primary/30',
-            )}
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex items-start gap-3">
-                <span className="text-3xl">{plan.icon}</span>
-                <div>
-                  <div className="font-semibold text-foreground">{plan.name}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    {plan.description}
-                  </div>
-                </div>
-              </div>
-              <div className="text-right flex-shrink-0">
-                <div className="font-display font-bold text-lg text-foreground">
-                  {plan.price.toLocaleString()} {currency}
-                </div>
-                {plan.pricePerLesson && (
-                  <div className="text-[10px] text-muted-foreground">
-                    {plan.pricePerLesson} {currency}/lesson
-                  </div>
-                )}
-                {plan.isSubscription && (
-                  <div className="text-[10px] text-muted-foreground">/month</div>
-                )}
+            plan={plan}
+            currency={currency}
+            selected={selectedPlan?.id === plan.id}
+            onSelect={() => setSelectedPlan(plan)}
+            index={i}
+            badgeStyle={badgeStyle}
+          />
+        ))}
+
+        {PLAN_SECTIONS.map(section => {
+          const sectionPlans = plans.filter(p => section.ids.includes(p.id));
+          if (sectionPlans.length === 0) return null;
+          return (
+            <div key={section.label}>
+              <h2 className="text-sm font-semibold text-muted-foreground mb-2 px-1">
+                {section.label}
+              </h2>
+              <div className="space-y-3">
+                {sectionPlans.map((plan, i) => (
+                  <PlanCard
+                    key={plan.id}
+                    plan={plan}
+                    currency={currency}
+                    selected={selectedPlan?.id === plan.id}
+                    onSelect={() => setSelectedPlan(plan)}
+                    index={i}
+                    badgeStyle={badgeStyle}
+                  />
+                ))}
               </div>
             </div>
-            {plan.badge && (
-              <span
-                className={cn(
-                  'absolute -top-2 right-3 px-2 py-0.5 rounded-full text-[10px] font-bold',
-                  plan.badge === 'Elite'
-                    ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white'
-                    : plan.badge === 'Premium'
-                      ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white'
-                      : plan.badge === 'Best Value' || plan.badge === 'Max Savings'
-                        ? 'bg-emerald-500 text-white'
-                        : 'bg-primary text-primary-foreground',
-                )}
-              >
-                {plan.badge}
-              </span>
-            )}
-          </motion.button>
-        ))}
+          );
+        })}
       </div>
 
       {/* Fixed Bottom CTA */}
@@ -158,5 +147,87 @@ export default function PaymentScreen() {
         </div>
       </div>
     </div>
+  );
+}
+
+function PlanCard({
+  plan,
+  currency,
+  selected,
+  onSelect,
+  index,
+  badgeStyle,
+}: {
+  plan: PricingPlan;
+  currency: string;
+  selected: boolean;
+  onSelect: () => void;
+  index: number;
+  badgeStyle: (badge?: string) => string;
+}) {
+  const noLink = !plan.paymentLink;
+
+  return (
+    <motion.button
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.06 }}
+      onClick={onSelect}
+      className={cn(
+        'w-full p-4 rounded-2xl border-2 text-left transition-all relative',
+        plan.isTest
+          ? selected
+            ? 'border-dashed border-muted-foreground bg-muted/30 shadow-md'
+            : 'border-dashed border-muted-foreground/40 bg-muted/10'
+          : selected
+            ? 'border-primary bg-primary/5 shadow-md'
+            : 'border-border bg-card hover:border-primary/30',
+      )}
+    >
+      <div className="flex items-start justify-between">
+        <div className="flex items-start gap-3">
+          <span className="text-3xl">{plan.icon}</span>
+          <div>
+            <div className="font-semibold text-foreground">{plan.name}</div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              {plan.description}
+            </div>
+            {plan.savingPercent && (
+              <span className="text-xs text-emerald-600 font-medium">
+                Save {plan.savingPercent}%
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="text-right flex-shrink-0">
+          <div className="font-display font-bold text-lg text-foreground">
+            {plan.price.toLocaleString()} {currency}
+          </div>
+          {plan.pricePerLesson && (
+            <div className="text-[10px] text-muted-foreground">
+              {plan.pricePerLesson} {currency}/lesson
+            </div>
+          )}
+          {plan.isSubscription && (
+            <div className="text-[10px] text-muted-foreground">/month</div>
+          )}
+          {noLink && !plan.isTest && (
+            <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
+              Coming soon
+            </span>
+          )}
+        </div>
+      </div>
+      {plan.badge && (
+        <span
+          className={cn(
+            'absolute -top-2 right-3 px-2 py-0.5 rounded-full text-[10px] font-bold',
+            badgeStyle(plan.badge),
+          )}
+        >
+          {plan.badge}
+        </span>
+      )}
+    </motion.button>
   );
 }
