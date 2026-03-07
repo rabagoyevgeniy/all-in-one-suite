@@ -167,6 +167,11 @@ const App = () => (
             {/* AI Assistant (all authenticated roles, no AppLayout wrapper) */}
             <Route path="/ai-assistant" element={<RoleGuard allowedRoles={['parent', 'coach', 'student', 'pro_athlete', 'personal_manager', 'admin', 'head_manager']}><AIAssistant /></RoleGuard>} />
 
+            {/* Notifications (all roles, uses AppLayout) */}
+            <Route element={<RoleGuard allowedRoles={['parent', 'coach', 'student', 'pro_athlete', 'personal_manager', 'admin', 'head_manager']}><AppLayout /></RoleGuard>}>
+              <Route path="/notifications" element={<NotificationsPage />} />
+            </Route>
+
             <Route path="*" element={<NotFound />} />
           </Routes>
           <OnboardingGuard />
