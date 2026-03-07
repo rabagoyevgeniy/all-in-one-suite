@@ -396,7 +396,7 @@ export default function AIAssistant() {
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="font-bold text-foreground text-sm">ProFit AI</h1>
-            <p className="text-[11px] text-muted-foreground truncate">{config.subtitle[lang]}</p>
+            <p className="text-[11px] text-muted-foreground truncate">{roleModesConfig.subtitle[lang]}</p>
           </div>
           {messages.length > 0 && (
             <button onClick={() => setMessages([])} className="p-2 text-muted-foreground hover:text-destructive transition-colors">
