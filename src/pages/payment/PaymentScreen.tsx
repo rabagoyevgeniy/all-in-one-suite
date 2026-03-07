@@ -99,7 +99,7 @@ export default function PaymentScreen() {
         ))}
 
         {PLAN_SECTIONS.map(section => {
-          const sectionPlans = plans.filter(p => section.ids.includes(p.id));
+          const sectionPlans = plans.filter(p => (section.ids as readonly string[]).includes(p.id));
           if (sectionPlans.length === 0) return null;
           return (
             <div key={section.label}>
