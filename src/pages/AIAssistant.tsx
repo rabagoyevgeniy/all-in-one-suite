@@ -1,14 +1,98 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Send, Sparkles, Loader2, Trash2, Lock, Mic } from 'lucide-react';
+import { ArrowLeft, Send, Sparkles, Loader2, Trash2, Lock, Mic,
+  BarChart2, Users, DollarSign, Settings,
+  Calendar, Target, FileText,
+  TrendingUp, Home, CreditCard,
+  Star, Swords, Lightbulb
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/stores/authStore';
 import { useLanguage } from '@/hooks/useLanguage';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { ROLE_CONFIG, DEFAULT_ROLE_CONFIG, MODE_LABELS, MODE_PROMPTS, type AIMode } from '@/lib/ai-config';
+import { ROLE_CONFIG, DEFAULT_ROLE_CONFIG } from '@/lib/ai-config';
+
+interface RoleModeConfig {
+  greeting: { en: string; ru: string };
+  subtitle: { en: string; ru: string };
+  modes: { id: string; label: string; chips: { en: string[]; ru: string[] } }[];
+}
+
+const ROLE_MODES: Record<string, RoleModeConfig> = {
+  admin: {
+    greeting: { en: 'Hello, Director! 👑', ru: 'Здравствуйте, Директор! 👑' },
+    subtitle: { en: 'Full access to all ProFit analytics and controls', ru: 'Полный доступ ко всей аналитике и управлению ProFit' },
+    modes: [
+      { id: 'analytics', label: '📊 Analytics', chips: { en: ['Show revenue this month', 'Compare Dubai vs Baku performance', 'Which coach has the best rating?', 'How many active clients do we have?'], ru: ['Показать выручку за месяц', 'Сравнить Дубай и Баку', 'У какого тренера лучший рейтинг?', 'Сколько активных клиентов?'] } },
+      { id: 'coaches', label: '🏊 Coaches', chips: { en: ['Who are my top performing coaches?', 'Show coach KPI summary', 'Which coach had most cancellations?', 'Suggest coach training improvements'], ru: ['Кто лучшие тренеры?', 'Показать KPI тренеров', 'У кого больше всего отмен?', 'Предложить улучшения обучения'] } },
+      { id: 'finance', label: '💰 Finance', chips: { en: ['What is our monthly revenue trend?', 'Show overdue payments', 'Which plan sells best in Dubai?', 'Forecast next month revenue'], ru: ['Какой тренд выручки?', 'Показать просроченные платежи', 'Какой план продаётся лучше в Дубае?', 'Прогноз выручки'] } },
+      { id: 'operations', label: '⚙️ Operations', chips: { en: ['How many lessons scheduled this week?', 'Show cancellation rate', 'Which time slots are most popular?', 'Draft announcement for all clients'], ru: ['Сколько уроков на этой неделе?', 'Показать процент отмен', 'Какие слоты популярнее?', 'Написать объявление для клиентов'] } },
+    ],
+  },
+  head_manager: {
+    greeting: { en: 'Hello, Director! 👑', ru: 'Здравствуйте, Директор! 👑' },
+    subtitle: { en: 'Full access to all ProFit analytics and controls', ru: 'Полный доступ ко всей аналитике и управлению ProFit' },
+    modes: [
+      { id: 'analytics', label: '📊 Analytics', chips: { en: ['Show revenue this month', 'Compare Dubai vs Baku performance', 'Which coach has the best rating?', 'How many active clients do we have?'], ru: ['Показать выручку за месяц', 'Сравнить Дубай и Баку', 'У какого тренера лучший рейтинг?', 'Сколько активных клиентов?'] } },
+      { id: 'coaches', label: '🏊 Coaches', chips: { en: ['Who are my top performing coaches?', 'Show coach KPI summary', 'Which coach had most cancellations?', 'Suggest coach training improvements'], ru: ['Кто лучшие тренеры?', 'Показать KPI тренеров', 'У кого больше всего отмен?', 'Предложить улучшения обучения'] } },
+      { id: 'finance', label: '💰 Finance', chips: { en: ['What is our monthly revenue trend?', 'Show overdue payments', 'Which plan sells best in Dubai?', 'Forecast next month revenue'], ru: ['Какой тренд выручки?', 'Показать просроченные платежи', 'Какой план продаётся лучше в Дубае?', 'Прогноз выручки'] } },
+      { id: 'operations', label: '⚙️ Operations', chips: { en: ['How many lessons scheduled this week?', 'Show cancellation rate', 'Which time slots are most popular?', 'Draft announcement for all clients'], ru: ['Сколько уроков на этой неделе?', 'Показать процент отмен', 'Какие слоты популярнее?', 'Написать объявление для клиентов'] } },
+    ],
+  },
+  coach: {
+    greeting: { en: 'Hello, Coach! 🏊', ru: 'Привет, Тренер! 🏊' },
+    subtitle: { en: 'Your students, schedule and teaching tools', ru: 'Ваши ученики, расписание и инструменты' },
+    modes: [
+      { id: 'students', label: '👦 Students', chips: { en: ['Summarize my students progress', 'Who needs extra attention this week?', 'Which student is closest to next belt?', 'Generate progress report for a student'], ru: ['Прогресс моих учеников', 'Кому нужно больше внимания?', 'Кто ближе всего к новому поясу?', 'Создать отчёт о прогрессе'] } },
+      { id: 'schedule', label: '📅 Schedule', chips: { en: ['Show my lessons for today', 'What is my route tomorrow?', 'Any cancellations this week?', 'Help me reschedule a lesson'], ru: ['Мои уроки на сегодня', 'Какой маршрут завтра?', 'Есть отмены на этой неделе?', 'Помоги перенести урок'] } },
+      { id: 'technique', label: '🎯 Technique', chips: { en: ['Drills for teaching freestyle to beginners', 'How to fix breathing technique?', 'Backstroke correction tips', 'Exercises for 5-year-old swimmers'], ru: ['Упражнения для обучения кролю новичков', 'Как исправить технику дыхания?', 'Советы по коррекции на спине', 'Упражнения для 5-летних'] } },
+      { id: 'reports', label: '📝 Reports', chips: { en: ['Help write a lesson report', 'Suggest goals for next lesson', 'Write parent feedback message', "Summarize this week's sessions"], ru: ['Помоги написать отчёт об уроке', 'Предложи цели на следующий урок', 'Написать сообщение родителю', 'Итоги за неделю'] } },
+    ],
+  },
+  parent: {
+    greeting: { en: 'Hello! 👋', ru: 'Привет! 👋' },
+    subtitle: { en: "Track your child's swimming journey", ru: 'Следите за прогрессом вашего ребёнка' },
+    modes: [
+      { id: 'progress', label: '📈 Progress', chips: { en: ['How is my child progressing?', 'What belt level is my child at?', 'How many lessons until next belt test?', 'Show recent achievements'], ru: ['Как прогрессирует мой ребёнок?', 'Какой пояс у моего ребёнка?', 'Сколько уроков до следующего теста?', 'Показать последние достижения'] } },
+      { id: 'schedule', label: '📅 Schedule', chips: { en: ['When is the next lesson?', 'How many lessons are left in my pack?', "Can I reschedule tomorrow's lesson?", 'What time does the coach arrive?'], ru: ['Когда следующий урок?', 'Сколько уроков осталось в пакете?', 'Можно перенести завтрашний урок?', 'Во сколько приедет тренер?'] } },
+      { id: 'practice', label: '🏠 Practice', chips: { en: ['What should my child practice at home?', 'Water safety tips for kids', 'How to make practice fun?', 'Breathing exercises between lessons'], ru: ['Что практиковать дома?', 'Советы по безопасности на воде', 'Как сделать практику веселее?', 'Дыхательные упражнения'] } },
+      { id: 'billing', label: '💳 Billing', chips: { en: ['How many lessons do I have left?', 'What packages are available?', 'How do I pay for more lessons?', 'Show my payment history'], ru: ['Сколько уроков осталось?', 'Какие пакеты доступны?', 'Как оплатить ещё уроки?', 'Показать историю оплат'] } },
+    ],
+  },
+  student: {
+    greeting: { en: 'Hey, Champion! 🏆', ru: 'Привет, Чемпион! 🏆' },
+    subtitle: { en: 'Level up your swimming skills!', ru: 'Прокачай свои навыки плавания!' },
+    modes: [
+      { id: 'progress', label: '⭐ My Level', chips: { en: ['How many XP to next belt?', 'Show my achievements', "What's my current rank?", 'How do I earn more coins?'], ru: ['Сколько XP до следующего пояса?', 'Покажи мои достижения', 'Какой у меня ранг?', 'Как заработать больше монет?'] } },
+      { id: 'duels', label: '⚔️ Duels', chips: { en: ['How do I challenge someone?', 'What are the duel rules?', 'Show my duel history', 'Who can I challenge now?'], ru: ['Как бросить вызов?', 'Какие правила дуэлей?', 'Покажи историю дуэлей', 'Кому можно бросить вызов?'] } },
+      { id: 'tips', label: '💡 Tips', chips: { en: ['Breathing tips for freestyle', 'How to swim faster?', 'Tips for my next belt test', 'Fun swimming challenges'], ru: ['Советы по дыханию для кроля', 'Как плавать быстрее?', 'Советы для теста на пояс', 'Весёлые задания по плаванию'] } },
+      { id: 'goals', label: '🎯 Goals', chips: { en: ['Set a swimming goal for this week', 'What should I focus on?', 'How to prepare for belt test?', 'Motivate me to practice!'], ru: ['Поставить цель на неделю', 'На чём сосредоточиться?', 'Как подготовиться к тесту?', 'Мотивируй меня!'] } },
+    ],
+  },
+  pro_athlete: {
+    greeting: { en: "Let's compete! 🏆", ru: 'Вперёд к победе! 🏆' },
+    subtitle: { en: 'Your performance optimization assistant', ru: 'Помощник по оптимизации результатов' },
+    modes: [
+      { id: 'performance', label: '📊 Performance', chips: { en: ['Analyze my recent race times', 'How to improve my 100m freestyle?', 'Compare my progress month over month', 'What are my weaknesses?'], ru: ['Анализ моих результатов', 'Как улучшить 100м кролем?', 'Сравнить прогресс по месяцам', 'Какие у меня слабые стороны?'] } },
+      { id: 'duels', label: '⚔️ Duels', chips: { en: ['Duel strategy tips', 'Who should I challenge next?', 'Show my win/loss record', 'How to prepare for a duel?'], ru: ['Стратегия для дуэлей', 'Кому бросить вызов?', 'Мои победы и поражения', 'Как подготовиться к дуэлю?'] } },
+      { id: 'training', label: '🏋️ Training', chips: { en: ['Create a competition prep plan', 'Dryland exercises for swimmers', 'Recovery routine after training', 'Nutrition tips for race day'], ru: ['План подготовки к соревнованию', 'Упражнения на суше', 'Восстановление после тренировки', 'Питание в день соревнований'] } },
+      { id: 'goals', label: '🎯 Goals', chips: { en: ['Set a new personal best target', 'What records can I break?', 'Plan my season goals', 'Track my progression'], ru: ['Новая цель по времени', 'Какие рекорды побить?', 'Цели на сезон', 'Отслеживать прогресс'] } },
+    ],
+  },
+  personal_manager: {
+    greeting: { en: 'Hello, Manager! 📋', ru: 'Привет, Менеджер! 📋' },
+    subtitle: { en: 'Client management assistant', ru: 'Помощник по работе с клиентами' },
+    modes: [
+      { id: 'clients', label: '👥 Clients', chips: { en: ['Show my client list', 'Which clients are inactive?', 'Client retention suggestions', 'Draft follow-up message'], ru: ['Список моих клиентов', 'Кто из клиентов неактивен?', 'Советы по удержанию', 'Написать follow-up'] } },
+      { id: 'commission', label: '💰 Commission', chips: { en: ['Commission summary for this month', 'Which client brings most revenue?', 'How to increase my earnings?', 'Compare this vs last month'], ru: ['Комиссия за этот месяц', 'Какой клиент приносит больше?', 'Как увеличить заработок?', 'Сравнить с прошлым месяцем'] } },
+      { id: 'schedule', label: '📅 Schedule', chips: { en: ['My clients lessons this week', 'Any upcoming cancellations?', 'Help schedule a new client', 'Booking reminders to send'], ru: ['Уроки клиентов на неделе', 'Есть ли отмены?', 'Записать нового клиента', 'Напоминания о бронировании'] } },
+      { id: 'reports', label: '📝 Reports', chips: { en: ['Generate weekly client report', 'Best practices for client retention', 'Draft communication to parent', 'Summarize client feedback'], ru: ['Недельный отчёт по клиентам', 'Лучшие практики удержания', 'Написать сообщение родителю', 'Итоги отзывов клиентов'] } },
+    ],
+  },
+};
 
 type Msg = { role: 'user' | 'assistant'; content: string; mode?: AIMode };
 
