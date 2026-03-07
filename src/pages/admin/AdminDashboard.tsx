@@ -1,14 +1,18 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { DollarSign, Calendar, Users, AlertTriangle, UserPlus, CreditCard, BarChart3, Heart, Settings } from 'lucide-react';
+import { DollarSign, Calendar, Users, AlertTriangle, UserPlus, CreditCard, BarChart3, Heart, Settings, Loader2 } from 'lucide-react';
 import { useAdminDashboardStats, useRevenueChart, useActiveCoaches, useRecentBookings, useActiveSubscriptions } from '@/hooks/useAdminDashboardStats';
 import { useAdminStore } from '@/stores/adminStore';
+import { useAuthStore } from '@/stores/authStore';
 import { COACH_RANKS } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { formatDistanceToNow } from 'date-fns';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 const BOOKING_STATUS_COLORS: Record<string, string> = {
   confirmed: 'bg-primary/15 text-primary border-primary/30',
@@ -46,11 +50,38 @@ function getActivityFromBookings(bookings: any[] | undefined) {
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const { currency } = useAdminStore();
+  const { user } = useAuthStore();
+  const queryClient = useQueryClient();
   const { data: stats, isLoading: statsLoading } = useAdminDashboardStats();
   const { data: revenueData } = useRevenueChart();
   const { data: coaches } = useActiveCoaches();
   const { data: bookings } = useRecentBookings();
   const { data: subs } = useActiveSubscriptions();
+
+  // Pending community requests
+  const { data: pendingCommunities } = useQuery({
+    queryKey: ['pending-communities'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('chat_rooms')
+        .select('id, name, request_reason, created_at, requested_by, profiles:requested_by(full_name)' as any)
+        .eq('type', 'community')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const handleCommunityAction = async (roomId: string, action: 'active' | 'rejected') => {
+    await supabase.from('chat_rooms').update({
+      status: action,
+      reviewed_by: user!.id,
+      reviewed_at: new Date().toISOString(),
+    } as any).eq('id', roomId);
+    queryClient.invalidateQueries({ queryKey: ['pending-communities'] });
+    toast({ description: action === 'active' ? 'Community approved! ✅' : 'Community rejected ✗' });
+  };
 
   const statCards = [
     {
@@ -153,6 +184,47 @@ export default function AdminDashboard() {
           ))}
         </div>
       </motion.div>
+
+      {/* Pending Community Requests */}
+      {pendingCommunities && pendingCommunities.length > 0 && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.27 }}>
+          <h3 className="font-display font-semibold text-sm text-foreground mb-3 flex items-center gap-2">
+            🏘️ Pending Communities
+            <Badge variant="destructive" className="text-[10px]">{pendingCommunities.length}</Badge>
+          </h3>
+          <div className="space-y-3">
+            {pendingCommunities.map((room: any) => {
+              const requester = room.profiles as any;
+              return (
+                <div key={room.id} className="bg-warning/5 border border-warning/20 rounded-2xl p-4">
+                  <div className="font-semibold text-sm text-foreground">{room.name}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    Requested by {requester?.full_name || 'Unknown'}
+                    {room.created_at && ` · ${formatDistanceToNow(new Date(room.created_at), { addSuffix: true })}`}
+                  </div>
+                  {room.request_reason && (
+                    <div className="text-xs text-muted-foreground mt-1 italic">"{room.request_reason}"</div>
+                  )}
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={() => handleCommunityAction(room.id, 'active')}
+                      className="flex-1 py-2 bg-success text-success-foreground text-sm rounded-xl font-medium"
+                    >
+                      ✅ Approve
+                    </button>
+                    <button
+                      onClick={() => handleCommunityAction(room.id, 'rejected')}
+                      className="flex-1 py-2 bg-destructive/10 text-destructive text-sm rounded-xl font-medium"
+                    >
+                      ✗ Reject
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
 
       {/* Today's Activity Feed */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="glass-card rounded-2xl overflow-hidden">

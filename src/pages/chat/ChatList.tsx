@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { useLanguage } from '@/hooks/useLanguage';
@@ -8,11 +8,15 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Loader2, Plus, MessageCircle, Users, Globe, Megaphone } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { NewDirectChat } from './NewDirectChat';
 import { CommunityInfoSheet } from '@/components/chat/CommunityInfoSheet';
 import { formatDistanceToNow } from 'date-fns';
+import { toast } from '@/hooks/use-toast';
 
 function timeAgo(date: string | null) {
   if (!date) return '';
@@ -29,11 +33,16 @@ function initials(name: string | null) {
 }
 
 export default function ChatList() {
-  const { user } = useAuthStore();
+  const { user, role } = useAuthStore();
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [communitySheetRoom, setCommunitySheetRoom] = useState<string | null>(null);
+  const [requestSheetOpen, setRequestSheetOpen] = useState(false);
+  const [communityName, setCommunityName] = useState('');
+  const [communityReason, setCommunityReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   // Direct chats
   const { data: directRooms, isLoading: directLoading } = useQuery({
@@ -264,9 +273,9 @@ export default function ChatList() {
         <TabsContent value="community">
           {communityLoading ? (
             <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
-          ) : communityRooms && communityRooms.length > 0 ? (
+          ) : (
             <div className="space-y-1">
-              {communityRooms.map((room: any) => (
+              {communityRooms && communityRooms.length > 0 && communityRooms.map((room: any) => (
                 <motion.div
                   key={room.id}
                   initial={{ opacity: 0 }}
@@ -292,8 +301,70 @@ export default function ChatList() {
                   </div>
                 </motion.div>
               ))}
+
+              {/* Request New Community */}
+              <Sheet open={requestSheetOpen} onOpenChange={setRequestSheetOpen}>
+                <SheetTrigger asChild>
+                  <button className="flex items-center gap-2 w-full py-3 px-4 border-2 border-dashed border-primary/20 rounded-2xl text-primary/60 hover:border-primary/40 hover:text-primary transition-colors text-sm font-medium mt-2">
+                    <Plus className="w-4 h-4" />
+                    {t('Request New Community', 'Запросить сообщество')}
+                  </button>
+                </SheetTrigger>
+                <SheetContent side="bottom" className="rounded-t-3xl">
+                  <h3 className="font-bold text-lg mb-4 text-foreground">{t('Request New Community', 'Запросить сообщество')}</h3>
+                  <Input
+                    placeholder={t('Community name (e.g. Dubai Marina Swimmers)', 'Название (напр. Пловцы Dubai Marina)')}
+                    value={communityName}
+                    onChange={(e) => setCommunityName(e.target.value)}
+                    className="rounded-xl mb-3"
+                  />
+                  <Textarea
+                    placeholder={t('Why create this community? (optional)', 'Зачем создавать? (необязательно)')}
+                    value={communityReason}
+                    onChange={(e) => setCommunityReason(e.target.value)}
+                    className="rounded-xl mb-4 h-24 resize-none"
+                  />
+                  <Button
+                    className="w-full rounded-2xl"
+                    disabled={!communityName.trim() || submitting}
+                    onClick={async () => {
+                      if (!communityName.trim() || !user) return;
+                      setSubmitting(true);
+                      const { error } = await supabase.from('chat_rooms').insert({
+                        type: 'community',
+                        name: communityName.trim(),
+                        created_by: user.id,
+                        requested_by: user.id,
+                        request_reason: communityReason.trim() || null,
+                        status: 'pending',
+                      } as any);
+                      setSubmitting(false);
+                      if (error) {
+                        toast({ title: t('Error', 'Ошибка'), description: error.message, variant: 'destructive' });
+                      } else {
+                        toast({ description: t('Request sent to Admin! ✅', 'Запрос отправлен администратору! ✅') });
+                        setCommunityName('');
+                        setCommunityReason('');
+                        setRequestSheetOpen(false);
+                      }
+                    }}
+                  >
+                    {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : t('Send Request to Admin', 'Отправить запрос')}
+                  </Button>
+                  <p className="text-xs text-center text-muted-foreground mt-3">
+                    {t('Admin will review and approve within 24 hours', 'Администратор рассмотрит в течение 24 часов')}
+                  </p>
+                </SheetContent>
+              </Sheet>
+
+              {(!communityRooms || communityRooms.length === 0) && (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <MessageCircle size={36} className="text-muted-foreground mb-3" />
+                  <p className="text-sm text-muted-foreground">{t('No community channels', 'Нет каналов сообщества')}</p>
+                </div>
+              )}
             </div>
-          ) : emptyState(t('No community channels', 'Нет каналов сообщества'))}
+          )}
         </TabsContent>
       </Tabs>
 
