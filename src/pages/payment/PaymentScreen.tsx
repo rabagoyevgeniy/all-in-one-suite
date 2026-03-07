@@ -1,36 +1,44 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, CreditCard, Shield } from 'lucide-react';
+import { ArrowLeft, CreditCard, Shield, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { useLanguage } from '@/hooks/useLanguage';
-import { PRICING, PLAN_SECTIONS, type PricingPlan } from '@/lib/pricing';
+import { usePricingPlans, type PricingPlan } from '@/hooks/usePricingPlans';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+
+const PLAN_SECTIONS = [
+  { label: '🎯 Lesson Packs', keys: ['single_lesson', 'pack_5', 'pack_10', 'pack_20'] },
+  { label: '📅 Monthly Subscriptions', keys: ['starter_monthly', 'premium_monthly', 'elite_monthly'] },
+  { label: '👨‍👩‍👧 Special Offers', keys: ['family_pack'] },
+];
 
 export default function PaymentScreen() {
   const navigate = useNavigate();
   const { profile } = useAuthStore();
   const { t } = useLanguage();
-  const [selectedPlan, setSelectedPlan] = useState<PricingPlan | null>(null);
-  const [activeCity, setActiveCity] = useState<string>(
+  const [activeCity, setActiveCity] = useState<'dubai' | 'baku'>(
     profile?.city?.toLowerCase() === 'baku' ? 'baku' : 'dubai'
   );
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
-  const { currency, plans: allPlans } = PRICING[activeCity];
-  const showTestPlan = window.location.search.includes('test=true') || window.location.hostname === 'localhost';
-  const plans = showTestPlan ? allPlans : allPlans.filter(p => !p.isTest);
+  const showTest = window.location.search.includes('test=true') || window.location.hostname === 'localhost';
+  const { data: allPlans = [], isLoading } = usePricingPlans(activeCity, showTest);
+
+  const selected = allPlans.find(p => p.plan_key === selectedKey) || null;
+  const currency = activeCity === 'dubai' ? 'AED' : 'AZN';
 
   const handlePay = () => {
-    if (!selectedPlan) return;
-    if (!selectedPlan.paymentLink || selectedPlan.paymentLink.includes('REPLACE') || selectedPlan.paymentLink === '') {
+    if (!selected) return;
+    if (!selected.stripe_payment_link) {
       toast.info('Coming soon', { description: 'Payment link will be available shortly' });
       return;
     }
-    window.open(selectedPlan.paymentLink, '_blank');
+    window.open(selected.stripe_payment_link, '_blank');
   };
 
-  const badgeStyle = (badge?: string) => {
+  const badgeStyle = (badge?: string | null) => {
     switch (badge) {
       case 'Elite': return 'bg-gradient-to-r from-violet-500 to-purple-600 text-white';
       case 'Premium': return 'bg-gradient-to-r from-amber-400 to-orange-500 text-white';
@@ -41,6 +49,14 @@ export default function PaymentScreen() {
       default: return 'bg-primary text-primary-foreground';
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-operations flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-operations">
@@ -67,10 +83,10 @@ export default function PaymentScreen() {
 
       {/* City Switcher */}
       <div className="flex gap-2 px-4 py-3 bg-muted/30 border-b border-border">
-        {['dubai', 'baku'].map(city => (
+        {(['dubai', 'baku'] as const).map(city => (
           <button
             key={city}
-            onClick={() => { setActiveCity(city); setSelectedPlan(null); }}
+            onClick={() => { setActiveCity(city); setSelectedKey(null); }}
             className={cn(
               "flex-1 py-2 rounded-xl text-sm font-medium transition-all",
               activeCity === city
@@ -85,21 +101,21 @@ export default function PaymentScreen() {
 
       {/* Plan Cards grouped by section */}
       <div className="px-4 mt-3 space-y-4 pb-36">
-        {/* Test plan (outside sections) */}
-        {showTestPlan && plans.filter(p => p.isTest).map((plan, i) => (
+        {/* Test plans */}
+        {showTest && allPlans.filter(p => p.is_test).map((plan, i) => (
           <PlanCard
             key={plan.id}
             plan={plan}
             currency={currency}
-            selected={selectedPlan?.id === plan.id}
-            onSelect={() => setSelectedPlan(plan)}
+            selected={selectedKey === plan.plan_key}
+            onSelect={() => setSelectedKey(plan.plan_key)}
             index={i}
             badgeStyle={badgeStyle}
           />
         ))}
 
         {PLAN_SECTIONS.map(section => {
-          const sectionPlans = plans.filter(p => (section.ids as readonly string[]).includes(p.id));
+          const sectionPlans = allPlans.filter(p => section.keys.includes(p.plan_key) && !p.is_test);
           if (sectionPlans.length === 0) return null;
           return (
             <div key={section.label}>
@@ -112,8 +128,8 @@ export default function PaymentScreen() {
                     key={plan.id}
                     plan={plan}
                     currency={currency}
-                    selected={selectedPlan?.id === plan.id}
-                    onSelect={() => setSelectedPlan(plan)}
+                    selected={selectedKey === plan.plan_key}
+                    onSelect={() => setSelectedKey(plan.plan_key)}
                     index={i}
                     badgeStyle={badgeStyle}
                   />
@@ -128,17 +144,21 @@ export default function PaymentScreen() {
       <div className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-lg border-t border-border px-4 py-4 safe-area-bottom">
         <button
           onClick={handlePay}
-          disabled={!selectedPlan}
+          disabled={!selected}
           className={cn(
             'w-full py-4 rounded-2xl font-bold text-lg transition-all flex items-center justify-center gap-2',
-            selectedPlan
-              ? 'bg-primary text-primary-foreground shadow-lg'
+            selected
+              ? selected.stripe_payment_link
+                ? 'bg-primary text-primary-foreground shadow-lg'
+                : 'bg-muted text-muted-foreground'
               : 'bg-muted text-muted-foreground',
           )}
         >
           <CreditCard className="w-5 h-5" />
-          {selectedPlan
-            ? `${t('Pay', 'Оплатить')} ${selectedPlan.price.toLocaleString()} ${currency} →`
+          {selected
+            ? selected.stripe_payment_link
+              ? `${t('Pay', 'Оплатить')} ${selected.price.toLocaleString()} ${currency} →`
+              : 'Coming soon'
             : t('Select a plan', 'Выберите план')}
         </button>
         <div className="flex items-center justify-center gap-1 mt-2 text-xs text-muted-foreground">
@@ -163,9 +183,9 @@ function PlanCard({
   selected: boolean;
   onSelect: () => void;
   index: number;
-  badgeStyle: (badge?: string) => string;
+  badgeStyle: (badge?: string | null) => string;
 }) {
-  const noLink = !plan.paymentLink;
+  const noLink = !plan.stripe_payment_link;
 
   return (
     <motion.button
@@ -175,7 +195,7 @@ function PlanCard({
       onClick={onSelect}
       className={cn(
         'w-full p-4 rounded-2xl border-2 text-left transition-all relative',
-        plan.isTest
+        plan.is_test
           ? selected
             ? 'border-dashed border-muted-foreground bg-muted/30 shadow-md'
             : 'border-dashed border-muted-foreground/40 bg-muted/10'
@@ -192,26 +212,26 @@ function PlanCard({
             <div className="text-xs text-muted-foreground mt-0.5">
               {plan.description}
             </div>
-            {plan.savingPercent && (
+            {plan.saving_percent && (
               <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                Save {plan.savingPercent}%
+                Save {plan.saving_percent}%
               </span>
             )}
           </div>
         </div>
         <div className="text-right flex-shrink-0">
           <div className="font-display font-bold text-lg text-foreground">
-            {plan.price.toLocaleString()} {currency}
+            {Number(plan.price).toLocaleString()} {currency}
           </div>
-          {plan.pricePerLesson && (
+          {plan.price_per_lesson && (
             <div className="text-[10px] text-muted-foreground">
-              {plan.pricePerLesson} {currency}/lesson
+              {Number(plan.price_per_lesson)} {currency}/lesson
             </div>
           )}
-          {plan.isSubscription && (
+          {plan.is_subscription && (
             <div className="text-[10px] text-muted-foreground">/month</div>
           )}
-          {noLink && !plan.isTest && (
+          {noLink && !plan.is_test && (
             <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
               Coming soon
             </span>
