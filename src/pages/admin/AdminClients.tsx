@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AlertTriangle } from 'lucide-react';
 import { SWIM_BELTS } from '@/lib/constants';
 import { motion } from 'framer-motion';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 function useParentsList() {
   return useQuery({
