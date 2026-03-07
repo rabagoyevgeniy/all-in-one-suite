@@ -195,13 +195,11 @@ export default function AIAssistant() {
   const messagesUsed = typeof usage === 'number' ? usage : 0;
   const messagesRemaining = Math.max(0, dailyLimit - messagesUsed);
   const canUseAI = permissions?.can_use_ai !== false;
-  const allowedModes = config.modes;
-
-  // Mode-specific suggestions
+  // Role-aware mode-specific suggestions
   const currentSuggestions = useMemo(() => {
-    const modePrompts = MODE_PROMPTS[activeMode];
-    return modePrompts?.[lang] || config.suggestions[lang];
-  }, [activeMode, lang, config.suggestions]);
+    const currentMode = roleModes.find(m => m.id === activeMode);
+    return currentMode?.chips[lang] || roleModes[0].chips[lang];
+  }, [activeMode, lang, roleModes]);
 
   const insight = useMemo(() => {
     if (insightDismissed) return null;
