@@ -117,7 +117,15 @@ export function AppLayout({ theme = 'operations' }: AppLayoutProps) {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-40">
-                <DropdownMenuItem className="gap-2 text-sm">
+                <DropdownMenuItem className="gap-2 text-sm" onClick={() => {
+                  const profileRoute = role === 'admin' ? '/admin'
+                    : role === 'coach' ? '/coach/profile'
+                    : role === 'parent' ? '/parent'
+                    : role === 'student' ? '/student/profile'
+                    : role === 'pro_athlete' ? '/pro/profile'
+                    : '/';
+                  navigate(profileRoute);
+                }}>
                   <User size={14} />
                   Profile
                 </DropdownMenuItem>

@@ -11,10 +11,15 @@ export interface PricingPlan {
   badge: string | null;
   price: number;
   currency: string;
+  original_price: number | null;
+  discount_percent: number | null;
   price_per_lesson: number | null;
   saving_percent: number | null;
   lessons_included: number | null;
+  lesson_count: number | null;
+  lesson_type: string | null;
   is_subscription: boolean;
+  is_trial: boolean;
   is_test: boolean;
   is_active: boolean;
   stripe_payment_link: string | null;
