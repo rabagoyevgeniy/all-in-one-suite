@@ -486,6 +486,16 @@ export default function AIAssistant() {
             )}
           </div>
 
+          {/* Recording indicator */}
+          {isRecording && (
+            <div className="flex items-center justify-center gap-2 py-1.5 bg-destructive/5">
+              <div className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
+              <span className="text-xs text-destructive font-medium">
+                {t('Recording... tap to stop', 'Запись... нажмите для остановки')}
+              </span>
+            </div>
+          )}
+
           {/* Input */}
           <div className="border-t border-border bg-background px-4 py-3">
             <div className="max-w-lg mx-auto flex items-end gap-2">

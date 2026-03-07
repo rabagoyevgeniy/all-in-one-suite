@@ -1,11 +1,13 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { useLanguage } from '@/hooks/useLanguage';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
-import { MessageSquare, Phone, MapPin, Loader2 } from 'lucide-react';
+import { MessageSquare, Phone, MapPin, Loader2, QrCode } from 'lucide-react';
 import { format } from 'date-fns';
+import QRProfileSheet from '@/components/QRProfileSheet';
 
 interface UserProfileSheetProps {
   userId: string | null;
@@ -18,20 +20,21 @@ function getInitials(name: string | null) {
   return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 }
 
-const ROLE_LABELS: Record<string, { en: string; ru: string; color: string }> = {
-  coach: { en: 'Coach', ru: 'Тренер', color: 'bg-primary/10 text-primary' },
-  parent: { en: 'Parent', ru: 'Родитель', color: 'bg-[hsl(142_71%_45%/0.1)] text-[hsl(142_71%_45%)]' },
-  admin: { en: 'Admin', ru: 'Админ', color: 'bg-destructive/10 text-destructive' },
-  head_manager: { en: 'Head Manager', ru: 'Главный менеджер', color: 'bg-destructive/10 text-destructive' },
-  student: { en: 'Student', ru: 'Ученик', color: 'bg-[hsl(270_60%_55%/0.1)] text-[hsl(270_60%_55%)]' },
-  pro_athlete: { en: 'Pro Athlete', ru: 'Про спортсмен', color: 'bg-[hsl(38_92%_50%/0.1)] text-[hsl(38_92%_50%)]' },
-  personal_manager: { en: 'Manager', ru: 'Менеджер', color: 'bg-[hsl(174_60%_40%/0.1)] text-[hsl(174_60%_40%)]' },
+const ROLE_LABELS: Record<string, { en: string; ru: string; emoji: string }> = {
+  coach: { en: 'Coach', ru: 'Тренер', emoji: '🏊' },
+  parent: { en: 'Parent', ru: 'Родитель', emoji: '👨‍👩‍👧' },
+  admin: { en: 'Admin', ru: 'Админ', emoji: '👑' },
+  head_manager: { en: 'Head Manager', ru: 'Главный менеджер', emoji: '👑' },
+  student: { en: 'Student', ru: 'Ученик', emoji: '🎓' },
+  pro_athlete: { en: 'Pro Athlete', ru: 'Про спортсмен', emoji: '🏅' },
+  personal_manager: { en: 'Manager', ru: 'Менеджер', emoji: '💼' },
 };
 
 export default function UserProfileSheet({ userId, open, onOpenChange }: UserProfileSheetProps) {
   const { user } = useAuthStore();
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const [qrOpen, setQrOpen] = useState(false);
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ['user-profile-sheet', userId],
@@ -46,7 +49,6 @@ export default function UserProfileSheet({ userId, open, onOpenChange }: UserPro
     enabled: !!userId && open,
   });
 
-  // Get role from user_roles
   const { data: userRole } = useQuery({
     queryKey: ['user-role-sheet', userId],
     queryFn: async () => {
@@ -56,7 +58,6 @@ export default function UserProfileSheet({ userId, open, onOpenChange }: UserPro
     enabled: !!userId && open,
   });
 
-  // Coach stats
   const { data: coachStats } = useQuery({
     queryKey: ['coach-stats-sheet', userId],
     queryFn: async () => {
@@ -79,88 +80,109 @@ export default function UserProfileSheet({ userId, open, onOpenChange }: UserPro
     } catch {}
   };
 
-  const roleMeta = ROLE_LABELS[userRole || ''] || { en: 'User', ru: 'Пользователь', color: 'bg-muted text-muted-foreground' };
+  const roleMeta = ROLE_LABELS[userRole || ''] || { en: 'User', ru: 'Пользователь', emoji: '👤' };
+  const isSelf = userId === user?.id;
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="rounded-t-3xl pb-8">
-        <SheetTitle className="sr-only">{t('User Profile', 'Профиль')}</SheetTitle>
-        {isLoading || !profile ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
-          </div>
-        ) : (
-          <>
-            <div className="flex flex-col items-center pt-2 pb-6">
-              {profile.avatar_url ? (
-                <img
-                  src={profile.avatar_url}
-                  alt=""
-                  className="w-20 h-20 rounded-full object-cover shadow-lg mb-3 ring-4 ring-primary/20"
-                />
-              ) : (
-                <div className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold shadow-lg mb-3 text-[hsl(0_0%_100%)]"
-                  style={{ background: 'linear-gradient(135deg, hsl(199 89% 52%) 0%, hsl(199 89% 42%) 100%)' }}
-                >
-                  {getInitials(profile.full_name)}
-                </div>
-              )}
-              <h2 className="text-xl font-bold text-foreground">{profile.full_name}</h2>
-              <span className={`mt-1 px-3 py-0.5 rounded-full text-xs font-medium ${roleMeta.color}`}>
-                {t(roleMeta.en, roleMeta.ru)}
-              </span>
-              {profile.city && (
-                <div className="flex items-center gap-1 mt-2 text-muted-foreground text-sm">
-                  <MapPin className="w-3.5 h-3.5" />
-                  {profile.city}
-                </div>
-              )}
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="bottom" className="rounded-t-3xl p-0 pb-8 overflow-hidden">
+          <SheetTitle className="sr-only">{t('User Profile', 'Профиль')}</SheetTitle>
+          {isLoading || !profile ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
             </div>
+          ) : (
+            <>
+              {/* Hero gradient header */}
+              <div className="bg-gradient-to-br from-primary to-primary/70 px-6 pt-8 pb-12 relative overflow-hidden">
+                {/* Decorative circles */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-primary-foreground/5 rounded-full -translate-y-8 translate-x-8" />
+                <div className="absolute bottom-0 left-0 w-24 h-24 bg-primary-foreground/5 rounded-full translate-y-8 -translate-x-8" />
 
-            {userRole === 'coach' && coachStats && (
-              <div className="flex justify-around py-4 border-y border-border mb-4">
-                <div className="text-center">
-                  <div className="text-lg font-bold text-foreground">{coachStats.total_lessons_completed || 0}</div>
-                  <div className="text-xs text-muted-foreground">{t('Lessons', 'Уроки')}</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-foreground">⭐ {(coachStats.avg_rating || 0).toFixed(1)}</div>
-                  <div className="text-xs text-muted-foreground">{t('Rating', 'Рейтинг')}</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-foreground capitalize">{coachStats.rank || '—'}</div>
-                  <div className="text-xs text-muted-foreground">{t('Rank', 'Ранг')}</div>
+                <div className="relative flex flex-col items-center text-center">
+                  {profile.avatar_url ? (
+                    <img
+                      src={profile.avatar_url}
+                      alt=""
+                      className="w-24 h-24 rounded-full object-cover border-4 border-primary-foreground/30 shadow-xl mb-3"
+                    />
+                  ) : (
+                    <div className="w-24 h-24 rounded-full bg-primary-foreground/20 backdrop-blur-sm flex items-center justify-center text-primary-foreground text-3xl font-bold border-4 border-primary-foreground/30 shadow-xl mb-3">
+                      {getInitials(profile.full_name)}
+                    </div>
+                  )}
+                  <h2 className="text-2xl font-bold text-primary-foreground">{profile.full_name}</h2>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className="bg-primary-foreground/20 text-primary-foreground text-xs px-3 py-1 rounded-full">
+                      {roleMeta.emoji} {t(roleMeta.en, roleMeta.ru)}
+                    </span>
+                    {profile.city && (
+                      <span className="bg-primary-foreground/20 text-primary-foreground text-xs px-3 py-1 rounded-full flex items-center gap-1">
+                        <MapPin className="w-3 h-3" /> {profile.city}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-primary-foreground/60 text-xs mt-2">
+                    {t('ProFit member since', 'Участник ProFit с')} {profile.created_at ? format(new Date(profile.created_at), 'MMM yyyy') : '—'}
+                  </p>
                 </div>
               </div>
-            )}
 
-            {userId !== user?.id && (
-              <div className="flex gap-3 px-4">
-                <button
-                  onClick={handleMessage}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-medium transition-colors text-[hsl(0_0%_100%)]"
-                  style={{ background: 'hsl(199 89% 48%)' }}
-                >
-                  <MessageSquare className="w-4 h-4" />
-                  {t('Message', 'Написать')}
-                </button>
-                {profile.phone && (
+              {/* Coach stats overlapping hero */}
+              {userRole === 'coach' && coachStats && (
+                <div className="mx-4 -mt-6 bg-background rounded-2xl shadow-lg border border-border flex divide-x divide-border relative z-10">
+                  {[
+                    { label: t('Lessons', 'Уроки'), value: coachStats.total_lessons_completed || 0 },
+                    { label: t('Rating', 'Рейтинг'), value: `⭐ ${(coachStats.avg_rating || 0).toFixed(1)}` },
+                    { label: t('Rank', 'Ранг'), value: coachStats.rank || '—' },
+                  ].map(stat => (
+                    <div key={stat.label} className="flex-1 flex flex-col items-center py-4 px-2">
+                      <div className="text-lg font-bold text-foreground capitalize">{stat.value}</div>
+                      <div className="text-xs text-muted-foreground">{stat.label}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Action buttons */}
+              {!isSelf && (
+                <div className="flex gap-3 px-4 mt-4">
                   <button
-                    onClick={() => window.open(`tel:${profile.phone}`)}
-                    className="flex items-center justify-center w-12 h-12 bg-muted hover:bg-muted/80 rounded-2xl transition-colors"
+                    onClick={handleMessage}
+                    className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-primary text-primary-foreground rounded-2xl font-medium shadow-md hover:bg-primary/90 transition-colors"
                   >
-                    <Phone className="w-5 h-5 text-muted-foreground" />
+                    <MessageSquare className="w-4 h-4" />
+                    {t('Message', 'Написать')}
                   </button>
-                )}
-              </div>
-            )}
+                  {profile.phone && (
+                    <button
+                      onClick={() => window.open(`tel:${profile.phone}`)}
+                      className="flex items-center justify-center w-14 h-14 bg-muted hover:bg-muted/80 rounded-2xl transition-colors"
+                    >
+                      <Phone className="w-5 h-5 text-muted-foreground" />
+                    </button>
+                  )}
+                </div>
+              )}
 
-            <p className="text-center text-xs text-muted-foreground mt-4">
-              {t('Member since', 'Участник с')} {profile.created_at ? format(new Date(profile.created_at), 'MMM yyyy') : '—'}
-            </p>
-          </>
-        )}
-      </SheetContent>
-    </Sheet>
+              {isSelf && (
+                <div className="flex gap-3 px-4 mt-4">
+                  <button
+                    onClick={() => { onOpenChange(false); setQrOpen(true); }}
+                    className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-primary text-primary-foreground rounded-2xl font-medium shadow-md hover:bg-primary/90 transition-colors"
+                  >
+                    <QrCode className="w-4 h-4" />
+                    {t('My QR Code', 'Мой QR код')}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      <QRProfileSheet open={qrOpen} onOpenChange={setQrOpen} />
+    </>
   );
 }
