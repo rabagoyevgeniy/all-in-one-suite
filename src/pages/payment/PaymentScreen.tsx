@@ -9,9 +9,47 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 const PLAN_SECTIONS = [
-  { label: '🎯 Lesson Packs', keys: ['single_lesson', 'pack_5', 'pack_10', 'pack_20'] },
-  { label: '📅 Monthly Subscriptions', keys: ['starter_monthly', 'premium_monthly', 'elite_monthly'] },
-  { label: '👨‍👩‍👧 Special Offers', keys: ['family_pack'] },
+  {
+    label: '🎁 Special Offer',
+    keys: ['trial_lesson', 'trial_lesson_baku'],
+  },
+  {
+    label: '🎯 Lesson Packs',
+    keys: [
+      'single_lesson', 'single_lesson_baku',
+      'pack_5', 'pack_5_baku',
+      'pack_8_baku',
+      'pack_10',
+      'pack_12_baku',
+      'pack_20', 'pack_20_baku',
+    ],
+  },
+  {
+    label: '📅 Monthly Subscriptions',
+    keys: [
+      'starter_monthly', 'starter_monthly_baku',
+      'premium_monthly', 'premium_monthly_baku',
+      'elite_monthly', 'elite_monthly_baku',
+    ],
+  },
+  {
+    label: '👨‍👩‍👧 Special Offers',
+    keys: ['family_pack', 'family_pack_baku'],
+  },
+  {
+    label: '🏊 Group Packs',
+    keys: [
+      'group_single', 'group_single_baku',
+      'group_pack_5', 'group_pack_8_baku',
+      'group_pack_10', 'group_pack_12_baku',
+      'group_pack_20', 'group_pack_20_baku',
+      'group_intensive',
+    ],
+  },
+  {
+    label: '📅 Group Subscription',
+    keys: ['group_monthly', 'group_monthly_baku'],
+  },
 ];
 
 export default function PaymentScreen() {

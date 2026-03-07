@@ -118,7 +118,7 @@ export default function AdminDashboard() {
   const quickActions = [
     { icon: UserPlus, label: 'Add Coach', action: () => navigate('/admin/coaches'), bgColor: 'bg-primary/10', color: 'text-primary' },
     { icon: Calendar, label: 'Bookings', action: () => navigate('/admin/bookings'), bgColor: 'bg-success/10', color: 'text-success' },
-    { icon: CreditCard, label: 'Finance', action: () => navigate('/admin/finance'), bgColor: 'bg-accent/10', color: 'text-accent' },
+    { icon: CreditCard, label: 'Finance', action: () => navigate('/admin/financial'), bgColor: 'bg-accent/10', color: 'text-accent' },
     { icon: Settings, label: 'Economy', action: () => navigate('/admin/economy'), bgColor: 'bg-warning/10', color: 'text-warning' },
     { icon: Tag, label: 'Pricing', action: () => navigate('/admin/pricing'), bgColor: 'bg-accent/10', color: 'text-accent' },
   ];
