@@ -505,13 +505,17 @@ export default function AIAssistant() {
               <button
                 onClick={toggleVoice}
                 className={cn(
-                  "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors",
+                  "w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all",
                   isRecording
-                    ? "bg-destructive text-destructive-foreground animate-pulse"
+                    ? "bg-destructive scale-110 shadow-lg shadow-destructive/30"
                     : "bg-muted text-muted-foreground hover:bg-muted/80"
                 )}
               >
-                {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                {isRecording ? (
+                  <div className="w-3 h-3 bg-destructive-foreground rounded-sm" />
+                ) : (
+                  <Mic className="w-4 h-4" />
+                )}
               </button>
               {/* Send */}
               <button
