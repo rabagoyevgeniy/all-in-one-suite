@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, CreditCard, Loader2, Shield } from 'lucide-react';
+import { ArrowLeft, CreditCard, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
 import { useLanguage } from '@/hooks/useLanguage';
 import { PRICING, type PricingPlan } from '@/lib/pricing';
 import { cn } from '@/lib/utils';
@@ -14,7 +12,6 @@ export default function PaymentScreen() {
   const { profile } = useAuthStore();
   const { t } = useLanguage();
   const [selectedPlan, setSelectedPlan] = useState<PricingPlan | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [activeCity, setActiveCity] = useState<string>(
     profile?.city?.toLowerCase() === 'baku' ? 'baku' : 'dubai'
   );
@@ -23,33 +20,9 @@ export default function PaymentScreen() {
   const showTestPlan = window.location.search.includes('test=true') || window.location.hostname === 'localhost';
   const plans = showTestPlan ? allPlans : allPlans.filter(p => !p.isTest);
 
-  const handleCheckout = async () => {
-    if (!selectedPlan) return;
-    setIsLoading(true);
-
-    try {
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: {
-          priceId: selectedPlan.priceId,
-          isSubscription: !!selectedPlan.isSubscription,
-        },
-      });
-
-      if (error) throw error;
-      if (!data?.url) throw new Error('No checkout URL received');
-
-      window.location.href = data.url;
-    } catch (err: any) {
-      console.error('[Checkout] Full error:', JSON.stringify(err));
-      toast({
-        title: t('Payment error', 'Ошибка оплаты'),
-        description: err.message || JSON.stringify(err) || 'Unknown error',
-        variant: 'destructive',
-        duration: 8000,
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  const handlePay = () => {
+    if (!selectedPlan?.paymentLink) return;
+    window.open(selectedPlan.paymentLink, '_blank');
   };
 
   return (
@@ -68,7 +41,7 @@ export default function PaymentScreen() {
           </h1>
           <p className="text-primary-foreground/70 text-sm mt-1">
             {t(
-            `Premium swimming coaching in ${activeCity === 'baku' ? 'Baku' : 'Dubai'}`,
+              `Premium swimming coaching in ${activeCity === 'baku' ? 'Baku' : 'Dubai'}`,
               `Премиум обучение плаванию в ${activeCity === 'baku' ? 'Баку' : 'Дубае'}`,
             )}
           </p>
@@ -158,8 +131,8 @@ export default function PaymentScreen() {
       {/* Fixed Bottom CTA */}
       <div className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-lg border-t border-border px-4 py-4 safe-area-bottom">
         <button
-          onClick={handleCheckout}
-          disabled={!selectedPlan || isLoading}
+          onClick={handlePay}
+          disabled={!selectedPlan}
           className={cn(
             'w-full py-4 rounded-2xl font-bold text-lg transition-all flex items-center justify-center gap-2',
             selectedPlan
@@ -167,19 +140,10 @@ export default function PaymentScreen() {
               : 'bg-muted text-muted-foreground',
           )}
         >
-          {isLoading ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              {t('Processing...', 'Обработка...')}
-            </>
-          ) : selectedPlan ? (
-            <>
-              <CreditCard className="w-5 h-5" />
-              {t('Pay', 'Оплатить')} {selectedPlan.price.toLocaleString()} {currency} →
-            </>
-          ) : (
-            t('Select a plan', 'Выберите план')
-          )}
+          <CreditCard className="w-5 h-5" />
+          {selectedPlan
+            ? `${t('Pay', 'Оплатить')} ${selectedPlan.price.toLocaleString()} ${currency} →`
+            : t('Select a plan', 'Выберите план')}
         </button>
         <div className="flex items-center justify-center gap-1 mt-2 text-xs text-muted-foreground">
           <Shield className="w-3 h-3" />
