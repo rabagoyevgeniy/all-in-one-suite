@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Coins, ShoppingCart, CreditCard, AlertTriangle, Settings, Save, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 const SECTIONS: { key: string; label: string; icon: React.ElementType; prefixes: string[] }[] = [
   { key: 'earning', label: 'Coin Earning Rates', icon: Coins, prefixes: ['coin_earn', 'lesson_coin', 'streak', 'referral'] },
