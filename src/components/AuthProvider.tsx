@@ -40,6 +40,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               .eq('id', session.user.id)
               .maybeSingle();
 
+            // Fetch onboarding_completed (exists in DB but not in generated types)
+            const { data: obData } = await supabase
+              .from('profiles')
+              .select('onboarding_completed' as any)
+              .eq('id', session.user.id)
+              .maybeSingle();
+
+            const profileWithOnboarding = profileData ? {
+              ...profileData,
+              onboarding_completed: (obData as any)?.onboarding_completed ?? false,
+            } : null;
+
             // If no role yet, check if user signed up with a role in metadata
             if (!role) {
               const metaRole = session.user.user_metadata?.signup_role;
@@ -54,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             setRole(role);
-            setProfile(profileData);
+            setProfile(profileWithOnboarding);
             setLoading(false);
 
             // Redirect on login if at auth page or root
