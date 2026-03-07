@@ -119,11 +119,13 @@ export default function PaymentScreen() {
               <span
                 className={cn(
                   'absolute -top-2 right-3 px-2 py-0.5 rounded-full text-[10px] font-bold',
-                  plan.badge === 'Premium'
-                    ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white'
-                    : plan.badge === 'Best Value'
-                      ? 'bg-emerald-500 text-white'
-                      : 'bg-primary text-primary-foreground',
+                  plan.badge === 'Elite'
+                    ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white'
+                    : plan.badge === 'Premium'
+                      ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white'
+                      : plan.badge === 'Best Value' || plan.badge === 'Max Savings'
+                        ? 'bg-emerald-500 text-white'
+                        : 'bg-primary text-primary-foreground',
                 )}
               >
                 {plan.badge}
