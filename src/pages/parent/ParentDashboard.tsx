@@ -237,6 +237,13 @@ export default function ParentDashboard() {
               {parentData?.loyalty_rank?.replace('_', ' ') || 'Aqua'}
             </Badge>
             <CoinBalance amount={parentData?.coin_balance || 0} size="sm" />
+            <button
+              onClick={() => navigate('/payment')}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-xl text-xs font-medium text-white transition-colors"
+            >
+              <ShoppingBag size={12} />
+              {t('Buy Lessons', 'Купить уроки')}
+            </button>
           </div>
         </motion.div>
       </div>

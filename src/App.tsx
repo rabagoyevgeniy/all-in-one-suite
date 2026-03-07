@@ -127,6 +127,12 @@ const App = () => (
               <Route path="/parent/shop" element={<ParentShop />} />
             </Route>
 
+            {/* Payment routes (parent accessible) */}
+            <Route element={<RoleGuard allowedRoles={['parent']}><AppLayout /></RoleGuard>}>
+              <Route path="/payment" element={<PaymentScreen />} />
+              <Route path="/payment/success" element={<PaymentSuccess />} />
+            </Route>
+
             {/* Chat routes (all authenticated roles) */}
             <Route element={<RoleGuard allowedRoles={['parent', 'coach', 'student', 'pro_athlete', 'personal_manager', 'admin', 'head_manager']}><AppLayout /></RoleGuard>}>
               <Route path="/chat" element={<ChatList />} />
