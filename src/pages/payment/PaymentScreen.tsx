@@ -193,7 +193,7 @@ function PlanCard({
               {plan.description}
             </div>
             {plan.savingPercent && (
-              <span className="text-xs text-emerald-600 font-medium">
+              <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
                 Save {plan.savingPercent}%
               </span>
             )}
