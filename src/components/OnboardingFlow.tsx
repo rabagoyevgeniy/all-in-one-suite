@@ -77,6 +77,7 @@ interface OnboardingFlowProps {
 export function OnboardingFlow({ role, userId, onComplete }: OnboardingFlowProps) {
   const navigate = useNavigate();
   const [step, setStep] = useState<'greeting' | number>('greeting');
+  const [isCompleting, setIsCompleting] = useState(false);
 
   const config = ONBOARDING_CONFIG[role];
 
@@ -91,11 +92,14 @@ export function OnboardingFlow({ role, userId, onComplete }: OnboardingFlowProps
   const isLastSlide = currentSlide === slides.length - 1;
 
   async function handleComplete() {
+    if (isCompleting) return;
+    setIsCompleting(true);
+    // Optimistically update store before DB call
+    onComplete();
     await supabase
       .from('profiles')
       .update({ onboarding_completed: true } as any)
       .eq('id', userId);
-    onComplete();
     navigate(config!.finalRoute, { replace: true });
   }
 

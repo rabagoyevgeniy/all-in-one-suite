@@ -1,18 +1,20 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Users, Loader2 } from 'lucide-react';
 import { SwimBeltBadge } from '@/components/SwimBeltBadge';
 import { CoinBalance } from '@/components/CoinBalance';
+import { CoachStudentDetailSheet } from '@/components/coach/CoachStudentDetailSheet';
 import { useAuthStore } from '@/stores/authStore';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function CoachStudents() {
   const { user } = useAuthStore();
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
 
   const { data: students, isLoading } = useQuery({
     queryKey: ['coach-students', user?.id],
     queryFn: async () => {
-      // Get unique student IDs from bookings
       const { data: bookings, error: bErr } = await supabase
         .from('bookings')
         .select('student_id')
@@ -55,7 +57,8 @@ export default function CoachStudents() {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.08 }}
-            className="glass-card rounded-2xl p-4"
+            className="glass-card rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform"
+            onClick={() => setSelectedStudentId(s.id)}
           >
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-xl font-bold text-primary">
@@ -80,6 +83,11 @@ export default function CoachStudents() {
           <p className="text-sm text-muted-foreground">No students yet</p>
         </div>
       )}
+
+      <CoachStudentDetailSheet
+        studentId={selectedStudentId}
+        onClose={() => setSelectedStudentId(null)}
+      />
     </div>
   );
 }
