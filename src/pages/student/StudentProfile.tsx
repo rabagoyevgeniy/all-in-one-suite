@@ -274,6 +274,9 @@ export default function StudentProfile() {
         )}
       </motion.div>
 
+      {/* Notification Settings */}
+      <NotificationSettings />
+
       {/* Achievement Detail Modal */}
       <Dialog open={!!selectedAchievement} onOpenChange={() => setSelectedAchievement(null)}>
         <DialogContent className="max-w-xs arena bg-gradient-arena border-border/30">

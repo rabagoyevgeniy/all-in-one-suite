@@ -79,6 +79,8 @@ export default function CoachProfile() {
         </div>
       </div>
 
+      <NotificationSettings />
+
       <QRProfileSheet open={qrOpen} onOpenChange={setQrOpen} />
     </div>
   );
