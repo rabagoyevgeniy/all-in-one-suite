@@ -79,9 +79,10 @@ export function OnboardingFlow({ role, userId, onComplete }: OnboardingFlowProps
   const [step, setStep] = useState<'greeting' | number>('greeting');
 
   const config = ONBOARDING_CONFIG[role];
+
+  // For roles without config (admin, PM, head_manager), auto-complete
   if (!config) {
-    // No onboarding for this role, complete immediately
-    handleComplete();
+    supabase.from('profiles').update({ onboarding_completed: true } as any).eq('id', userId).then(() => onComplete());
     return null;
   }
 
