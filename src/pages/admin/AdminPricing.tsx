@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CheckCircle, ExternalLink, Edit2, X, Loader2 } from 'lucide-react';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
