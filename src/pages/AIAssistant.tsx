@@ -94,7 +94,7 @@ const ROLE_MODES: Record<string, RoleModeConfig> = {
   },
 };
 
-type Msg = { role: 'user' | 'assistant'; content: string; mode?: AIMode };
+type Msg = { role: 'user' | 'assistant'; content: string; mode?: string };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
 
