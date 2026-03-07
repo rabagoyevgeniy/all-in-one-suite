@@ -40,6 +40,10 @@ import ChatRoom from "./pages/chat/ChatRoom";
 import ParentShop from "./pages/parent/ParentShop";
 import ParentPayments from "./pages/parent/ParentPayments";
 
+// Payment
+import PaymentScreen from "./pages/payment/PaymentScreen";
+import PaymentSuccess from "./pages/payment/PaymentSuccess";
+
 // Student
 import StudentDashboard from "./pages/student/StudentDashboard";
 import TaskBoard from "./pages/student/TaskBoard";
@@ -121,6 +125,12 @@ const App = () => (
               <Route path="/parent/coins" element={<ParentCoins />} />
               <Route path="/parent/referrals" element={<ComingSoon />} />
               <Route path="/parent/shop" element={<ParentShop />} />
+            </Route>
+
+            {/* Payment routes (parent accessible) */}
+            <Route element={<RoleGuard allowedRoles={['parent']}><AppLayout /></RoleGuard>}>
+              <Route path="/payment" element={<PaymentScreen />} />
+              <Route path="/payment/success" element={<PaymentSuccess />} />
             </Route>
 
             {/* Chat routes (all authenticated roles) */}
