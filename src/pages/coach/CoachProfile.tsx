@@ -40,7 +40,15 @@ export default function CoachProfile() {
 
   return (
     <div className="px-4 py-6 space-y-6">
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="glass-card rounded-2xl p-6 text-center">
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="glass-card rounded-2xl p-6 text-center relative">
+        {/* QR button */}
+        <button
+          onClick={() => setQrOpen(true)}
+          className="absolute top-4 right-4 p-2 rounded-xl bg-primary/10 hover:bg-primary/20 transition-colors"
+        >
+          <QrCode className="w-5 h-5 text-primary" />
+        </button>
+
         <div className="w-20 h-20 mx-auto rounded-full bg-primary/15 flex items-center justify-center text-3xl font-bold text-primary mb-3">
           {profile?.full_name?.[0] || '?'}
         </div>
