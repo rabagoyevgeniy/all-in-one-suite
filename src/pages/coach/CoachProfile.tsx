@@ -11,6 +11,7 @@ import QRProfileSheet from '@/components/QRProfileSheet';
 
 export default function CoachProfile() {
   const { user } = useAuthStore();
+  const [qrOpen, setQrOpen] = useState(false);
 
   const { data: coachData, isLoading } = useQuery({
     queryKey: ['coach-full-profile', user?.id],
