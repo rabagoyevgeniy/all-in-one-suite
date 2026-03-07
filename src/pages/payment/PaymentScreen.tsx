@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useLanguage } from '@/hooks/useLanguage';
 import { PRICING, type PricingPlan } from '@/lib/pricing';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 export default function PaymentScreen() {
   const navigate = useNavigate();
@@ -21,7 +22,11 @@ export default function PaymentScreen() {
   const plans = showTestPlan ? allPlans : allPlans.filter(p => !p.isTest);
 
   const handlePay = () => {
-    if (!selectedPlan?.paymentLink) return;
+    if (!selectedPlan) return;
+    if (!selectedPlan.paymentLink || selectedPlan.paymentLink.includes('REPLACE')) {
+      toast.info('Coming soon', { description: 'Payment link will be available shortly' });
+      return;
+    }
     window.open(selectedPlan.paymentLink, '_blank');
   };
 
