@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useLanguage } from '@/hooks/useLanguage';
 import { PRICING, type PricingPlan } from '@/lib/pricing';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 export default function PaymentScreen() {
   const navigate = useNavigate();
