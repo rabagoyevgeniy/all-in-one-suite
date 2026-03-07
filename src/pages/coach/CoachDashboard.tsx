@@ -441,6 +441,9 @@ export default function CoachDashboard() {
           </div>
         )}
       </div>
+
+      {/* Recent Messages */}
+      <RecentMessagesWidget />
     </div>
   );
 }

@@ -454,6 +454,9 @@ export default function ParentDashboard() {
         </div>
       )}
 
+      {/* Recent Messages */}
+      <RecentMessagesWidget />
+
       {/* Quick Book Button */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="px-4">
         <Button
