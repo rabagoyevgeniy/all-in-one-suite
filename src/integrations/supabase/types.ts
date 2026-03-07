@@ -1886,6 +1886,78 @@ export type Database = {
         }
         Relationships: []
       }
+      pricing_plans: {
+        Row: {
+          badge: string | null
+          city: string
+          created_at: string | null
+          currency: string
+          description: string | null
+          features: string[] | null
+          icon: string | null
+          id: string
+          is_active: boolean | null
+          is_subscription: boolean | null
+          is_test: boolean | null
+          lessons_included: number | null
+          name: string
+          plan_key: string
+          price: number
+          price_per_lesson: number | null
+          saving_percent: number | null
+          sort_order: number | null
+          stripe_payment_link: string | null
+          target_customer: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          badge?: string | null
+          city?: string
+          created_at?: string | null
+          currency?: string
+          description?: string | null
+          features?: string[] | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_subscription?: boolean | null
+          is_test?: boolean | null
+          lessons_included?: number | null
+          name: string
+          plan_key: string
+          price?: number
+          price_per_lesson?: number | null
+          saving_percent?: number | null
+          sort_order?: number | null
+          stripe_payment_link?: string | null
+          target_customer?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          badge?: string | null
+          city?: string
+          created_at?: string | null
+          currency?: string
+          description?: string | null
+          features?: string[] | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_subscription?: boolean | null
+          is_test?: boolean | null
+          lessons_included?: number | null
+          name?: string
+          plan_key?: string
+          price?: number
+          price_per_lesson?: number | null
+          saving_percent?: number | null
+          sort_order?: number | null
+          stripe_payment_link?: string | null
+          target_customer?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       pro_athletes: {
         Row: {
           coin_balance: number | null
