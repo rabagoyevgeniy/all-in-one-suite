@@ -140,33 +140,29 @@ export default function PaymentScreen() {
         })}
       </div>
 
-      {/* Sticky Bottom CTA */}
-      <div className="sticky bottom-0 left-0 right-0 bg-card/95 backdrop-blur-lg border-t border-border px-4 py-4 z-50">
-        <button
-          onClick={handlePay}
-          disabled={!selected}
-          className={cn(
-            'w-full py-4 rounded-2xl font-bold text-lg transition-all flex items-center justify-center gap-2',
-            selected
-              ? selected.stripe_payment_link
+      {/* CTA — only when a plan is selected */}
+      {selected && (
+        <div className="px-4 py-6">
+          <button
+            onClick={handlePay}
+            className={cn(
+              'w-full py-4 rounded-2xl font-bold text-lg transition-all flex items-center justify-center gap-2',
+              selected.stripe_payment_link
                 ? 'bg-primary text-primary-foreground shadow-lg'
-                : 'bg-muted text-muted-foreground'
-              : 'bg-muted text-muted-foreground',
-          )}
-        >
-          <CreditCard className="w-5 h-5" />
-          {selected
-            ? selected.stripe_payment_link
+                : 'bg-muted text-muted-foreground',
+            )}
+          >
+            <CreditCard className="w-5 h-5" />
+            {selected.stripe_payment_link
               ? `${t('Pay', 'Оплатить')} ${selected.price.toLocaleString()} ${currency} →`
-              : 'Coming soon'
-            : t('Select a plan', 'Выберите план')}
-        </button>
-        <div className="flex items-center justify-center gap-1 mt-2 text-xs text-muted-foreground">
-          <Shield className="w-3 h-3" />
-          {t('Secured by Stripe', 'Защищено Stripe')}
+              : 'Coming soon'}
+          </button>
+          <div className="flex items-center justify-center gap-1 mt-2 text-xs text-muted-foreground">
+            <Shield className="w-3 h-3" />
+            {t('Secured by Stripe', 'Защищено Stripe')}
+          </div>
         </div>
-      </div>
-    </div>
+      )}
   );
 }
 
