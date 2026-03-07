@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { MapPin, Clock, Star, Navigation, ChevronRight, Loader2, Wallet } from 'lucide-react';
 import { CoinBalance } from '@/components/CoinBalance';
 import { SwimBeltBadge } from '@/components/SwimBeltBadge';
+import { RecentMessagesWidget } from '@/components/RecentMessagesWidget';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/stores/authStore';
