@@ -75,6 +75,8 @@ export default function CoachProfile() {
           <Stat label="Specializations" value={(coachData?.specializations || []).join(', ') || '—'} />
         </div>
       </div>
+
+      <QRProfileSheet open={qrOpen} onOpenChange={setQrOpen} />
     </div>
   );
 }
