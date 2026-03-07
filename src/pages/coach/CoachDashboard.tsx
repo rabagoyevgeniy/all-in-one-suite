@@ -221,7 +221,25 @@ export default function CoachDashboard() {
           <h3 className="font-semibold text-sm text-foreground">
             {t("Today's Route", 'Маршрут сегодня')}
           </h3>
-          <button className="text-xs text-primary font-medium flex items-center gap-1">
+          <button
+            onClick={() => {
+              const destinations = (todayBookings || [])
+                .map((b: any) => {
+                  const pool = b.pools as any;
+                  return pool?.address || pool?.name;
+                })
+                .filter(Boolean);
+              if (destinations.length === 0) {
+                toast({ description: t('No lessons scheduled today', 'На сегодня нет уроков') });
+                return;
+              }
+              const mapsUrl = destinations.length === 1
+                ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destinations[0] + ' Dubai')}`
+                : `https://www.google.com/maps/dir/current+location/${destinations.map((d: string) => encodeURIComponent(d)).join('/')}`;
+              window.open(mapsUrl, '_blank');
+            }}
+            className="text-xs text-primary font-medium flex items-center gap-1"
+          >
             <Navigation size={12} /> {t('Open Map', 'Карта')}
           </button>
         </div>

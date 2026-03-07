@@ -1,19 +1,20 @@
+import { useMemo } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { OnboardingFlow } from './OnboardingFlow';
 
 export function OnboardingGuard() {
-  const { user, role, profile } = useAuthStore();
+  const { user, role, profile, setProfile } = useAuthStore();
   const location = useLocation();
-  const { setProfile } = useAuthStore();
 
-  // Don't show on auth pages
-  if (!user || !role || !profile || location.pathname.startsWith('/auth')) return null;
+  const showOnboarding = useMemo(() => {
+    if (!user || !role || !profile) return false;
+    if (location.pathname.startsWith('/auth')) return false;
+    return profile.onboarding_completed === false || profile.onboarding_completed === null;
+  }, [user?.id, role, profile?.onboarding_completed, location.pathname]);
 
-  const needsOnboarding = profile.onboarding_completed !== true;
-
-  if (!needsOnboarding) return null;
+  if (!showOnboarding || !user || !role || !profile) return null;
 
   return (
     <AnimatePresence>
