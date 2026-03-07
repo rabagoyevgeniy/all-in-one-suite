@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { motion } from 'framer-motion';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 const STATUS_STYLES: Record<string, string> = {
   confirmed: 'bg-primary/15 text-primary border-primary/30',
@@ -43,8 +44,7 @@ export default function AdminBookings() {
   return (
     <div className="px-4 py-6 space-y-4">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <h2 className="font-display font-bold text-xl text-foreground">Bookings</h2>
-        <p className="text-sm text-muted-foreground">{bookings?.length ?? 0} recent</p>
+        <PageHeader title="Bookings" subtitle={`${bookings?.length ?? 0} recent`} backRoute="/admin" />
       </motion.div>
 
       {isLoading ? (

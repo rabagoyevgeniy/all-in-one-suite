@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { Calendar, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { useAuthStore } from '@/stores/authStore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -70,8 +71,7 @@ export default function CoachSchedule() {
   return (
     <div className="px-4 py-6 space-y-6">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <h2 className="font-display font-bold text-xl text-foreground">Schedule</h2>
-        <p className="text-sm text-muted-foreground">{bookings?.length || 0} total bookings</p>
+        <PageHeader title="Schedule" subtitle={`${bookings?.length || 0} total bookings`} backRoute="/coach" />
       </motion.div>
 
       {Object.entries(grouped).map(([date, items], gi) => (

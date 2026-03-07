@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AlertTriangle } from 'lucide-react';
 import { SWIM_BELTS } from '@/lib/constants';
 import { motion } from 'framer-motion';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 function useParentsList() {
   return useQuery({
@@ -66,7 +67,7 @@ export default function AdminClients() {
   return (
     <div className="px-4 py-6 space-y-4">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <h2 className="font-display font-bold text-xl text-foreground">Clients</h2>
+        <PageHeader title="Clients" backRoute="/admin" />
       </motion.div>
 
       <Tabs defaultValue="parents">

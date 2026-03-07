@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Coins, ShoppingCart, CreditCard, AlertTriangle, Settings, Save, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 const SECTIONS: { key: string; label: string; icon: React.ElementType; prefixes: string[] }[] = [
   { key: 'earning', label: 'Coin Earning Rates', icon: Coins, prefixes: ['coin_earn', 'lesson_coin', 'streak', 'referral'] },
@@ -70,8 +71,7 @@ export default function AdminEconomy() {
   return (
     <div className="px-4 py-6 space-y-6">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <h2 className="font-display font-bold text-xl text-foreground">Economy Control</h2>
-        <p className="text-sm text-muted-foreground">Manage coin & pricing settings</p>
+        <PageHeader title="Economy Control" subtitle="Manage coin & pricing settings" backRoute="/admin" />
       </motion.div>
 
       {isLoading ? (

@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Star, Trophy, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 function useCoachesList() {
   return useQuery({
@@ -53,8 +54,7 @@ export default function AdminCoaches() {
   return (
     <div className="px-4 py-6 space-y-4">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <h2 className="font-display font-bold text-xl text-foreground">Coaches</h2>
-        <p className="text-sm text-muted-foreground">{coaches?.length ?? 0} total</p>
+        <PageHeader title="Coaches" subtitle={`${coaches?.length ?? 0} total`} backRoute="/admin" />
       </motion.div>
 
       {isLoading ? (

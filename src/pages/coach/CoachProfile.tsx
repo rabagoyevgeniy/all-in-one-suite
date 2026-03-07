@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { User, Loader2, Star, QrCode } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { CoinBalance } from '@/components/CoinBalance';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { useAuthStore } from '@/stores/authStore';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -40,6 +41,7 @@ export default function CoachProfile() {
 
   return (
     <div className="px-4 py-6 space-y-6">
+      <PageHeader title="My Profile" backRoute="/coach" />
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="glass-card rounded-2xl p-6 text-center relative">
         {/* QR button */}
         <button

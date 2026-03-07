@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
@@ -32,6 +33,7 @@ const TYPE_ICONS: Record<string, string> = {
 
 export function NotificationBell() {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -103,11 +105,16 @@ export function NotificationBell() {
       <PopoverContent align="end" className="w-80 p-0 max-h-[400px] overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <h3 className="font-display font-semibold text-sm text-foreground">Notifications</h3>
-          {unreadCount > 0 && (
-            <Button variant="ghost" size="sm" className="text-xs h-7" onClick={markAllRead}>
-              Mark all read
+          <div className="flex items-center gap-2">
+            {unreadCount > 0 && (
+              <Button variant="ghost" size="sm" className="text-xs h-7" onClick={markAllRead}>
+                Mark all read
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => navigate('/notifications')}>
+              View all
             </Button>
-          )}
+          </div>
         </div>
         <div className="overflow-y-auto max-h-[340px]">
           {notifications.length === 0 ? (

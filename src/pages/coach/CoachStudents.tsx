@@ -4,6 +4,7 @@ import { Users, Loader2 } from 'lucide-react';
 import { SwimBeltBadge } from '@/components/SwimBeltBadge';
 import { CoinBalance } from '@/components/CoinBalance';
 import { CoachStudentDetailSheet } from '@/components/coach/CoachStudentDetailSheet';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { useAuthStore } from '@/stores/authStore';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -45,8 +46,7 @@ export default function CoachStudents() {
   return (
     <div className="px-4 py-6 space-y-6">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <h2 className="font-display font-bold text-xl text-foreground">My Students</h2>
-        <p className="text-sm text-muted-foreground">{students?.length || 0} students</p>
+        <PageHeader title="My Students" subtitle={`${students?.length || 0} students`} backRoute="/coach" />
       </motion.div>
 
       {students && students.length > 0 ? students.map((s: any, i: number) => {
