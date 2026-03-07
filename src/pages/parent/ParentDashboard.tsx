@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Clock, MapPin, Plus, Loader2, Star, CreditCard, TrendingUp, ShoppingBag } from 'lucide-react';
+import { Clock, MapPin, Plus, Loader2, Star, CreditCard, TrendingUp, ShoppingBag, AlertTriangle } from 'lucide-react';
 import { SwimBeltBadge } from '@/components/SwimBeltBadge';
 import { CoinBalance } from '@/components/CoinBalance';
 import { SubscriptionWarningBanner } from '@/components/SubscriptionWarningBanner';
