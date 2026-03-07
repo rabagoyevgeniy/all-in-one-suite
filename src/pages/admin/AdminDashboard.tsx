@@ -170,7 +170,7 @@ export default function AdminDashboard() {
 
       {/* Quick Actions */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}>
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-5 gap-3">
           {quickActions.map((action) => (
             <button
               key={action.label}
