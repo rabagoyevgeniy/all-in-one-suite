@@ -7,6 +7,7 @@ export interface PricingPlan {
   icon: string;
   badge?: string;
   isSubscription?: boolean;
+  isTest?: boolean;
   priceId: string;
 }
 
