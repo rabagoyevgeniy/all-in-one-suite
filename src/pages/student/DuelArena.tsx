@@ -544,9 +544,10 @@ export default function DuelArena() {
                   </Select>
                 </div>
                 <div>
-                  <Label className="text-xs">Stake (coins)</Label>
+                  <Label className="text-xs">Stake (coins) — minimum 10</Label>
                   <Input
                     type="number" min={10} max={myBalance || 0}
+                    placeholder="Min: 10 coins"
                     value={stakeCoins}
                     onChange={e => {
                       const val = Number(e.target.value);
@@ -555,7 +556,10 @@ export default function DuelArena() {
                   />
                   <p className="text-[10px] text-muted-foreground mt-1">
                     Your balance: {(myBalance || 0).toLocaleString()} 🪙
-                    {stakeCoins > (myBalance || 0) && (
+                    {stakeCoins < 10 && (
+                      <span className="text-destructive ml-2">Minimum stake is 10 coins</span>
+                    )}
+                    {stakeCoins >= 10 && stakeCoins > (myBalance || 0) && (
                       <span className="text-destructive ml-2">Insufficient coins!</span>
                     )}
                   </p>

@@ -136,8 +136,8 @@ export default function ProArena() {
                 </Select>
               </div>
               <div>
-                <Label>Stake (coins, min 200)</Label>
-                <Input type="number" min={200} value={form.stake} onChange={e => setForm(p => ({ ...p, stake: e.target.value }))} />
+                <Label>Stake (coins, min 10)</Label>
+                <Input type="number" min={10} placeholder="Min: 10 coins" value={form.stake} onChange={e => setForm(p => ({ ...p, stake: e.target.value }))} />
               </div>
               <div className="flex items-center justify-between">
                 <Label>Ranked</Label>
