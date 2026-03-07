@@ -128,7 +128,9 @@ export default function AIAssistant() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [activeMode, setActiveMode] = useState<AIMode>('general');
+  const roleModesConfig = ROLE_MODES[role || 'parent'] || ROLE_MODES.parent;
+  const roleModes = roleModesConfig.modes;
+  const [activeMode, setActiveMode] = useState(roleModes[0].id);
   const [isRecording, setIsRecording] = useState(false);
   const [insightDismissed, setInsightDismissed] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
