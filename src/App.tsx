@@ -66,8 +66,9 @@ import PMDashboard from "./pages/pm/PMDashboard";
 import PMReports from "./pages/pm/PMReports";
 import PMEarnings from "./pages/pm/PMEarnings";
 
-// AI
+// AI & Notifications
 import AIAssistant from "./pages/AIAssistant";
+import NotificationsPage from "./pages/NotificationsPage";
 import { AIAssistantFAB } from "./components/AIAssistantFAB";
 import { OnboardingGuard } from "./components/OnboardingGuard";
 
