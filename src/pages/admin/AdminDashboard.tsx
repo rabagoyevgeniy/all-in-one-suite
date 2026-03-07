@@ -185,6 +185,47 @@ export default function AdminDashboard() {
         </div>
       </motion.div>
 
+      {/* Pending Community Requests */}
+      {pendingCommunities && pendingCommunities.length > 0 && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.27 }}>
+          <h3 className="font-display font-semibold text-sm text-foreground mb-3 flex items-center gap-2">
+            🏘️ Pending Communities
+            <Badge variant="destructive" className="text-[10px]">{pendingCommunities.length}</Badge>
+          </h3>
+          <div className="space-y-3">
+            {pendingCommunities.map((room: any) => {
+              const requester = room.profiles as any;
+              return (
+                <div key={room.id} className="bg-warning/5 border border-warning/20 rounded-2xl p-4">
+                  <div className="font-semibold text-sm text-foreground">{room.name}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    Requested by {requester?.full_name || 'Unknown'}
+                    {room.created_at && ` · ${formatDistanceToNow(new Date(room.created_at), { addSuffix: true })}`}
+                  </div>
+                  {room.request_reason && (
+                    <div className="text-xs text-muted-foreground mt-1 italic">"{room.request_reason}"</div>
+                  )}
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={() => handleCommunityAction(room.id, 'active')}
+                      className="flex-1 py-2 bg-success text-success-foreground text-sm rounded-xl font-medium"
+                    >
+                      ✅ Approve
+                    </button>
+                    <button
+                      onClick={() => handleCommunityAction(room.id, 'rejected')}
+                      className="flex-1 py-2 bg-destructive/10 text-destructive text-sm rounded-xl font-medium"
+                    >
+                      ✗ Reject
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
+
       {/* Today's Activity Feed */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="glass-card rounded-2xl overflow-hidden">
         <div className="flex items-center justify-between p-4 border-b border-border">
