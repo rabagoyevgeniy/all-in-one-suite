@@ -102,9 +102,13 @@ export default function PaymentScreen() {
             onClick={() => setSelectedPlan(plan)}
             className={cn(
               'w-full p-4 rounded-2xl border-2 text-left transition-all relative',
-              selectedPlan?.id === plan.id
-                ? 'border-primary bg-primary/5 shadow-md'
-                : 'border-border bg-card hover:border-primary/30',
+              plan.isTest
+                ? selectedPlan?.id === plan.id
+                  ? 'border-dashed border-muted-foreground bg-muted/30 shadow-md'
+                  : 'border-dashed border-muted-foreground/40 bg-muted/10'
+                : selectedPlan?.id === plan.id
+                  ? 'border-primary bg-primary/5 shadow-md'
+                  : 'border-border bg-card hover:border-primary/30',
             )}
           >
             <div className="flex items-start justify-between">
