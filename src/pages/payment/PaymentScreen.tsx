@@ -40,10 +40,12 @@ export default function PaymentScreen() {
 
       window.location.href = data.url;
     } catch (err: any) {
+      console.error('[Checkout] Full error:', JSON.stringify(err));
       toast({
-        title: t('Payment failed', 'Ошибка оплаты'),
-        description: err.message,
+        title: t('Payment error', 'Ошибка оплаты'),
+        description: err.message || JSON.stringify(err) || 'Unknown error',
         variant: 'destructive',
+        duration: 8000,
       });
     } finally {
       setIsLoading(false);

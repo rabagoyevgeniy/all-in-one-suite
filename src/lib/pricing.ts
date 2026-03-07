@@ -21,6 +21,16 @@ export const PRICING: Record<string, CityPricing> = {
     currency: 'AED',
     plans: [
       {
+        id: 'test_plan',
+        name: '🧪 Test Payment',
+        price: 1,
+        description: 'Test only — 1 AED charge',
+        icon: '🧪',
+        badge: 'Test',
+        isTest: true,
+        priceId: 'price_1T89G5Cb87PTRYLaSpB8fLfC', // reuses single lesson price for test
+      },
+      {
         id: 'single_lesson',
         name: 'Single Lesson',
         price: 300,

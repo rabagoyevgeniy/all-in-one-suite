@@ -28,7 +28,12 @@ serve(async (req) => {
     const { priceId, isSubscription } = await req.json();
     if (!priceId) throw new Error("priceId is required");
 
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY") || Deno.env.get("STRIPE_KEY") || "";
+    console.log("[create-checkout] Stripe key exists:", !!stripeKey);
+    console.log("[create-checkout] Stripe key prefix:", stripeKey?.substring(0, 7));
+    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not configured");
+
+    const stripe = new Stripe(stripeKey, {
       apiVersion: "2025-08-27.basil",
     });
 
