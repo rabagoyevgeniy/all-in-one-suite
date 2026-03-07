@@ -7,6 +7,7 @@ export interface PricingPlan {
   icon: string;
   badge?: string;
   isSubscription?: boolean;
+  isTest?: boolean;
   priceId: string;
 }
 
@@ -19,6 +20,16 @@ export const PRICING: Record<string, CityPricing> = {
   dubai: {
     currency: 'AED',
     plans: [
+      {
+        id: 'test_plan',
+        name: '🧪 Test Payment',
+        price: 1,
+        description: 'Test only — 1 AED charge',
+        icon: '🧪',
+        badge: 'Test',
+        isTest: true,
+        priceId: 'price_1T89G5Cb87PTRYLaSpB8fLfC', // reuses single lesson price for test
+      },
       {
         id: 'single_lesson',
         name: 'Single Lesson',

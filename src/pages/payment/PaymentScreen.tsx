@@ -19,7 +19,9 @@ export default function PaymentScreen() {
     profile?.city?.toLowerCase() === 'baku' ? 'baku' : 'dubai'
   );
 
-  const { currency, plans } = PRICING[activeCity];
+  const { currency, plans: allPlans } = PRICING[activeCity];
+  const showTestPlan = window.location.search.includes('test=true') || window.location.hostname === 'localhost';
+  const plans = showTestPlan ? allPlans : allPlans.filter(p => !p.isTest);
 
   const handleCheckout = async () => {
     if (!selectedPlan) return;
@@ -38,10 +40,12 @@ export default function PaymentScreen() {
 
       window.location.href = data.url;
     } catch (err: any) {
+      console.error('[Checkout] Full error:', JSON.stringify(err));
       toast({
-        title: t('Payment failed', 'Ошибка оплаты'),
-        description: err.message,
+        title: t('Payment error', 'Ошибка оплаты'),
+        description: err.message || JSON.stringify(err) || 'Unknown error',
         variant: 'destructive',
+        duration: 8000,
       });
     } finally {
       setIsLoading(false);
@@ -100,9 +104,13 @@ export default function PaymentScreen() {
             onClick={() => setSelectedPlan(plan)}
             className={cn(
               'w-full p-4 rounded-2xl border-2 text-left transition-all relative',
-              selectedPlan?.id === plan.id
-                ? 'border-primary bg-primary/5 shadow-md'
-                : 'border-border bg-card hover:border-primary/30',
+              plan.isTest
+                ? selectedPlan?.id === plan.id
+                  ? 'border-dashed border-muted-foreground bg-muted/30 shadow-md'
+                  : 'border-dashed border-muted-foreground/40 bg-muted/10'
+                : selectedPlan?.id === plan.id
+                  ? 'border-primary bg-primary/5 shadow-md'
+                  : 'border-border bg-card hover:border-primary/30',
             )}
           >
             <div className="flex items-start justify-between">
