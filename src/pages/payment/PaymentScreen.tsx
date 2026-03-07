@@ -24,11 +24,7 @@ export default function PaymentScreen() {
   const handlePay = () => {
     if (!selectedPlan) return;
     if (!selectedPlan.paymentLink || selectedPlan.paymentLink.includes('REPLACE')) {
-      const { toast } = await import('@/hooks/use-toast').then(m => ({ toast: m.useToast }));
-      // Can't use hook here, use sonner instead
-      import('sonner').then(({ toast }) => {
-        toast.info('Coming soon', { description: 'Payment link will be available shortly' });
-      });
+      toast.info('Coming soon', { description: 'Payment link will be available shortly' });
       return;
     }
     window.open(selectedPlan.paymentLink, '_blank');
