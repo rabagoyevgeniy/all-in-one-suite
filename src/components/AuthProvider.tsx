@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             setRole(role);
-            setProfile(profileData);
+            setProfile(profileWithOnboarding);
             setLoading(false);
 
             // Redirect on login if at auth page or root
