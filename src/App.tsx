@@ -85,6 +85,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth/login" element={<LoginPage />} />
+            <Route path="/onboarding" element={<OnboardingPage />} />
 
             {/* Admin routes */}
             <Route element={<RoleGuard allowedRoles={['admin', 'head_manager']}><AppLayout /></RoleGuard>}>
