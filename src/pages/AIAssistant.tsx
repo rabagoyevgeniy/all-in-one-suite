@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Send, Sparkles, Loader2, Trash2, Lock, Mic, MicOff } from 'lucide-react';
+import { ArrowLeft, Send, Sparkles, Loader2, Trash2, Lock, Mic } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/stores/authStore';
 import { useLanguage } from '@/hooks/useLanguage';
@@ -486,6 +486,16 @@ export default function AIAssistant() {
             )}
           </div>
 
+          {/* Recording indicator */}
+          {isRecording && (
+            <div className="flex items-center justify-center gap-2 py-1.5 bg-destructive/5">
+              <div className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
+              <span className="text-xs text-destructive font-medium">
+                {t('Recording... tap to stop', 'Запись... нажмите для остановки')}
+              </span>
+            </div>
+          )}
+
           {/* Input */}
           <div className="border-t border-border bg-background px-4 py-3">
             <div className="max-w-lg mx-auto flex items-end gap-2">
@@ -505,13 +515,17 @@ export default function AIAssistant() {
               <button
                 onClick={toggleVoice}
                 className={cn(
-                  "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors",
+                  "w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all",
                   isRecording
-                    ? "bg-destructive text-destructive-foreground animate-pulse"
+                    ? "bg-destructive scale-110 shadow-lg shadow-destructive/30"
                     : "bg-muted text-muted-foreground hover:bg-muted/80"
                 )}
               >
-                {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                {isRecording ? (
+                  <div className="w-3 h-3 bg-destructive-foreground rounded-sm" />
+                ) : (
+                  <Mic className="w-4 h-4" />
+                )}
               </button>
               {/* Send */}
               <button
