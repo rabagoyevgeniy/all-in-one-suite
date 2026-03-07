@@ -64,8 +64,8 @@ export default function PaymentScreen() {
           </h1>
           <p className="text-primary-foreground/70 text-sm mt-1">
             {t(
-              `Premium swimming coaching in ${city === 'baku' ? 'Baku' : 'Dubai'}`,
-              `Премиум обучение плаванию в ${city === 'baku' ? 'Баку' : 'Дубае'}`,
+            `Premium swimming coaching in ${activeCity === 'baku' ? 'Baku' : 'Dubai'}`,
+              `Премиум обучение плаванию в ${activeCity === 'baku' ? 'Баку' : 'Дубае'}`,
             )}
           </p>
         </motion.div>
