@@ -20,6 +20,7 @@ import AdminBookings from "./pages/admin/AdminBookings";
 import AdminFinance from "./pages/admin/AdminFinance";
 import AdminEconomy from "./pages/admin/AdminEconomy";
 import AdminTasks from "./pages/admin/AdminTasks";
+import AdminPricing from "./pages/admin/AdminPricing";
 
 // Coach
 import CoachDashboard from "./pages/coach/CoachDashboard";
@@ -92,6 +93,7 @@ const App = () => (
               <Route path="/admin/financial" element={<AdminFinance />} />
               <Route path="/admin/economy" element={<AdminEconomy />} />
               <Route path="/admin/tasks" element={<AdminTasks />} />
+              <Route path="/admin/pricing" element={<AdminPricing />} />
             </Route>
 
             {/* Coach routes */}

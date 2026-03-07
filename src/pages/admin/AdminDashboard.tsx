@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { DollarSign, Calendar, Users, AlertTriangle, UserPlus, CreditCard, BarChart3, Heart, Settings, Loader2 } from 'lucide-react';
+import { DollarSign, Calendar, Users, AlertTriangle, UserPlus, CreditCard, BarChart3, Heart, Settings, Loader2, Tag } from 'lucide-react';
 import { useAdminDashboardStats, useRevenueChart, useActiveCoaches, useRecentBookings, useActiveSubscriptions } from '@/hooks/useAdminDashboardStats';
 import { useAdminStore } from '@/stores/adminStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -120,6 +120,7 @@ export default function AdminDashboard() {
     { icon: Calendar, label: 'Bookings', action: () => navigate('/admin/bookings'), bgColor: 'bg-success/10', color: 'text-success' },
     { icon: CreditCard, label: 'Finance', action: () => navigate('/admin/finance'), bgColor: 'bg-accent/10', color: 'text-accent' },
     { icon: Settings, label: 'Economy', action: () => navigate('/admin/economy'), bgColor: 'bg-warning/10', color: 'text-warning' },
+    { icon: Tag, label: 'Pricing', action: () => navigate('/admin/pricing'), bgColor: 'bg-accent/10', color: 'text-accent' },
   ];
 
   const activityFeed = getActivityFromBookings(bookings);
@@ -169,7 +170,7 @@ export default function AdminDashboard() {
 
       {/* Quick Actions */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}>
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-5 gap-3">
           {quickActions.map((action) => (
             <button
               key={action.label}
