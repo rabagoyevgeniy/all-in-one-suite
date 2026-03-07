@@ -50,11 +50,38 @@ function getActivityFromBookings(bookings: any[] | undefined) {
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const { currency } = useAdminStore();
+  const { user } = useAuthStore();
+  const queryClient = useQueryClient();
   const { data: stats, isLoading: statsLoading } = useAdminDashboardStats();
   const { data: revenueData } = useRevenueChart();
   const { data: coaches } = useActiveCoaches();
   const { data: bookings } = useRecentBookings();
   const { data: subs } = useActiveSubscriptions();
+
+  // Pending community requests
+  const { data: pendingCommunities } = useQuery({
+    queryKey: ['pending-communities'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('chat_rooms')
+        .select('id, name, request_reason, created_at, requested_by, profiles:requested_by(full_name)' as any)
+        .eq('type', 'community')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const handleCommunityAction = async (roomId: string, action: 'active' | 'rejected') => {
+    await supabase.from('chat_rooms').update({
+      status: action,
+      reviewed_by: user!.id,
+      reviewed_at: new Date().toISOString(),
+    } as any).eq('id', roomId);
+    queryClient.invalidateQueries({ queryKey: ['pending-communities'] });
+    toast({ description: action === 'active' ? 'Community approved! ✅' : 'Community rejected ✗' });
+  };
 
   const statCards = [
     {
