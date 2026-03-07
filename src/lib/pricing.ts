@@ -8,7 +8,7 @@ export interface PricingPlan {
   badge?: string;
   isSubscription?: boolean;
   isTest?: boolean;
-  priceId: string;
+  paymentLink: string;
 }
 
 export interface CityPricing {
@@ -28,7 +28,8 @@ export const PRICING: Record<string, CityPricing> = {
         icon: '🧪',
         badge: 'Test',
         isTest: true,
-        priceId: 'price_1T89G5Cb87PTRYLaSpB8fLfC', // reuses single lesson price for test
+        // Replace with real Stripe Payment Link
+        paymentLink: 'https://buy.stripe.com/test_REPLACE_WITH_REAL_LINK',
       },
       {
         id: 'single_lesson',
@@ -36,7 +37,7 @@ export const PRICING: Record<string, CityPricing> = {
         price: 300,
         description: 'One private lesson at your pool',
         icon: '🏊',
-        priceId: 'price_1T89G5Cb87PTRYLaSpB8fLfC',
+        paymentLink: 'https://buy.stripe.com/REPLACE_single_lesson_aed',
       },
       {
         id: 'pack_5',
@@ -46,7 +47,7 @@ export const PRICING: Record<string, CityPricing> = {
         description: 'Save 10% — 5 private lessons',
         icon: '🎯',
         badge: 'Popular',
-        priceId: 'price_1T89GDCb87PTRYLaabCuvSsK',
+        paymentLink: 'https://buy.stripe.com/REPLACE_pack_5_aed',
       },
       {
         id: 'pack_10',
@@ -56,7 +57,7 @@ export const PRICING: Record<string, CityPricing> = {
         description: 'Save 17% — 10 private lessons',
         icon: '🏆',
         badge: 'Best Value',
-        priceId: 'price_1T89GECb87PTRYLaWCVYCw1t',
+        paymentLink: 'https://buy.stripe.com/REPLACE_pack_10_aed',
       },
       {
         id: 'premium_monthly',
@@ -66,7 +67,7 @@ export const PRICING: Record<string, CityPricing> = {
         icon: '⭐',
         badge: 'Premium',
         isSubscription: true,
-        priceId: 'price_1T89GFCb87PTRYLaJVpjOIhV',
+        paymentLink: 'https://buy.stripe.com/REPLACE_premium_aed',
       },
     ],
   },
@@ -79,7 +80,7 @@ export const PRICING: Record<string, CityPricing> = {
         price: 40,
         description: 'One private lesson at your pool',
         icon: '🏊',
-        priceId: 'price_1T89GGCb87PTRYLacD0qhAxZ',
+        paymentLink: 'https://buy.stripe.com/REPLACE_single_lesson_azn',
       },
       {
         id: 'pack_5',
@@ -88,7 +89,7 @@ export const PRICING: Record<string, CityPricing> = {
         description: 'Save 10% — 5 private lessons',
         icon: '🎯',
         badge: 'Popular',
-        priceId: 'price_1T89GHCb87PTRYLarYW5i5k7',
+        paymentLink: 'https://buy.stripe.com/REPLACE_pack_5_azn',
       },
       {
         id: 'pack_10',
@@ -97,7 +98,7 @@ export const PRICING: Record<string, CityPricing> = {
         description: 'Save 17% — 10 private lessons',
         icon: '🏆',
         badge: 'Best Value',
-        priceId: 'price_1T89GICb87PTRYLahlNjuyXE',
+        paymentLink: 'https://buy.stripe.com/REPLACE_pack_10_azn',
       },
       {
         id: 'premium_monthly',
@@ -107,7 +108,7 @@ export const PRICING: Record<string, CityPricing> = {
         icon: '⭐',
         badge: 'Premium',
         isSubscription: true,
-        priceId: 'price_1T89GJCb87PTRYLaK49PgvMU',
+        paymentLink: 'https://buy.stripe.com/REPLACE_premium_azn',
       },
     ],
   },
