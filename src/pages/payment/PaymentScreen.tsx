@@ -57,7 +57,7 @@ const GROUP_SECTIONS = [
 
 function calcSavings(plan: PricingPlan): number | null {
   if (!plan.lesson_count || plan.lesson_count <= 1 || !plan.price_per_lesson) return null;
-  const basePrice = plan.currency === 'AZN' ? 45 : 350;
+  const basePrice = plan.currency === 'AZN' ? 45 : 400;
   const fullPrice = basePrice * plan.lesson_count;
   const saved = Math.round(fullPrice - plan.price);
   return saved > 0 ? saved : null;
