@@ -23,7 +23,7 @@ export default function PaymentScreen() {
 
   const handlePay = () => {
     if (!selectedPlan) return;
-    if (!selectedPlan.paymentLink || selectedPlan.paymentLink.includes('REPLACE')) {
+    if (!selectedPlan.paymentLink || selectedPlan.paymentLink.includes('REPLACE') || selectedPlan.paymentLink === '') {
       toast.info('Coming soon', { description: 'Payment link will be available shortly' });
       return;
     }
