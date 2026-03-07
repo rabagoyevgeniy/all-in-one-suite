@@ -1,16 +1,100 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Send, Sparkles, Loader2, Trash2, Lock, Mic } from 'lucide-react';
+import { ArrowLeft, Send, Sparkles, Loader2, Trash2, Lock, Mic,
+  BarChart2, Users, DollarSign, Settings,
+  Calendar, Target, FileText,
+  TrendingUp, Home, CreditCard,
+  Star, Swords, Lightbulb
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/stores/authStore';
 import { useLanguage } from '@/hooks/useLanguage';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { ROLE_CONFIG, DEFAULT_ROLE_CONFIG, MODE_LABELS, MODE_PROMPTS, type AIMode } from '@/lib/ai-config';
+import { ROLE_CONFIG, DEFAULT_ROLE_CONFIG } from '@/lib/ai-config';
 
-type Msg = { role: 'user' | 'assistant'; content: string; mode?: AIMode };
+interface RoleModeConfig {
+  greeting: { en: string; ru: string };
+  subtitle: { en: string; ru: string };
+  modes: { id: string; label: string; chips: { en: string[]; ru: string[] } }[];
+}
+
+const ROLE_MODES: Record<string, RoleModeConfig> = {
+  admin: {
+    greeting: { en: 'Hello, Director! 👑', ru: 'Здравствуйте, Директор! 👑' },
+    subtitle: { en: 'Full access to all ProFit analytics and controls', ru: 'Полный доступ ко всей аналитике и управлению ProFit' },
+    modes: [
+      { id: 'analytics', label: '📊 Analytics', chips: { en: ['Show revenue this month', 'Compare Dubai vs Baku performance', 'Which coach has the best rating?', 'How many active clients do we have?'], ru: ['Показать выручку за месяц', 'Сравнить Дубай и Баку', 'У какого тренера лучший рейтинг?', 'Сколько активных клиентов?'] } },
+      { id: 'coaches', label: '🏊 Coaches', chips: { en: ['Who are my top performing coaches?', 'Show coach KPI summary', 'Which coach had most cancellations?', 'Suggest coach training improvements'], ru: ['Кто лучшие тренеры?', 'Показать KPI тренеров', 'У кого больше всего отмен?', 'Предложить улучшения обучения'] } },
+      { id: 'finance', label: '💰 Finance', chips: { en: ['What is our monthly revenue trend?', 'Show overdue payments', 'Which plan sells best in Dubai?', 'Forecast next month revenue'], ru: ['Какой тренд выручки?', 'Показать просроченные платежи', 'Какой план продаётся лучше в Дубае?', 'Прогноз выручки'] } },
+      { id: 'operations', label: '⚙️ Operations', chips: { en: ['How many lessons scheduled this week?', 'Show cancellation rate', 'Which time slots are most popular?', 'Draft announcement for all clients'], ru: ['Сколько уроков на этой неделе?', 'Показать процент отмен', 'Какие слоты популярнее?', 'Написать объявление для клиентов'] } },
+    ],
+  },
+  head_manager: {
+    greeting: { en: 'Hello, Director! 👑', ru: 'Здравствуйте, Директор! 👑' },
+    subtitle: { en: 'Full access to all ProFit analytics and controls', ru: 'Полный доступ ко всей аналитике и управлению ProFit' },
+    modes: [
+      { id: 'analytics', label: '📊 Analytics', chips: { en: ['Show revenue this month', 'Compare Dubai vs Baku performance', 'Which coach has the best rating?', 'How many active clients do we have?'], ru: ['Показать выручку за месяц', 'Сравнить Дубай и Баку', 'У какого тренера лучший рейтинг?', 'Сколько активных клиентов?'] } },
+      { id: 'coaches', label: '🏊 Coaches', chips: { en: ['Who are my top performing coaches?', 'Show coach KPI summary', 'Which coach had most cancellations?', 'Suggest coach training improvements'], ru: ['Кто лучшие тренеры?', 'Показать KPI тренеров', 'У кого больше всего отмен?', 'Предложить улучшения обучения'] } },
+      { id: 'finance', label: '💰 Finance', chips: { en: ['What is our monthly revenue trend?', 'Show overdue payments', 'Which plan sells best in Dubai?', 'Forecast next month revenue'], ru: ['Какой тренд выручки?', 'Показать просроченные платежи', 'Какой план продаётся лучше в Дубае?', 'Прогноз выручки'] } },
+      { id: 'operations', label: '⚙️ Operations', chips: { en: ['How many lessons scheduled this week?', 'Show cancellation rate', 'Which time slots are most popular?', 'Draft announcement for all clients'], ru: ['Сколько уроков на этой неделе?', 'Показать процент отмен', 'Какие слоты популярнее?', 'Написать объявление для клиентов'] } },
+    ],
+  },
+  coach: {
+    greeting: { en: 'Hello, Coach! 🏊', ru: 'Привет, Тренер! 🏊' },
+    subtitle: { en: 'Your students, schedule and teaching tools', ru: 'Ваши ученики, расписание и инструменты' },
+    modes: [
+      { id: 'students', label: '👦 Students', chips: { en: ['Summarize my students progress', 'Who needs extra attention this week?', 'Which student is closest to next belt?', 'Generate progress report for a student'], ru: ['Прогресс моих учеников', 'Кому нужно больше внимания?', 'Кто ближе всего к новому поясу?', 'Создать отчёт о прогрессе'] } },
+      { id: 'schedule', label: '📅 Schedule', chips: { en: ['Show my lessons for today', 'What is my route tomorrow?', 'Any cancellations this week?', 'Help me reschedule a lesson'], ru: ['Мои уроки на сегодня', 'Какой маршрут завтра?', 'Есть отмены на этой неделе?', 'Помоги перенести урок'] } },
+      { id: 'technique', label: '🎯 Technique', chips: { en: ['Drills for teaching freestyle to beginners', 'How to fix breathing technique?', 'Backstroke correction tips', 'Exercises for 5-year-old swimmers'], ru: ['Упражнения для обучения кролю новичков', 'Как исправить технику дыхания?', 'Советы по коррекции на спине', 'Упражнения для 5-летних'] } },
+      { id: 'reports', label: '📝 Reports', chips: { en: ['Help write a lesson report', 'Suggest goals for next lesson', 'Write parent feedback message', "Summarize this week's sessions"], ru: ['Помоги написать отчёт об уроке', 'Предложи цели на следующий урок', 'Написать сообщение родителю', 'Итоги за неделю'] } },
+    ],
+  },
+  parent: {
+    greeting: { en: 'Hello! 👋', ru: 'Привет! 👋' },
+    subtitle: { en: "Track your child's swimming journey", ru: 'Следите за прогрессом вашего ребёнка' },
+    modes: [
+      { id: 'progress', label: '📈 Progress', chips: { en: ['How is my child progressing?', 'What belt level is my child at?', 'How many lessons until next belt test?', 'Show recent achievements'], ru: ['Как прогрессирует мой ребёнок?', 'Какой пояс у моего ребёнка?', 'Сколько уроков до следующего теста?', 'Показать последние достижения'] } },
+      { id: 'schedule', label: '📅 Schedule', chips: { en: ['When is the next lesson?', 'How many lessons are left in my pack?', "Can I reschedule tomorrow's lesson?", 'What time does the coach arrive?'], ru: ['Когда следующий урок?', 'Сколько уроков осталось в пакете?', 'Можно перенести завтрашний урок?', 'Во сколько приедет тренер?'] } },
+      { id: 'practice', label: '🏠 Practice', chips: { en: ['What should my child practice at home?', 'Water safety tips for kids', 'How to make practice fun?', 'Breathing exercises between lessons'], ru: ['Что практиковать дома?', 'Советы по безопасности на воде', 'Как сделать практику веселее?', 'Дыхательные упражнения'] } },
+      { id: 'billing', label: '💳 Billing', chips: { en: ['How many lessons do I have left?', 'What packages are available?', 'How do I pay for more lessons?', 'Show my payment history'], ru: ['Сколько уроков осталось?', 'Какие пакеты доступны?', 'Как оплатить ещё уроки?', 'Показать историю оплат'] } },
+    ],
+  },
+  student: {
+    greeting: { en: 'Hey, Champion! 🏆', ru: 'Привет, Чемпион! 🏆' },
+    subtitle: { en: 'Level up your swimming skills!', ru: 'Прокачай свои навыки плавания!' },
+    modes: [
+      { id: 'progress', label: '⭐ My Level', chips: { en: ['How many XP to next belt?', 'Show my achievements', "What's my current rank?", 'How do I earn more coins?'], ru: ['Сколько XP до следующего пояса?', 'Покажи мои достижения', 'Какой у меня ранг?', 'Как заработать больше монет?'] } },
+      { id: 'duels', label: '⚔️ Duels', chips: { en: ['How do I challenge someone?', 'What are the duel rules?', 'Show my duel history', 'Who can I challenge now?'], ru: ['Как бросить вызов?', 'Какие правила дуэлей?', 'Покажи историю дуэлей', 'Кому можно бросить вызов?'] } },
+      { id: 'tips', label: '💡 Tips', chips: { en: ['Breathing tips for freestyle', 'How to swim faster?', 'Tips for my next belt test', 'Fun swimming challenges'], ru: ['Советы по дыханию для кроля', 'Как плавать быстрее?', 'Советы для теста на пояс', 'Весёлые задания по плаванию'] } },
+      { id: 'goals', label: '🎯 Goals', chips: { en: ['Set a swimming goal for this week', 'What should I focus on?', 'How to prepare for belt test?', 'Motivate me to practice!'], ru: ['Поставить цель на неделю', 'На чём сосредоточиться?', 'Как подготовиться к тесту?', 'Мотивируй меня!'] } },
+    ],
+  },
+  pro_athlete: {
+    greeting: { en: "Let's compete! 🏆", ru: 'Вперёд к победе! 🏆' },
+    subtitle: { en: 'Your performance optimization assistant', ru: 'Помощник по оптимизации результатов' },
+    modes: [
+      { id: 'performance', label: '📊 Performance', chips: { en: ['Analyze my recent race times', 'How to improve my 100m freestyle?', 'Compare my progress month over month', 'What are my weaknesses?'], ru: ['Анализ моих результатов', 'Как улучшить 100м кролем?', 'Сравнить прогресс по месяцам', 'Какие у меня слабые стороны?'] } },
+      { id: 'duels', label: '⚔️ Duels', chips: { en: ['Duel strategy tips', 'Who should I challenge next?', 'Show my win/loss record', 'How to prepare for a duel?'], ru: ['Стратегия для дуэлей', 'Кому бросить вызов?', 'Мои победы и поражения', 'Как подготовиться к дуэлю?'] } },
+      { id: 'training', label: '🏋️ Training', chips: { en: ['Create a competition prep plan', 'Dryland exercises for swimmers', 'Recovery routine after training', 'Nutrition tips for race day'], ru: ['План подготовки к соревнованию', 'Упражнения на суше', 'Восстановление после тренировки', 'Питание в день соревнований'] } },
+      { id: 'goals', label: '🎯 Goals', chips: { en: ['Set a new personal best target', 'What records can I break?', 'Plan my season goals', 'Track my progression'], ru: ['Новая цель по времени', 'Какие рекорды побить?', 'Цели на сезон', 'Отслеживать прогресс'] } },
+    ],
+  },
+  personal_manager: {
+    greeting: { en: 'Hello, Manager! 📋', ru: 'Привет, Менеджер! 📋' },
+    subtitle: { en: 'Client management assistant', ru: 'Помощник по работе с клиентами' },
+    modes: [
+      { id: 'clients', label: '👥 Clients', chips: { en: ['Show my client list', 'Which clients are inactive?', 'Client retention suggestions', 'Draft follow-up message'], ru: ['Список моих клиентов', 'Кто из клиентов неактивен?', 'Советы по удержанию', 'Написать follow-up'] } },
+      { id: 'commission', label: '💰 Commission', chips: { en: ['Commission summary for this month', 'Which client brings most revenue?', 'How to increase my earnings?', 'Compare this vs last month'], ru: ['Комиссия за этот месяц', 'Какой клиент приносит больше?', 'Как увеличить заработок?', 'Сравнить с прошлым месяцем'] } },
+      { id: 'schedule', label: '📅 Schedule', chips: { en: ['My clients lessons this week', 'Any upcoming cancellations?', 'Help schedule a new client', 'Booking reminders to send'], ru: ['Уроки клиентов на неделе', 'Есть ли отмены?', 'Записать нового клиента', 'Напоминания о бронировании'] } },
+      { id: 'reports', label: '📝 Reports', chips: { en: ['Generate weekly client report', 'Best practices for client retention', 'Draft communication to parent', 'Summarize client feedback'], ru: ['Недельный отчёт по клиентам', 'Лучшие практики удержания', 'Написать сообщение родителю', 'Итоги отзывов клиентов'] } },
+    ],
+  },
+};
+
+type Msg = { role: 'user' | 'assistant'; content: string; mode?: string };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
 
@@ -44,7 +128,9 @@ export default function AIAssistant() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [activeMode, setActiveMode] = useState<AIMode>('general');
+  const roleModesConfig = ROLE_MODES[role || 'parent'] || ROLE_MODES.parent;
+  const roleModes = roleModesConfig.modes;
+  const [activeMode, setActiveMode] = useState(roleModes[0].id);
   const [isRecording, setIsRecording] = useState(false);
   const [insightDismissed, setInsightDismissed] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -109,13 +195,11 @@ export default function AIAssistant() {
   const messagesUsed = typeof usage === 'number' ? usage : 0;
   const messagesRemaining = Math.max(0, dailyLimit - messagesUsed);
   const canUseAI = permissions?.can_use_ai !== false;
-  const allowedModes = config.modes;
-
-  // Mode-specific suggestions
+  // Role-aware mode-specific suggestions
   const currentSuggestions = useMemo(() => {
-    const modePrompts = MODE_PROMPTS[activeMode];
-    return modePrompts?.[lang] || config.suggestions[lang];
-  }, [activeMode, lang, config.suggestions]);
+    const currentMode = roleModes.find(m => m.id === activeMode);
+    return currentMode?.chips[lang] || roleModes[0].chips[lang];
+  }, [activeMode, lang, roleModes]);
 
   const insight = useMemo(() => {
     if (insightDismissed) return null;
@@ -312,7 +396,7 @@ export default function AIAssistant() {
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="font-bold text-foreground text-sm">ProFit AI</h1>
-            <p className="text-[11px] text-muted-foreground truncate">{config.subtitle[lang]}</p>
+            <p className="text-[11px] text-muted-foreground truncate">{roleModesConfig.subtitle[lang]}</p>
           </div>
           {messages.length > 0 && (
             <button onClick={() => setMessages([])} className="p-2 text-muted-foreground hover:text-destructive transition-colors">
@@ -322,27 +406,23 @@ export default function AIAssistant() {
         </div>
 
         {/* Mode pills */}
-        {canUseAI && allowedModes.length > 1 && (
+        {canUseAI && roleModes.length > 1 && (
           <div className="max-w-lg mx-auto mt-2">
             <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-              {allowedModes.map(mode => {
-                const label = MODE_LABELS[mode];
-                return (
-                  <button
-                    key={mode}
-                    onClick={() => setActiveMode(mode)}
-                    className={cn(
-                      "flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors",
-                      activeMode === mode
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "bg-muted text-muted-foreground hover:bg-muted/80"
-                    )}
-                  >
-                    <span>{label.icon}</span>
-                    <span>{label[lang]}</span>
-                  </button>
-                );
-              })}
+              {roleModes.map(mode => (
+                <button
+                  key={mode.id}
+                  onClick={() => setActiveMode(mode.id)}
+                  className={cn(
+                    "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors",
+                    activeMode === mode.id
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  )}
+                >
+                  {mode.label}
+                </button>
+              ))}
             </div>
 
             {/* Visual message limit bar */}
@@ -439,8 +519,8 @@ export default function AIAssistant() {
                   <Sparkles className="w-8 h-8 text-white" />
                 </div>
                 <div>
-                  <h2 className="font-bold text-lg text-foreground">{config.greeting}</h2>
-                  <p className="text-sm text-muted-foreground mt-1">{config.subtitle[lang]}</p>
+                <h2 className="font-bold text-lg text-foreground">{roleModesConfig.greeting[lang]}</h2>
+                  <p className="text-sm text-muted-foreground mt-1">{roleModesConfig.subtitle[lang]}</p>
                 </div>
 
                 {/* Animated mode-specific suggestions */}
@@ -473,12 +553,17 @@ export default function AIAssistant() {
             {messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className="max-w-[85%]">
-                  {msg.role === 'assistant' && msg.mode && msg.mode !== 'general' && (
-                    <div className="flex items-center gap-1 mb-1">
-                      <span className="text-[10px] bg-violet-100 text-violet-600 px-2 py-0.5 rounded-full font-medium">
-                        {MODE_LABELS[msg.mode]?.icon} {MODE_LABELS[msg.mode]?.[lang]}
-                      </span>
-                    </div>
+                  {msg.role === 'assistant' && msg.mode && (
+                    (() => {
+                      const modeLabel = roleModes.find(m => m.id === msg.mode);
+                      return modeLabel ? (
+                        <div className="flex items-center gap-1 mb-1">
+                          <span className="text-[10px] bg-accent text-accent-foreground px-2 py-0.5 rounded-full font-medium">
+                            {modeLabel.label}
+                          </span>
+                        </div>
+                      ) : null;
+                    })()
                   )}
                   {msg.role === 'assistant' && (role === 'admin' || role === 'head_manager') && i === 1 && (
                     <div className="flex items-center gap-1 mb-1">
