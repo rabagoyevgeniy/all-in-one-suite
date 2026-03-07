@@ -15,9 +15,11 @@ export default function PaymentScreen() {
   const { t } = useLanguage();
   const [selectedPlan, setSelectedPlan] = useState<PricingPlan | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [activeCity, setActiveCity] = useState<string>(
+    profile?.city?.toLowerCase() === 'baku' ? 'baku' : 'dubai'
+  );
 
-  const city = profile?.city?.toLowerCase() === 'baku' ? 'baku' : 'dubai';
-  const { currency, plans } = PRICING[city];
+  const { currency, plans } = PRICING[activeCity];
 
   const handleCheckout = async () => {
     if (!selectedPlan) return;
@@ -62,15 +64,33 @@ export default function PaymentScreen() {
           </h1>
           <p className="text-primary-foreground/70 text-sm mt-1">
             {t(
-              `Premium swimming coaching in ${city === 'baku' ? 'Baku' : 'Dubai'}`,
-              `Премиум обучение плаванию в ${city === 'baku' ? 'Баку' : 'Дубае'}`,
+            `Premium swimming coaching in ${activeCity === 'baku' ? 'Baku' : 'Dubai'}`,
+              `Премиум обучение плаванию в ${activeCity === 'baku' ? 'Баку' : 'Дубае'}`,
             )}
           </p>
         </motion.div>
       </div>
 
+      {/* City Switcher */}
+      <div className="flex gap-2 px-4 py-3 bg-muted/30 border-b border-border">
+        {['dubai', 'baku'].map(city => (
+          <button
+            key={city}
+            onClick={() => { setActiveCity(city); setSelectedPlan(null); }}
+            className={cn(
+              "flex-1 py-2 rounded-xl text-sm font-medium transition-all",
+              activeCity === city
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "bg-card text-muted-foreground border border-border"
+            )}
+          >
+            {city === 'dubai' ? '🇦🇪 Dubai (AED)' : '🇦🇿 Baku (AZN)'}
+          </button>
+        ))}
+      </div>
+
       {/* Plan Cards */}
-      <div className="px-4 -mt-4 space-y-3 pb-48">
+      <div className="px-4 mt-3 space-y-3 pb-36">
         {plans.map((plan, i) => (
           <motion.button
             key={plan.id}
