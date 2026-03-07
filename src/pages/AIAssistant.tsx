@@ -406,27 +406,23 @@ export default function AIAssistant() {
         </div>
 
         {/* Mode pills */}
-        {canUseAI && allowedModes.length > 1 && (
+        {canUseAI && roleModes.length > 1 && (
           <div className="max-w-lg mx-auto mt-2">
             <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-              {allowedModes.map(mode => {
-                const label = MODE_LABELS[mode];
-                return (
-                  <button
-                    key={mode}
-                    onClick={() => setActiveMode(mode)}
-                    className={cn(
-                      "flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors",
-                      activeMode === mode
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "bg-muted text-muted-foreground hover:bg-muted/80"
-                    )}
-                  >
-                    <span>{label.icon}</span>
-                    <span>{label[lang]}</span>
-                  </button>
-                );
-              })}
+              {roleModes.map(mode => (
+                <button
+                  key={mode.id}
+                  onClick={() => setActiveMode(mode.id)}
+                  className={cn(
+                    "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors",
+                    activeMode === mode.id
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  )}
+                >
+                  {mode.label}
+                </button>
+              ))}
             </div>
 
             {/* Visual message limit bar */}
