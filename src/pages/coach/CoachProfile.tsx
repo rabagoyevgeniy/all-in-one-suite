@@ -1,11 +1,13 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { User, Loader2, Star } from 'lucide-react';
+import { User, Loader2, Star, QrCode } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { CoinBalance } from '@/components/CoinBalance';
 import { useAuthStore } from '@/stores/authStore';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { COACH_RANKS } from '@/lib/constants';
+import QRProfileSheet from '@/components/QRProfileSheet';
 
 export default function CoachProfile() {
   const { user } = useAuthStore();
