@@ -65,11 +65,14 @@ function calcSavings(plan: PricingPlan): number | null {
 
 export default function PaymentScreen() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { profile } = useAuthStore();
   const { t } = useLanguage();
-  const [activeCity, setActiveCity] = useState<'dubai' | 'baku'>(
-    profile?.city?.toLowerCase() === 'baku' ? 'baku' : 'dubai'
-  );
+  const [activeCity, setActiveCity] = useState<'dubai' | 'baku'>(() => {
+    const cityParam = searchParams.get('city');
+    if (cityParam === 'baku' || cityParam === 'dubai') return cityParam;
+    return profile?.city?.toLowerCase() === 'baku' ? 'baku' : 'dubai';
+  });
   const [lessonType, setLessonType] = useState<'private' | 'group'>('private');
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 

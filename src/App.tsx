@@ -65,6 +65,7 @@ import ProShop from "./pages/pro/ProShop";
 import PMDashboard from "./pages/pm/PMDashboard";
 import PMReports from "./pages/pm/PMReports";
 import PMEarnings from "./pages/pm/PMEarnings";
+import OnboardingPage from "./pages/OnboardingPage";
 
 // AI & Notifications
 import AIAssistant from "./pages/AIAssistant";
