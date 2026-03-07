@@ -100,7 +100,7 @@ export default function PaymentScreen() {
       </div>
 
       {/* Plan Cards grouped by section */}
-      <div className="px-4 mt-3 space-y-4 pb-36">
+      <div className="px-4 mt-3 space-y-4 pb-4">
         {/* Test plans */}
         {showTest && allPlans.filter(p => p.is_test).map((plan, i) => (
           <PlanCard
@@ -140,8 +140,8 @@ export default function PaymentScreen() {
         })}
       </div>
 
-      {/* Fixed Bottom CTA */}
-      <div className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-lg border-t border-border px-4 py-4 safe-area-bottom">
+      {/* Sticky Bottom CTA */}
+      <div className="sticky bottom-0 left-0 right-0 bg-card/95 backdrop-blur-lg border-t border-border px-4 py-4 z-50">
         <button
           onClick={handlePay}
           disabled={!selected}
