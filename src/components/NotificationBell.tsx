@@ -33,6 +33,7 @@ const TYPE_ICONS: Record<string, string> = {
 
 export function NotificationBell() {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
