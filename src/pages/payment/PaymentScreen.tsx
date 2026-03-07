@@ -100,7 +100,7 @@ export default function PaymentScreen() {
       </div>
 
       {/* Plan Cards grouped by section */}
-      <div className="px-4 mt-3 space-y-4 pb-36">
+      <div className="px-4 mt-3 space-y-4 pb-4">
         {/* Test plans */}
         {showTest && allPlans.filter(p => p.is_test).map((plan, i) => (
           <PlanCard
