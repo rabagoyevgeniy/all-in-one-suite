@@ -33,11 +33,16 @@ function initials(name: string | null) {
 }
 
 export default function ChatList() {
-  const { user } = useAuthStore();
+  const { user, role } = useAuthStore();
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [communitySheetRoom, setCommunitySheetRoom] = useState<string | null>(null);
+  const [requestSheetOpen, setRequestSheetOpen] = useState(false);
+  const [communityName, setCommunityName] = useState('');
+  const [communityReason, setCommunityReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   // Direct chats
   const { data: directRooms, isLoading: directLoading } = useQuery({
