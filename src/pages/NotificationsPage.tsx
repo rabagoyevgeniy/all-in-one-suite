@@ -14,6 +14,7 @@ const TYPE_CONFIG: Record<string, { icon: LucideIcon; color: string; bg: string 
   payment_due:          { icon: CreditCard,    color: 'text-warning',      bg: 'bg-warning/10' },
   coach_arriving:       { icon: Bell,          color: 'text-primary',      bg: 'bg-primary/10' },
   achievement_unlocked: { icon: Trophy,        color: 'text-coin',         bg: 'bg-coin/10' },
+  achievement_earned:   { icon: Trophy,        color: 'text-coin',         bg: 'bg-coin/10' },
   achievement:          { icon: Trophy,        color: 'text-coin',         bg: 'bg-coin/10' },
   belt_upgraded:        { icon: Star,          color: 'text-primary',      bg: 'bg-primary/10' },
   duel_challenge:       { icon: Swords,        color: 'text-destructive',  bg: 'bg-destructive/10' },
