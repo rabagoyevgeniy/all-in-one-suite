@@ -8,7 +8,7 @@ import { usePricingPlans, type PricingPlan } from '@/hooks/usePricingPlans';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-const PLAN_SECTIONS = [
+const PRIVATE_SECTIONS = [
   {
     label: '🎁 Special Offer',
     keys: ['trial_lesson', 'trial_lesson_baku'],
@@ -36,6 +36,9 @@ const PLAN_SECTIONS = [
     label: '👨‍👩‍👧 Special Offers',
     keys: ['family_pack', 'family_pack_baku'],
   },
+];
+
+const GROUP_SECTIONS = [
   {
     label: '🏊 Group Packs',
     keys: [
@@ -52,6 +55,14 @@ const PLAN_SECTIONS = [
   },
 ];
 
+function calcSavings(plan: PricingPlan): number | null {
+  if (!plan.lesson_count || plan.lesson_count <= 1 || !plan.price_per_lesson) return null;
+  const basePrice = plan.currency === 'AZN' ? 45 : 350;
+  const fullPrice = basePrice * plan.lesson_count;
+  const saved = Math.round(fullPrice - plan.price);
+  return saved > 0 ? saved : null;
+}
+
 export default function PaymentScreen() {
   const navigate = useNavigate();
   const { profile } = useAuthStore();
@@ -59,11 +70,13 @@ export default function PaymentScreen() {
   const [activeCity, setActiveCity] = useState<'dubai' | 'baku'>(
     profile?.city?.toLowerCase() === 'baku' ? 'baku' : 'dubai'
   );
+  const [lessonType, setLessonType] = useState<'private' | 'group'>('private');
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
   const showTest = window.location.search.includes('test=true') || window.location.hostname === 'localhost';
   const { data: allPlans = [], isLoading } = usePricingPlans(activeCity, showTest);
 
+  const sections = lessonType === 'private' ? PRIVATE_SECTIONS : GROUP_SECTIONS;
   const selected = allPlans.find(p => p.plan_key === selectedKey) || null;
   const currency = activeCity === 'dubai' ? 'AED' : 'AZN';
 
@@ -74,18 +87,6 @@ export default function PaymentScreen() {
       return;
     }
     window.open(selected.stripe_payment_link, '_blank');
-  };
-
-  const badgeStyle = (badge?: string | null) => {
-    switch (badge) {
-      case 'Elite': return 'bg-gradient-to-r from-violet-500 to-purple-600 text-white';
-      case 'Premium': return 'bg-gradient-to-r from-amber-400 to-orange-500 text-white';
-      case 'Best Value':
-      case 'Max Savings': return 'bg-emerald-500 text-white';
-      case 'Family': return 'bg-gradient-to-r from-pink-400 to-rose-500 text-white';
-      case 'Subscribe': return 'bg-gradient-to-r from-sky-400 to-blue-500 text-white';
-      default: return 'bg-primary text-primary-foreground';
-    }
   };
 
   if (isLoading) {
@@ -99,7 +100,7 @@ export default function PaymentScreen() {
   return (
     <div className="min-h-screen bg-gradient-operations">
       {/* Header */}
-      <div className="bg-gradient-to-br from-primary to-primary/80 px-5 pt-12 pb-8 text-primary-foreground">
+      <div className="bg-gradient-to-br from-primary to-primary/80 px-5 pt-12 pb-6 text-primary-foreground">
         <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-1 text-sm text-primary-foreground/70 mb-4"
@@ -117,6 +118,32 @@ export default function PaymentScreen() {
             )}
           </p>
         </motion.div>
+
+        {/* Private / Group toggle */}
+        <div className="flex gap-2 mt-4 bg-primary-foreground/10 rounded-xl p-1">
+          <button
+            onClick={() => { setLessonType('private'); setSelectedKey(null); }}
+            className={cn(
+              "flex-1 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-1.5",
+              lessonType === 'private'
+                ? "bg-card text-primary shadow-sm"
+                : "text-primary-foreground/70 hover:text-primary-foreground"
+            )}
+          >
+            🏠 {t('Private', 'Личные')}
+          </button>
+          <button
+            onClick={() => { setLessonType('group'); setSelectedKey(null); }}
+            className={cn(
+              "flex-1 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-1.5",
+              lessonType === 'group'
+                ? "bg-card text-primary shadow-sm"
+                : "text-primary-foreground/70 hover:text-primary-foreground"
+            )}
+          >
+            👥 {t('Group', 'Группа')}
+          </button>
+        </div>
       </div>
 
       {/* City Switcher */}
@@ -148,11 +175,10 @@ export default function PaymentScreen() {
             selected={selectedKey === plan.plan_key}
             onSelect={() => setSelectedKey(plan.plan_key)}
             index={i}
-            badgeStyle={badgeStyle}
           />
         ))}
 
-        {PLAN_SECTIONS.map(section => {
+        {sections.map(section => {
           const sectionPlans = allPlans.filter(p => section.keys.includes(p.plan_key) && !p.is_test);
           if (sectionPlans.length === 0) return null;
           return (
@@ -169,7 +195,6 @@ export default function PaymentScreen() {
                     selected={selectedKey === plan.plan_key}
                     onSelect={() => setSelectedKey(plan.plan_key)}
                     index={i}
-                    badgeStyle={badgeStyle}
                   />
                 ))}
               </div>
@@ -205,22 +230,120 @@ export default function PaymentScreen() {
   );
 }
 
+/* ── Trial Card ───────────────────────────────────────────── */
+
+function TrialCard({
+  plan,
+  selected,
+  onSelect,
+  index,
+}: {
+  plan: PricingPlan;
+  selected: boolean;
+  onSelect: () => void;
+  index: number;
+}) {
+  return (
+    <motion.button
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.06 }}
+      onClick={onSelect}
+      className={cn(
+        "w-full text-left rounded-2xl border-2 overflow-hidden transition-all",
+        selected
+          ? "border-orange-400 shadow-lg shadow-orange-500/10"
+          : "border-orange-200 dark:border-orange-800"
+      )}
+    >
+      {/* Ribbon banner */}
+      <div className="bg-gradient-to-r from-red-500 to-orange-500 px-4 py-2 flex items-center justify-between">
+        <span className="text-white text-xs font-bold tracking-wide">
+          🎁 FIRST LESSON — 50% OFF
+        </span>
+        <span className="bg-white/20 text-white text-xs px-2 py-0.5 rounded-full font-medium">
+          One time only
+        </span>
+      </div>
+      {/* Card body */}
+      <div className="bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-950/30 dark:to-red-950/30 p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="font-bold text-foreground">{plan.name}</div>
+            <div className="text-xs text-muted-foreground mt-0.5">{plan.description}</div>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl font-black text-orange-500">
+              {plan.price} {plan.currency}
+            </div>
+            {plan.original_price && (
+              <div className="flex items-center gap-1 justify-end mt-0.5">
+                <span className="text-xs text-muted-foreground line-through">
+                  {plan.original_price} {plan.currency}
+                </span>
+                {plan.discount_percent && (
+                  <span className="text-xs text-emerald-600 font-semibold">
+                    -{plan.discount_percent}%
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="mt-3 bg-card/70 rounded-xl px-3 py-2 flex items-center gap-2">
+          <span className="text-base">🏊</span>
+          <span className="text-xs text-muted-foreground">
+            Coach comes to your pool · No commitment required
+          </span>
+        </div>
+      </div>
+    </motion.button>
+  );
+}
+
+/* ── Regular Plan Card ────────────────────────────────────── */
+
 function PlanCard({
   plan,
   currency,
   selected,
   onSelect,
   index,
-  badgeStyle,
 }: {
   plan: PricingPlan;
   currency: string;
   selected: boolean;
   onSelect: () => void;
   index: number;
-  badgeStyle: (badge?: string | null) => string;
 }) {
+  // Trial card gets special treatment
+  if (plan.is_trial) {
+    return <TrialCard plan={plan} selected={selected} onSelect={onSelect} index={index} />;
+  }
+
   const noLink = !plan.stripe_payment_link;
+  const saved = calcSavings(plan);
+
+  const badgeStyle = (badge?: string | null) => {
+    switch (badge) {
+      case 'Elite':
+      case 'Элит': return 'bg-gradient-to-r from-violet-500 to-purple-600 text-white';
+      case 'Premium':
+      case 'Премиум': return 'bg-gradient-to-r from-amber-400 to-orange-500 text-white';
+      case 'Best Value':
+      case 'Лучший выбор':
+      case 'Max Savings':
+      case 'Макс. выгода':
+      case 'Выгодно': return 'bg-emerald-500 text-white';
+      case 'Family':
+      case 'Семейный': return 'bg-gradient-to-r from-pink-400 to-rose-500 text-white';
+      case 'Subscribe':
+      case 'Подписка': return 'bg-gradient-to-r from-sky-400 to-blue-500 text-white';
+      case 'Популярный': return 'bg-gradient-to-r from-blue-400 to-cyan-500 text-white';
+      case 'Попробуй': return 'bg-gradient-to-r from-orange-400 to-red-500 text-white';
+      default: return 'bg-primary text-primary-foreground';
+    }
+  };
 
   return (
     <motion.button
@@ -230,6 +353,7 @@ function PlanCard({
       onClick={onSelect}
       className={cn(
         'w-full p-4 rounded-2xl border-2 text-left transition-all relative',
+        noLink && !plan.is_test ? 'opacity-60' : '',
         plan.is_test
           ? selected
             ? 'border-dashed border-muted-foreground bg-muted/30 shadow-md'
@@ -247,11 +371,21 @@ function PlanCard({
             <div className="text-xs text-muted-foreground mt-0.5">
               {plan.description}
             </div>
-            {plan.saving_percent && (
+            {/* Savings display */}
+            {saved && saved > 0 ? (
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full">
+                  💰 Save {saved} {currency}
+                </span>
+                {plan.saving_percent && (
+                  <span className="text-[10px] text-muted-foreground">({plan.saving_percent}% off)</span>
+                )}
+              </div>
+            ) : plan.saving_percent ? (
               <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
                 Save {plan.saving_percent}%
               </span>
-            )}
+            ) : null}
           </div>
         </div>
         <div className="text-right flex-shrink-0">
