@@ -64,6 +64,7 @@ import PMEarnings from "./pages/pm/PMEarnings";
 // AI
 import AIAssistant from "./pages/AIAssistant";
 import { AIAssistantFAB } from "./components/AIAssistantFAB";
+import { OnboardingGuard } from "./components/OnboardingGuard";
 
 const queryClient = new QueryClient();
 
