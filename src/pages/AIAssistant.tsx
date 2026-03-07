@@ -519,8 +519,8 @@ export default function AIAssistant() {
                   <Sparkles className="w-8 h-8 text-white" />
                 </div>
                 <div>
-                  <h2 className="font-bold text-lg text-foreground">{config.greeting}</h2>
-                  <p className="text-sm text-muted-foreground mt-1">{config.subtitle[lang]}</p>
+                <h2 className="font-bold text-lg text-foreground">{roleModesConfig.greeting[lang]}</h2>
+                  <p className="text-sm text-muted-foreground mt-1">{roleModesConfig.subtitle[lang]}</p>
                 </div>
 
                 {/* Animated mode-specific suggestions */}
