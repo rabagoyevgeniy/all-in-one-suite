@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { DollarSign, Calendar, Users, AlertTriangle, UserPlus, CreditCard, BarChart3, Heart, Settings, Loader2 } from 'lucide-react';
+import { DollarSign, Calendar, Users, AlertTriangle, UserPlus, CreditCard, BarChart3, Heart, Settings, Loader2, Tag } from 'lucide-react';
 import { useAdminDashboardStats, useRevenueChart, useActiveCoaches, useRecentBookings, useActiveSubscriptions } from '@/hooks/useAdminDashboardStats';
 import { useAdminStore } from '@/stores/adminStore';
 import { useAuthStore } from '@/stores/authStore';
