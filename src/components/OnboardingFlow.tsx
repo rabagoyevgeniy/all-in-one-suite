@@ -77,6 +77,7 @@ interface OnboardingFlowProps {
 export function OnboardingFlow({ role, userId, onComplete }: OnboardingFlowProps) {
   const navigate = useNavigate();
   const [step, setStep] = useState<'greeting' | number>('greeting');
+  const [isCompleting, setIsCompleting] = useState(false);
 
   const config = ONBOARDING_CONFIG[role];
 
