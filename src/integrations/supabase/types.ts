@@ -1893,14 +1893,19 @@ export type Database = {
           created_at: string | null
           currency: string
           description: string | null
+          discount_percent: number | null
           features: string[] | null
           icon: string | null
           id: string
           is_active: boolean | null
           is_subscription: boolean | null
           is_test: boolean | null
+          is_trial: boolean | null
+          lesson_count: number | null
+          lesson_type: string | null
           lessons_included: number | null
           name: string
+          original_price: number | null
           plan_key: string
           price: number
           price_per_lesson: number | null
@@ -1916,14 +1921,19 @@ export type Database = {
           created_at?: string | null
           currency?: string
           description?: string | null
+          discount_percent?: number | null
           features?: string[] | null
           icon?: string | null
           id?: string
           is_active?: boolean | null
           is_subscription?: boolean | null
           is_test?: boolean | null
+          is_trial?: boolean | null
+          lesson_count?: number | null
+          lesson_type?: string | null
           lessons_included?: number | null
           name: string
+          original_price?: number | null
           plan_key: string
           price?: number
           price_per_lesson?: number | null
@@ -1939,14 +1949,19 @@ export type Database = {
           created_at?: string | null
           currency?: string
           description?: string | null
+          discount_percent?: number | null
           features?: string[] | null
           icon?: string | null
           id?: string
           is_active?: boolean | null
           is_subscription?: boolean | null
           is_test?: boolean | null
+          is_trial?: boolean | null
+          lesson_count?: number | null
+          lesson_type?: string | null
           lessons_included?: number | null
           name?: string
+          original_price?: number | null
           plan_key?: string
           price?: number
           price_per_lesson?: number | null
