@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 function useFinanceSummary() {
   return useQuery({
