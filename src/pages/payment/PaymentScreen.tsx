@@ -163,6 +163,7 @@ export default function PaymentScreen() {
           </div>
         </div>
       )}
+    </div>
   );
 }
 
