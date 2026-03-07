@@ -40,6 +40,10 @@ import ChatRoom from "./pages/chat/ChatRoom";
 import ParentShop from "./pages/parent/ParentShop";
 import ParentPayments from "./pages/parent/ParentPayments";
 
+// Payment
+import PaymentScreen from "./pages/payment/PaymentScreen";
+import PaymentSuccess from "./pages/payment/PaymentSuccess";
+
 // Student
 import StudentDashboard from "./pages/student/StudentDashboard";
 import TaskBoard from "./pages/student/TaskBoard";
