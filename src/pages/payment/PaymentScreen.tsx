@@ -71,8 +71,26 @@ export default function PaymentScreen() {
         </motion.div>
       </div>
 
+      {/* City Switcher */}
+      <div className="flex gap-2 px-4 py-3 bg-muted/30 border-b border-border">
+        {['dubai', 'baku'].map(city => (
+          <button
+            key={city}
+            onClick={() => { setActiveCity(city); setSelectedPlan(null); }}
+            className={cn(
+              "flex-1 py-2 rounded-xl text-sm font-medium transition-all",
+              activeCity === city
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "bg-card text-muted-foreground border border-border"
+            )}
+          >
+            {city === 'dubai' ? '🇦🇪 Dubai (AED)' : '🇦🇿 Baku (AZN)'}
+          </button>
+        ))}
+      </div>
+
       {/* Plan Cards */}
-      <div className="px-4 -mt-4 space-y-3 pb-48">
+      <div className="px-4 mt-3 space-y-3 pb-36">
         {plans.map((plan, i) => (
           <motion.button
             key={plan.id}
