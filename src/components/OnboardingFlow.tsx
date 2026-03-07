@@ -94,8 +94,11 @@ export function OnboardingFlow({ role, userId, onComplete }: OnboardingFlowProps
   async function handleComplete() {
     if (isCompleting) return;
     setIsCompleting(true);
-    // Optimistically update store before DB call
+    // Layer 1: localStorage guard (instant)
+    localStorage.setItem('profit_onboarding_done', 'true');
+    // Layer 2: update store optimistically
     onComplete();
+    // Layer 3: persist to DB
     await supabase
       .from('profiles')
       .update({ onboarding_completed: true } as any)
