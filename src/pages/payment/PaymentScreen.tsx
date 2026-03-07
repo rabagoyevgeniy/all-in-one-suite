@@ -15,9 +15,11 @@ export default function PaymentScreen() {
   const { t } = useLanguage();
   const [selectedPlan, setSelectedPlan] = useState<PricingPlan | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [activeCity, setActiveCity] = useState<string>(
+    profile?.city?.toLowerCase() === 'baku' ? 'baku' : 'dubai'
+  );
 
-  const city = profile?.city?.toLowerCase() === 'baku' ? 'baku' : 'dubai';
-  const { currency, plans } = PRICING[city];
+  const { currency, plans } = PRICING[activeCity];
 
   const handleCheckout = async () => {
     if (!selectedPlan) return;
