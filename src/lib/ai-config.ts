@@ -8,6 +8,80 @@ export const MODE_LABELS: Record<AIMode, { icon: string; en: string; ru: string 
   translation: { icon: '🌐', en: 'Translate',   ru: 'Перевод' },
 };
 
+/** Mode-specific quick prompts */
+export const MODE_PROMPTS: Record<AIMode, { en: string[]; ru: string[] }> = {
+  general: {
+    en: [
+      "How is my child progressing?",
+      "What should my child practice at home?",
+      "Tell me about ProFit belts system",
+      "How many lessons until next belt test?",
+    ],
+    ru: [
+      "Как прогрессирует мой ребёнок?",
+      "Что практиковать дома?",
+      "Расскажите о системе поясов ProFit",
+      "Сколько уроков до следующего теста?",
+    ],
+  },
+  scheduling: {
+    en: [
+      "Book a lesson for next week",
+      "Show my upcoming lessons",
+      "Cancel tomorrow's lesson",
+      "What time slots are available this week?",
+    ],
+    ru: [
+      "Записать на урок на следующей неделе",
+      "Показать мои предстоящие уроки",
+      "Отменить завтрашний урок",
+      "Какие слоты свободны на этой неделе?",
+    ],
+  },
+  progress: {
+    en: [
+      "Show Emma's progress this month",
+      "What skills are left for next belt?",
+      "Compare this month vs last month",
+      "Generate a progress report",
+    ],
+    ru: [
+      "Показать прогресс Эммы за этот месяц",
+      "Какие навыки остались для нового пояса?",
+      "Сравнить этот и прошлый месяц",
+      "Сгенерировать отчёт о прогрессе",
+    ],
+  },
+  lesson_plan: {
+    en: [
+      "Create a lesson plan for a beginner",
+      "Warm-up drills for 7-year olds",
+      "Freestyle technique progression",
+      "Cool-down routine for group lesson",
+    ],
+    ru: [
+      "Создай план урока для новичка",
+      "Разминка для 7 лет",
+      "Прогрессия техники вольного стиля",
+      "Заминка для группового урока",
+    ],
+  },
+  translation: {
+    en: [
+      "Translate to Arabic",
+      "Translate to Russian",
+      "How do you say 'freestyle' in Arabic?",
+      "Translate my last message",
+    ],
+    ru: [
+      "Перевести на арабский",
+      "Перевести на английский",
+      "Как сказать 'кроль' по-арабски?",
+      "Перевести моё последнее сообщение",
+    ],
+  },
+};
+
 export interface RoleConfig {
   greeting: string;
   subtitle: { en: string; ru: string };
