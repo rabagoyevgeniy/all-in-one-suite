@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, CreditCard, Shield, Loader2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { useLanguage } from '@/hooks/useLanguage';
 import { usePricingPlans, type PricingPlan } from '@/hooks/usePricingPlans';
@@ -57,7 +57,7 @@ const GROUP_SECTIONS = [
 
 function calcSavings(plan: PricingPlan): number | null {
   if (!plan.lesson_count || plan.lesson_count <= 1 || !plan.price_per_lesson) return null;
-  const basePrice = plan.currency === 'AZN' ? 45 : 350;
+  const basePrice = plan.currency === 'AZN' ? 45 : 400;
   const fullPrice = basePrice * plan.lesson_count;
   const saved = Math.round(fullPrice - plan.price);
   return saved > 0 ? saved : null;
@@ -65,11 +65,14 @@ function calcSavings(plan: PricingPlan): number | null {
 
 export default function PaymentScreen() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { profile } = useAuthStore();
   const { t } = useLanguage();
-  const [activeCity, setActiveCity] = useState<'dubai' | 'baku'>(
-    profile?.city?.toLowerCase() === 'baku' ? 'baku' : 'dubai'
-  );
+  const [activeCity, setActiveCity] = useState<'dubai' | 'baku'>(() => {
+    const cityParam = searchParams.get('city');
+    if (cityParam === 'baku' || cityParam === 'dubai') return cityParam;
+    return profile?.city?.toLowerCase() === 'baku' ? 'baku' : 'dubai';
+  });
   const [lessonType, setLessonType] = useState<'private' | 'group'>('private');
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 

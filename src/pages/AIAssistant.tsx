@@ -257,10 +257,41 @@ export default function AIAssistant() {
     setIsRecording(true);
   }, [isRecording, language, t]);
 
-  if (permLoading || authLoading || !effectiveRole) {
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+
+  useEffect(() => {
+    if (permLoading || authLoading) {
+      const timer = setTimeout(() => setLoadingTimeout(true), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [permLoading, authLoading]);
+
+  if ((permLoading || authLoading) && !loadingTimeout) {
     return (
       <div className="flex items-center justify-center h-screen">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (loadingTimeout || !effectiveRole) {
+    return (
+      <div className="flex items-center justify-center h-screen px-6">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto">
+            <Sparkles className="w-8 h-8 text-muted-foreground" />
+          </div>
+          <h2 className="font-bold text-foreground text-lg">AI Assistant unavailable</h2>
+          <p className="text-sm text-muted-foreground max-w-xs">
+            The AI service is temporarily unavailable. Please try again in a moment.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-primary text-primary-foreground px-6 py-2.5 rounded-xl text-sm font-medium"
+          >
+            Try Again
+          </button>
+        </div>
       </div>
     );
   }
