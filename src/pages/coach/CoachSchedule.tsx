@@ -71,8 +71,7 @@ export default function CoachSchedule() {
   return (
     <div className="px-4 py-6 space-y-6">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <h2 className="font-display font-bold text-xl text-foreground">Schedule</h2>
-        <p className="text-sm text-muted-foreground">{bookings?.length || 0} total bookings</p>
+        <PageHeader title="Schedule" subtitle={`${bookings?.length || 0} total bookings`} backRoute="/coach" />
       </motion.div>
 
       {Object.entries(grouped).map(([date, items], gi) => (

@@ -60,12 +60,7 @@ export default function AdminPricing() {
 
   return (
     <div className="px-4 py-6 space-y-6 pb-24">
-      <div>
-        <h2 className="font-display font-bold text-xl text-foreground">💳 Pricing Manager</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Manage Stripe payment links for each plan. Plans without links show "Coming soon".
-        </p>
-      </div>
+      <PageHeader title="💳 Pricing Manager" subtitle="Manage Stripe payment links for each plan" backRoute="/admin" />
 
       {/* City switcher */}
       <div className="flex gap-2">

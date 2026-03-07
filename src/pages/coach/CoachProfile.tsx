@@ -41,6 +41,7 @@ export default function CoachProfile() {
 
   return (
     <div className="px-4 py-6 space-y-6">
+      <PageHeader title="My Profile" backRoute="/coach" />
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="glass-card rounded-2xl p-6 text-center relative">
         {/* QR button */}
         <button

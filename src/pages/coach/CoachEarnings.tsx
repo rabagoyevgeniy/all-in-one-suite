@@ -70,8 +70,7 @@ export default function CoachEarnings() {
   return (
     <div className="px-4 py-6 space-y-6">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <h2 className="font-display font-bold text-xl text-foreground">Earnings</h2>
-        <p className="text-sm text-muted-foreground">Your financial overview</p>
+        <PageHeader title="Earnings" subtitle="Your financial overview" backRoute="/coach" />
       </motion.div>
 
       {/* Coin Balance + Rank */}

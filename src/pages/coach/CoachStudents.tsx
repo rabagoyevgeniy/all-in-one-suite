@@ -46,8 +46,7 @@ export default function CoachStudents() {
   return (
     <div className="px-4 py-6 space-y-6">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <h2 className="font-display font-bold text-xl text-foreground">My Students</h2>
-        <p className="text-sm text-muted-foreground">{students?.length || 0} students</p>
+        <PageHeader title="My Students" subtitle={`${students?.length || 0} students`} backRoute="/coach" />
       </motion.div>
 
       {students && students.length > 0 ? students.map((s: any, i: number) => {
