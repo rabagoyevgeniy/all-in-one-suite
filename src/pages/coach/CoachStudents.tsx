@@ -4,6 +4,7 @@ import { Users, Loader2 } from 'lucide-react';
 import { SwimBeltBadge } from '@/components/SwimBeltBadge';
 import { CoinBalance } from '@/components/CoinBalance';
 import { CoachStudentDetailSheet } from '@/components/coach/CoachStudentDetailSheet';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { useAuthStore } from '@/stores/authStore';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
