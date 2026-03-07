@@ -6,7 +6,7 @@ interface AuthState {
   user: User | null;
   session: Session | null;
   role: UserRole | null;
-  profile: { full_name: string; avatar_url: string | null; city: string | null } | null;
+  profile: { full_name: string; avatar_url: string | null; city: string | null; onboarding_completed?: boolean | null } | null;
   isLoading: boolean;
   setUser: (user: User | null) => void;
   setSession: (session: Session | null) => void;

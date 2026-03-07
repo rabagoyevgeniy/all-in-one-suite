@@ -156,6 +156,7 @@ const App = () => (
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <OnboardingGuard />
           <AIAssistantFAB />
           <DevAccountSwitcher />
         </AuthProvider>
