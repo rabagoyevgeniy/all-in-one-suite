@@ -7,7 +7,7 @@ import {
   Calendar, Target, FileText,
   TrendingUp, Home, CreditCard,
   Star, Swords, Lightbulb,
-  Clock, Search, X, Copy, Pin, ChevronRight
+  Clock, Search, X, Copy, Pin, ChevronRight, CheckSquare
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/stores/authStore';
@@ -17,6 +17,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ROLE_CONFIG, DEFAULT_ROLE_CONFIG } from '@/lib/ai-config';
+import { AITaskPanel } from '@/components/ai/AITaskPanel';
+import { useAITasks } from '@/hooks/useAITasks';
 
 interface RoleModeConfig {
   greeting: { en: string; ru: string };
@@ -118,21 +120,29 @@ function AIMessageActions({ content, role: userRole }: { content: string; role: 
   const navigate = useNavigate();
 
   const actions: { label: string; onClick: () => void }[] = [];
+  const lc = content.toLowerCase();
 
-  if (content.match(/lesson|schedule|booking|урок|расписание/i))
-    actions.push({
-      label: '📅 Schedule',
-      onClick: () => navigate(userRole === 'coach' ? '/coach/schedule' : userRole === 'parent' ? '/parent/booking' : '/admin/bookings'),
-    });
+  if (lc.match(/lesson|schedule|booking|урок|расписание/)) {
+    if (userRole === 'admin' || userRole === 'head_manager')
+      actions.push({ label: '📅 Bookings', onClick: () => navigate('/admin/bookings') });
+    if (userRole === 'coach')
+      actions.push({ label: '📅 Schedule', onClick: () => navigate('/coach/schedule') });
+    if (userRole === 'parent')
+      actions.push({ label: '📅 My Bookings', onClick: () => navigate('/parent/booking') });
+  }
 
-  if (content.match(/payment|AED|revenue|платёж|выручка/i))
-    actions.push({
-      label: '💳 Payments',
-      onClick: () => navigate(userRole === 'admin' ? '/admin/finance' : '/parent/payments'),
-    });
+  if (lc.match(/payment|aed|revenue|платёж|выручка/)) {
+    if (userRole === 'admin' || userRole === 'head_manager')
+      actions.push({ label: '💰 Finance', onClick: () => navigate('/admin/financial') });
+    else
+      actions.push({ label: '💳 Payments', onClick: () => navigate('/parent/payments') });
+  }
 
-  if (content.match(/coach/i) && (userRole === 'admin' || userRole === 'head_manager'))
+  if (lc.includes('coach') && (userRole === 'admin' || userRole === 'head_manager'))
     actions.push({ label: '🏊 Coaches', onClick: () => navigate('/admin/coaches') });
+
+  if (lc.match(/student|ученик/) && (userRole === 'admin' || userRole === 'head_manager'))
+    actions.push({ label: '👦 Clients', onClick: () => navigate('/admin/clients') });
 
   const copyText = () => {
     navigator.clipboard.writeText(content);
@@ -173,6 +183,8 @@ export default function AIAssistant() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [switchingMode, setSwitchingMode] = useState(false);
+  const [showTaskPanel, setShowTaskPanel] = useState(false);
+  const [detectedTask, setDetectedTask] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -194,6 +206,8 @@ export default function AIAssistant() {
     clearConversation,
     loadConversation,
   } = useAIConversation(activeMode);
+
+  const { urgentCount, createTask } = useAITasks();
 
   // Fetch AI permissions
   const { data: permissions, isLoading: permLoading } = useQuery({
@@ -289,6 +303,20 @@ export default function AIAssistant() {
 
     setInput('');
     setSuggestions([]);
+
+    // Detect task intent
+    const TASK_PATTERNS = [
+      /^(?:create|add|make|set)?\s*(?:a\s+)?task[:\s]+(.+)/i,
+      /^remind me to\s+(.+)/i,
+      /^(?:i need to|i have to|i should)\s+(.+)/i,
+      /^todo[:\s]+(.+)/i,
+    ];
+    let taskTitle: string | null = null;
+    for (const pattern of TASK_PATTERNS) {
+      const match = text.match(pattern);
+      if (match) { taskTitle = match[match.length - 1].trim(); break; }
+    }
+    if (taskTitle) setDetectedTask(taskTitle);
 
     try {
       await incrementUsage();
@@ -434,6 +462,19 @@ export default function AIAssistant() {
             className="w-9 h-9 flex items-center justify-center rounded-xl bg-muted hover:bg-accent transition-colors"
           >
             <Search className="w-4 h-4 text-muted-foreground" />
+          </button>
+
+          {/* Tasks button */}
+          <button
+            onClick={() => setShowTaskPanel(!showTaskPanel)}
+            className="relative w-9 h-9 flex items-center justify-center rounded-xl bg-muted hover:bg-accent transition-colors"
+          >
+            <CheckSquare className="w-4 h-4 text-muted-foreground" />
+            {urgentCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[9px] flex items-center justify-center font-bold">
+                {urgentCount}
+              </span>
+            )}
           </button>
 
           {/* History button */}
@@ -616,6 +657,37 @@ export default function AIAssistant() {
                   )}
                 </div>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Task Panel Overlay */}
+      <AnimatePresence>
+        {showTaskPanel && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/40"
+            onClick={() => setShowTaskPanel(false)}
+          >
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="absolute right-0 top-0 bottom-0 w-full max-w-sm bg-background shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <AITaskPanel
+                onClose={() => setShowTaskPanel(false)}
+                onAskAI={(text) => {
+                  setShowTaskPanel(false);
+                  setInput(text);
+                  setTimeout(() => handleSend(), 100);
+                }}
+              />
             </motion.div>
           </motion.div>
         )}
@@ -819,6 +891,35 @@ export default function AIAssistant() {
             <div className="flex items-center justify-center gap-2 py-1.5 bg-destructive/5">
               <div className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
               <span className="text-xs text-destructive font-medium">{t('Recording... tap to stop', 'Запись... нажмите для остановки')}</span>
+            </div>
+          )}
+
+          {/* Detected task prompt */}
+          {detectedTask && (
+            <div className="px-4 py-2 bg-primary/5 border-t border-primary/10">
+              <div className="max-w-lg mx-auto flex items-center justify-between gap-2">
+                <p className="text-xs text-foreground truncate">
+                  💡 Create task: &quot;{detectedTask}&quot;?
+                </p>
+                <div className="flex gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => setDetectedTask(null)}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    No
+                  </button>
+                  <button
+                    onClick={async () => {
+                      await createTask.mutateAsync({ title: detectedTask, priority: 'medium', steps: [] });
+                      setDetectedTask(null);
+                      toast({ title: '✅ Task created!' });
+                    }}
+                    className="text-xs bg-primary text-primary-foreground px-3 py-1 rounded-lg hover:bg-primary/90"
+                  >
+                    ✓ Add task
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
