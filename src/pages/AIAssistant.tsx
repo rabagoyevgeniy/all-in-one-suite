@@ -183,6 +183,8 @@ export default function AIAssistant() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [switchingMode, setSwitchingMode] = useState(false);
+  const [showTaskPanel, setShowTaskPanel] = useState(false);
+  const [detectedTask, setDetectedTask] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<any>(null);
