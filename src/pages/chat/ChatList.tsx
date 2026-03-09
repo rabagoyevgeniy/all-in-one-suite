@@ -267,7 +267,7 @@ export default function ChatList() {
                 )
               )}
             </div>
-          ) : emptyState(t('No groups yet', 'Пока нет групп'))}
+          ) : emptyState(t('No groups yet. Your coach can add you to a group lesson.', 'Пока нет групп. Тренер может добавить вас в групповое занятие.'))}
         </TabsContent>
 
         <TabsContent value="community">
