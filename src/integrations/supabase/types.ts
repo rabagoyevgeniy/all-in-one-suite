@@ -168,6 +168,62 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_tasks: {
+        Row: {
+          ai_notes: string | null
+          category: string | null
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          priority: string
+          status: string
+          steps: Json
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_notes?: string | null
+          category?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string
+          status?: string
+          steps?: Json
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_notes?: string | null
+          category?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string
+          status?: string
+          steps?: Json
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_tasks_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_usage_log: {
         Row: {
           id: string

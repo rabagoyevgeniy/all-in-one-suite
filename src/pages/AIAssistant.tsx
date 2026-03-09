@@ -118,21 +118,29 @@ function AIMessageActions({ content, role: userRole }: { content: string; role: 
   const navigate = useNavigate();
 
   const actions: { label: string; onClick: () => void }[] = [];
+  const lc = content.toLowerCase();
 
-  if (content.match(/lesson|schedule|booking|урок|расписание/i))
-    actions.push({
-      label: '📅 Schedule',
-      onClick: () => navigate(userRole === 'coach' ? '/coach/schedule' : userRole === 'parent' ? '/parent/booking' : '/admin/bookings'),
-    });
+  if (lc.match(/lesson|schedule|booking|урок|расписание/)) {
+    if (userRole === 'admin' || userRole === 'head_manager')
+      actions.push({ label: '📅 Bookings', onClick: () => navigate('/admin/bookings') });
+    if (userRole === 'coach')
+      actions.push({ label: '📅 Schedule', onClick: () => navigate('/coach/schedule') });
+    if (userRole === 'parent')
+      actions.push({ label: '📅 My Bookings', onClick: () => navigate('/parent/booking') });
+  }
 
-  if (content.match(/payment|AED|revenue|платёж|выручка/i))
-    actions.push({
-      label: '💳 Payments',
-      onClick: () => navigate(userRole === 'admin' ? '/admin/finance' : '/parent/payments'),
-    });
+  if (lc.match(/payment|aed|revenue|платёж|выручка/)) {
+    if (userRole === 'admin' || userRole === 'head_manager')
+      actions.push({ label: '💰 Finance', onClick: () => navigate('/admin/financial') });
+    else
+      actions.push({ label: '💳 Payments', onClick: () => navigate('/parent/payments') });
+  }
 
-  if (content.match(/coach/i) && (userRole === 'admin' || userRole === 'head_manager'))
+  if (lc.includes('coach') && (userRole === 'admin' || userRole === 'head_manager'))
     actions.push({ label: '🏊 Coaches', onClick: () => navigate('/admin/coaches') });
+
+  if (lc.match(/student|ученик/) && (userRole === 'admin' || userRole === 'head_manager'))
+    actions.push({ label: '👦 Clients', onClick: () => navigate('/admin/clients') });
 
   const copyText = () => {
     navigator.clipboard.writeText(content);
