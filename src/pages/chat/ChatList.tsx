@@ -306,7 +306,17 @@ export default function ChatList() {
                     </div>
                     {room.last_message && (
                       <p className="text-xs text-muted-foreground truncate mt-0.5">
-                        {room.last_message.length > 40 ? room.last_message.slice(0, 40) + '…' : room.last_message}
+                        {(() => {
+                          const msg = room.last_message;
+                          const voiceMatch = msg.match(/^Voice message \((\d+\.?\d*)\)$/);
+                          if (voiceMatch) {
+                            const secs = Math.round(parseFloat(voiceMatch[1]) * (parseFloat(voiceMatch[1]) < 1 ? 100 : 1));
+                            const mins = Math.floor(secs / 60);
+                            const s = secs % 60;
+                            return `🎤 Voice message · ${mins}:${String(s).padStart(2, '0')}`;
+                          }
+                          return msg.length > 40 ? msg.slice(0, 40) + '…' : msg;
+                        })()}
                       </p>
                     )}
                   </div>
