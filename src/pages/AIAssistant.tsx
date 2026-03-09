@@ -7,18 +7,21 @@ import {
   Calendar, Target, FileText,
   TrendingUp, Home, CreditCard,
   Star, Swords, Lightbulb,
-  Clock, Search, X, Copy, Pin, ChevronRight, CheckSquare
+  Clock, Search, X, Copy, ChevronRight, CheckSquare,
+  Menu, PanelLeftOpen,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/stores/authStore';
 import { useLanguage } from '@/hooks/useLanguage';
-import { useAIConversation } from '@/hooks/useAIConversation';
+import { useAIConversation, useAIConversations } from '@/hooks/useAIConversation';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ROLE_CONFIG, DEFAULT_ROLE_CONFIG } from '@/lib/ai-config';
 import { AITaskPanel } from '@/components/ai/AITaskPanel';
+import { AIConversationSidebar } from '@/components/ai/AIConversationSidebar';
 import { useAITasks } from '@/hooks/useAITasks';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface RoleModeConfig {
   greeting: { en: string; ru: string };
@@ -118,7 +121,6 @@ function MarkdownText({ content }: { content: string }) {
 // --- Message Actions ---
 function AIMessageActions({ content, role: userRole }: { content: string; role: string }) {
   const navigate = useNavigate();
-
   const actions: { label: string; onClick: () => void }[] = [];
   const lc = content.toLowerCase();
 
@@ -173,18 +175,15 @@ function AIMessageActions({ content, role: userRole }: { content: string; role: 
 
 export default function AIAssistant() {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { role, session, user, isLoading: authLoading } = useAuthStore();
   const { language, t } = useLanguage();
   const [input, setInput] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isRecording, setIsRecording] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
-  const [searchMode, setSearchMode] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [switchingMode, setSwitchingMode] = useState(false);
   const [showTaskPanel, setShowTaskPanel] = useState(false);
   const [detectedTask, setDetectedTask] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -193,21 +192,59 @@ export default function AIAssistant() {
   const roleModes = roleModesConfig.modes;
   const [activeMode, setActiveMode] = useState(roleModes[0].id);
 
+  // Conversation management
+  const { createConversation, deleteConversation, refetch: refetchConversations } = useAIConversations(user?.id);
+
+  // Active conversation ID — persisted in sessionStorage
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(() => {
+    return sessionStorage.getItem('profit_ai_active_conversation');
+  });
+
+  // Persist active conversation ID
+  useEffect(() => {
+    if (activeConversationId) {
+      sessionStorage.setItem('profit_ai_active_conversation', activeConversationId);
+    }
+  }, [activeConversationId]);
+
   const effectiveRole = role || null;
   const config = effectiveRole ? (ROLE_CONFIG[effectiveRole] || DEFAULT_ROLE_CONFIG) : DEFAULT_ROLE_CONFIG;
   const lang = language === 'ru' ? 'ru' : 'en';
 
-  // Persistent conversation hook
+  // Persistent conversation hook — keyed by activeConversationId
   const {
     messages,
     isLoading,
     isLoadingHistory,
     sendMessage,
-    clearConversation,
-    loadConversation,
-  } = useAIConversation(activeMode);
+    clearMessages,
+  } = useAIConversation(activeConversationId, activeMode);
 
   const { urgentCount, createTask } = useAITasks();
+
+  // Auto-create first conversation on mount if none exists
+  useEffect(() => {
+    if (!user?.id || activeConversationId) return;
+    // Try to find an existing non-archived conversation
+    supabase
+      .from('ai_conversations')
+      .select('id, mode')
+      .eq('user_id', user.id)
+      .eq('is_archived', false)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setActiveConversationId(data.id);
+          setActiveMode(data.mode || roleModes[0].id);
+        } else {
+          createConversation(roleModes[0].id).then((id) => {
+            if (id) setActiveConversationId(id);
+          });
+        }
+      });
+  }, [user?.id]);
 
   // Fetch AI permissions
   const { data: permissions, isLoading: permLoading } = useQuery({
@@ -238,24 +275,6 @@ export default function AIAssistant() {
       return data?.message_count || 0;
     },
     enabled: !!user?.id,
-  });
-
-  // Chat history for current mode
-  const { data: history, refetch: refetchHistory } = useQuery({
-    queryKey: ['ai-history', user?.id, activeMode],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('ai_conversations')
-        .select('id, title, last_message, message_count, updated_at, is_pinned')
-        .eq('user_id', user!.id)
-        .eq('mode', activeMode)
-        .eq('is_archived', false)
-        .order('is_pinned', { ascending: false })
-        .order('updated_at', { ascending: false })
-        .limit(20);
-      return data ?? [];
-    },
-    enabled: !!user?.id && showHistory,
   });
 
   const dailyLimit = permissions?.daily_message_limit || config.dailyLimit;
@@ -321,6 +340,7 @@ export default function AIAssistant() {
     try {
       await incrementUsage();
       await sendMessage(text, (sugg) => setSuggestions(sugg));
+      refetchConversations();
     } catch (e: any) {
       if (e.message === 'daily_limit_reached') {
         toast({ title: t('Daily limit reached', 'Лимит исчерпан'), variant: 'destructive' });
@@ -330,7 +350,7 @@ export default function AIAssistant() {
         toast({ title: 'AI Error', description: e.message, variant: 'destructive' });
       }
     }
-  }, [input, isLoading, messagesRemaining, dailyLimit, t, incrementUsage, sendMessage]);
+  }, [input, isLoading, messagesRemaining, dailyLimit, t, incrementUsage, sendMessage, refetchConversations]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -339,13 +359,57 @@ export default function AIAssistant() {
     }
   };
 
-  // Tab switching
-  const handleTabSwitch = (newMode: string) => {
+  // Tab switching — creates new conversation for mode if needed
+  const handleTabSwitch = async (newMode: string) => {
     if (newMode === activeMode) return;
-    setSwitchingMode(true);
     setActiveMode(newMode);
     setSuggestions([]);
-    setTimeout(() => setSwitchingMode(false), 600);
+
+    // Find existing conversation for this mode or create one
+    if (!user?.id) return;
+    const { data: existing } = await supabase
+      .from('ai_conversations')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('mode', newMode)
+      .eq('is_archived', false)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existing) {
+      setActiveConversationId(existing.id);
+    } else {
+      const id = await createConversation(newMode);
+      if (id) setActiveConversationId(id);
+    }
+  };
+
+  // New conversation
+  const handleNewConversation = async () => {
+    const id = await createConversation(activeMode);
+    if (id) {
+      setActiveConversationId(id);
+      clearMessages();
+    }
+  };
+
+  // Select conversation from sidebar
+  const handleSelectConversation = (id: string, mode: string) => {
+    setActiveConversationId(id);
+    setActiveMode(mode);
+    setSuggestions([]);
+  };
+
+  // Clear / archive current conversation
+  const handleClearConversation = async () => {
+    if (!activeConversationId) return;
+    await deleteConversation(activeConversationId);
+    const id = await createConversation(activeMode);
+    if (id) {
+      setActiveConversationId(id);
+      clearMessages();
+    }
   };
 
   // Voice input
@@ -373,23 +437,6 @@ export default function AIAssistant() {
     recognition.start();
     setIsRecording(true);
   }, [isRecording, language, t]);
-
-  // Search
-  const handleSearch = async (q: string) => {
-    setSearchQuery(q);
-    if (!q.trim() || !user?.id) {
-      setSearchResults([]);
-      return;
-    }
-    const { data } = await supabase
-      .from('ai_messages')
-      .select('content, role, created_at, conversation_id')
-      .eq('role', 'assistant')
-      .ilike('content', `%${q}%`)
-      .order('created_at', { ascending: false })
-      .limit(10);
-    setSearchResults(data ?? []);
-  };
 
   const [loadingTimeout, setLoadingTimeout] = useState(false);
   useEffect(() => {
@@ -429,7 +476,6 @@ export default function AIAssistant() {
   const limitSegments = Math.min(dailyLimit, 10);
   const segmentRatio = dailyLimit < 9999 ? dailyLimit / limitSegments : 0;
 
-  // Briefing config per role
   const briefingConfig = {
     admin: { icon: '📊', gradient: 'from-purple-500 to-indigo-600', label: 'Director Briefing' },
     head_manager: { icon: '📊', gradient: 'from-purple-500 to-indigo-600', label: 'Director Briefing' },
@@ -441,527 +487,413 @@ export default function AIAssistant() {
   }[effectiveRole] ?? { icon: '💡', gradient: 'from-blue-400 to-blue-600', label: "Today's Insight" };
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-b from-violet-50 to-background">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border px-4 py-3">
-        <div className="flex items-center gap-3 max-w-lg mx-auto">
-          <button onClick={() => navigate(-1)} className="p-1">
-            <ArrowLeft className="w-5 h-5 text-foreground" />
-          </button>
-          <div className={cn('w-9 h-9 rounded-xl bg-gradient-to-br flex items-center justify-center', config.color)}>
-            <Sparkles className="w-5 h-5 text-white" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="font-bold text-foreground text-sm">ProFit AI</h1>
-            <p className="text-[11px] text-muted-foreground truncate">{roleModesConfig.subtitle[lang]}</p>
-          </div>
+    <div className="flex h-screen bg-background">
+      {/* Sidebar */}
+      <AIConversationSidebar
+        userId={user?.id}
+        activeConversationId={activeConversationId}
+        onSelect={handleSelectConversation}
+        onNewConversation={handleNewConversation}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        isMobile={isMobile}
+      />
 
-          {/* Search button */}
-          <button
-            onClick={() => { setSearchMode(!searchMode); setSearchQuery(''); setSearchResults([]); }}
-            className="w-9 h-9 flex items-center justify-center rounded-xl bg-muted hover:bg-accent transition-colors"
-          >
-            <Search className="w-4 h-4 text-muted-foreground" />
-          </button>
-
-          {/* Tasks button */}
-          <button
-            onClick={() => setShowTaskPanel(!showTaskPanel)}
-            className="relative w-9 h-9 flex items-center justify-center rounded-xl bg-muted hover:bg-accent transition-colors"
-          >
-            <CheckSquare className="w-4 h-4 text-muted-foreground" />
-            {urgentCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[9px] flex items-center justify-center font-bold">
-                {urgentCount}
-              </span>
+      {/* Main chat area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header */}
+        <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border px-4 py-3">
+          <div className="flex items-center gap-3">
+            {/* Menu / Back button */}
+            {isMobile ? (
+              <button onClick={() => setSidebarOpen(true)} className="p-1">
+                <Menu className="w-5 h-5 text-foreground" />
+              </button>
+            ) : (
+              <button onClick={() => navigate(-1)} className="p-1">
+                <ArrowLeft className="w-5 h-5 text-foreground" />
+              </button>
             )}
-          </button>
 
-          {/* History button */}
-          <button
-            onClick={() => { setShowHistory(true); refetchHistory(); }}
-            className="w-9 h-9 flex items-center justify-center rounded-xl bg-muted hover:bg-accent transition-colors"
-          >
-            <Clock className="w-4 h-4 text-muted-foreground" />
-          </button>
+            <div className={cn('w-9 h-9 rounded-xl bg-gradient-to-br flex items-center justify-center', config.color)}>
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h1 className="font-bold text-foreground text-sm">ProFit AI</h1>
+              <p className="text-[11px] text-muted-foreground truncate">{roleModesConfig.subtitle[lang]}</p>
+            </div>
 
-          {/* Clear conversation */}
-          {messages.length > 0 && (
-            <button onClick={clearConversation} className="p-2 text-muted-foreground hover:text-destructive transition-colors">
-              <Trash2 className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-
-        {/* Search bar */}
-        <AnimatePresence>
-          {searchMode && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="max-w-lg mx-auto mt-2 overflow-hidden"
+            {/* Tasks button */}
+            <button
+              onClick={() => setShowTaskPanel(!showTaskPanel)}
+              className="relative w-9 h-9 flex items-center justify-center rounded-xl bg-muted hover:bg-accent transition-colors"
             >
-              <div className="flex items-center gap-2 bg-muted rounded-xl px-3 py-2">
-                <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  placeholder={t('Search past messages...', 'Поиск сообщений...')}
-                  className="flex-1 bg-transparent text-sm outline-none"
-                  autoFocus
-                />
-                <button onClick={() => { setSearchMode(false); setSearchQuery(''); setSearchResults([]); }}>
-                  <X className="w-4 h-4 text-muted-foreground" />
-                </button>
+              <CheckSquare className="w-4 h-4 text-muted-foreground" />
+              {urgentCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[9px] flex items-center justify-center font-bold">
+                  {urgentCount}
+                </span>
+              )}
+            </button>
+
+            {/* New conversation */}
+            <button
+              onClick={handleNewConversation}
+              className="w-9 h-9 flex items-center justify-center rounded-xl bg-muted hover:bg-accent transition-colors"
+              title="New conversation"
+            >
+              <PanelLeftOpen className="w-4 h-4 text-muted-foreground" />
+            </button>
+
+            {/* Clear conversation */}
+            {messages.length > 0 && (
+              <button onClick={handleClearConversation} className="p-2 text-muted-foreground hover:text-destructive transition-colors">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Mode pills */}
+          {canUseAI && roleModes.length > 1 && (
+            <div className="mt-2">
+              <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                {roleModes.map((mode) => (
+                  <button
+                    key={mode.id}
+                    onClick={() => handleTabSwitch(mode.id)}
+                    className={cn(
+                      'flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors',
+                      activeMode === mode.id
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    )}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
               </div>
-              {searchResults.length > 0 && (
-                <div className="mt-2 space-y-2 max-h-60 overflow-y-auto">
-                  {searchResults.map((r, i) => (
-                    <button
-                      key={i}
-                      onClick={() => {
-                        loadConversation(r.conversation_id);
-                        setSearchMode(false);
-                        setSearchQuery('');
-                        setSearchResults([]);
-                      }}
-                      className="w-full text-left p-3 rounded-xl bg-background border border-border hover:bg-accent/50 transition-colors"
-                    >
-                      <p className="text-xs text-foreground line-clamp-2">{r.content}</p>
-                      <p className="text-[10px] text-muted-foreground mt-1">
-                        {new Date(r.created_at).toLocaleDateString()}
-                      </p>
-                    </button>
-                  ))}
+
+              {/* Visual message limit bar */}
+              {dailyLimit < 9999 && (
+                <div className="flex items-center gap-2 px-1 mt-2">
+                  <div className="flex gap-0.5 flex-1">
+                    {Array.from({ length: limitSegments }).map((_, i) => {
+                      const filledUpTo = segmentRatio > 0 ? Math.ceil(messagesUsed / segmentRatio) : 0;
+                      return (
+                        <div
+                          key={i}
+                          className={cn('flex-1 h-1.5 rounded-full transition-colors', i < filledUpTo ? 'bg-primary' : 'bg-muted')}
+                        />
+                      );
+                    })}
+                  </div>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {messagesUsed}/{dailyLimit} {t('today', 'сегодня')}
+                  </span>
+                  {messagesUsed >= dailyLimit * 0.8 && (
+                    <span className="text-xs bg-warning/20 text-warning-foreground px-2 py-0.5 rounded-full font-medium animate-pulse">
+                      ⭐ {t('Go Premium', 'Премиум')}
+                    </span>
+                  )}
                 </div>
               )}
+              {dailyLimit >= 9999 && (
+                <div className="flex items-center gap-2 px-1 mt-2">
+                  <span className="text-muted-foreground text-xs">
+                    {messagesUsed} / ∞ {t('messages today', 'сообщений сегодня')}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </header>
+
+        {/* Task Panel Overlay */}
+        <AnimatePresence>
+          {showTaskPanel && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-black/40"
+              onClick={() => setShowTaskPanel(false)}
+            >
+              <motion.div
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                className="absolute right-0 top-0 bottom-0 w-full max-w-sm bg-background shadow-xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <AITaskPanel
+                  onClose={() => setShowTaskPanel(false)}
+                  onAskAI={(text) => {
+                    setShowTaskPanel(false);
+                    setInput(text);
+                    setTimeout(() => handleSend(), 100);
+                  }}
+                />
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Mode pills */}
-        {canUseAI && roleModes.length > 1 && (
-          <div className="max-w-lg mx-auto mt-2">
-            <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-              {roleModes.map((mode) => (
-                <button
-                  key={mode.id}
-                  onClick={() => handleTabSwitch(mode.id)}
-                  className={cn(
-                    'flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors',
-                    activeMode === mode.id
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                  )}
-                >
-                  {mode.label}
-                </button>
-              ))}
+        {!canUseAI ? (
+          <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+              <Lock className="w-8 h-8 text-muted-foreground" />
             </div>
-
-            {/* Visual message limit bar */}
-            {dailyLimit < 9999 && (
-              <div className="flex items-center gap-2 px-1 mt-2">
-                <div className="flex gap-0.5 flex-1">
-                  {Array.from({ length: limitSegments }).map((_, i) => {
-                    const filledUpTo = segmentRatio > 0 ? Math.ceil(messagesUsed / segmentRatio) : 0;
-                    return (
-                      <div
-                        key={i}
-                        className={cn('flex-1 h-1.5 rounded-full transition-colors', i < filledUpTo ? 'bg-primary' : 'bg-muted')}
-                      />
-                    );
-                  })}
-                </div>
-                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                  {messagesUsed}/{dailyLimit} {t('today', 'сегодня')}
-                </span>
-                {messagesUsed >= dailyLimit * 0.8 && (
-                  <span className="text-xs bg-warning/20 text-warning-foreground px-2 py-0.5 rounded-full font-medium animate-pulse">
-                    ⭐ {t('Go Premium', 'Премиум')}
-                  </span>
-                )}
-              </div>
-            )}
-            {dailyLimit >= 9999 && (
-              <div className="flex items-center gap-2 px-1 mt-2">
-                <span className="text-muted-foreground text-xs">
-                  {messagesUsed} / ∞ {t('messages today', 'сообщений сегодня')}
-                </span>
-              </div>
-            )}
+            <h3 className="font-bold text-foreground mb-2">{t('AI Assistant — Premium', 'AI Помощник — Премиум')}</h3>
+            <p className="text-muted-foreground text-sm mb-6">
+              {t('Upgrade to Basic or higher to access ProFit AI', 'Обновитесь до Basic или выше для доступа к ProFit AI')}
+            </p>
+            <button className="px-6 py-3 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-2xl font-medium">
+              {t('Upgrade Plan', 'Улучшить план')}
+            </button>
           </div>
-        )}
-      </header>
-
-      {/* History bottom sheet */}
-      <AnimatePresence>
-        {showHistory && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/40"
-            onClick={() => setShowHistory(false)}
-          >
-            <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="absolute bottom-0 left-0 right-0 bg-background rounded-t-2xl max-h-[70vh] overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-foreground">
-                    💬 {roleModes.find((m) => m.id === activeMode)?.label} {t('History', 'История')}
-                  </h3>
-                  <button onClick={() => setShowHistory(false)}>
-                    <X className="w-5 h-5 text-muted-foreground" />
-                  </button>
+        ) : (
+          <>
+            {/* Messages */}
+            <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 w-full space-y-4">
+              {/* Loading history */}
+              {isLoadingHistory && (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                 </div>
-                <div className="space-y-2 overflow-y-auto max-h-[50vh]">
-                  {(history ?? []).map((conv) => (
-                    <button
-                      key={conv.id}
-                      onClick={() => {
-                        loadConversation(conv.id);
-                        setShowHistory(false);
-                      }}
-                      className="w-full text-left p-3 rounded-xl hover:bg-accent border border-border transition-colors"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">
-                            {conv.is_pinned && '📌 '}
-                            {conv.title}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate mt-0.5">{conv.last_message}</p>
-                        </div>
-                        <span className="text-[10px] text-muted-foreground flex-shrink-0">
-                          {new Date(conv.updated_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground mt-1">
-                        {conv.message_count} {t('messages', 'сообщений')}
-                      </p>
-                    </button>
-                  ))}
-                  {(history ?? []).length === 0 && (
-                    <p className="text-center text-sm text-muted-foreground py-8">
-                      {t('No history yet', 'Истории пока нет')}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Task Panel Overlay */}
-      <AnimatePresence>
-        {showTaskPanel && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/40"
-            onClick={() => setShowTaskPanel(false)}
-          >
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="absolute right-0 top-0 bottom-0 w-full max-w-sm bg-background shadow-xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <AITaskPanel
-                onClose={() => setShowTaskPanel(false)}
-                onAskAI={(text) => {
-                  setShowTaskPanel(false);
-                  setInput(text);
-                  setTimeout(() => handleSend(), 100);
-                }}
-              />
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {!canUseAI ? (
-        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
-            <Lock className="w-8 h-8 text-muted-foreground" />
-          </div>
-          <h3 className="font-bold text-foreground mb-2">{t('AI Assistant — Premium', 'AI Помощник — Премиум')}</h3>
-          <p className="text-muted-foreground text-sm mb-6">
-            {t('Upgrade to Basic or higher to access ProFit AI', 'Обновитесь до Basic или выше для доступа к ProFit AI')}
-          </p>
-          <button className="px-6 py-3 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-2xl font-medium">
-            {t('Upgrade Plan', 'Улучшить план')}
-          </button>
-        </div>
-      ) : (
-        <>
-          {/* Messages */}
-          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 max-w-lg mx-auto w-full space-y-4">
-            {/* Mode switching indicator */}
-            <AnimatePresence>
-              {switchingMode && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="flex items-center justify-center gap-2 py-4"
-                >
-                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                  <span className="text-sm text-muted-foreground">
-                    {t(`Loading ${activeMode}...`, `Загрузка ${activeMode}...`)}
-                  </span>
-                </motion.div>
               )}
-            </AnimatePresence>
 
-            {/* Loading history */}
-            {isLoadingHistory && !switchingMode && (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-              </div>
-            )}
-
-            {/* Empty state with briefing + chips */}
-            {messages.length === 0 && !isLoadingHistory && !switchingMode && (
-              <>
-                {/* Daily Briefing Card */}
-                <motion.div
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={cn('rounded-2xl p-4 text-white bg-gradient-to-br', briefingConfig.gradient)}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 text-lg">
-                      {briefingConfig.icon}
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-semibold text-sm mb-1">{briefingConfig.label}</div>
-                      <div className="text-white/90 text-sm leading-relaxed">
-                        {t('Tap below to get your personalized briefing for today', 'Нажмите ниже для получения персональной сводки')}
+              {/* Empty state with briefing + chips */}
+              {messages.length === 0 && !isLoadingHistory && (
+                <div className="max-w-lg mx-auto">
+                  {/* Daily Briefing Card */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={cn('rounded-2xl p-4 text-white bg-gradient-to-br', briefingConfig.gradient)}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 text-lg">
+                        {briefingConfig.icon}
                       </div>
-                      <button
-                        onClick={() => {
-                          setInput(t(`Give me a ${effectiveRole} briefing for today`, `Дай мне сводку для ${effectiveRole} на сегодня`));
-                          inputRef.current?.focus();
-                        }}
-                        className="mt-2 text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded-lg transition-colors"
-                      >
-                        {t('Get briefing →', 'Получить сводку →')}
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-
-                {/* Greeting + Chips */}
-                <div className="flex flex-col items-center justify-center text-center gap-4 py-8">
-                  <div className={cn('w-16 h-16 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-lg', config.color)}>
-                    <Sparkles className="w-8 h-8 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="font-bold text-lg text-foreground">{roleModesConfig.greeting[lang]}</h2>
-                    <p className="text-sm text-muted-foreground mt-1">{roleModesConfig.subtitle[lang]}</p>
-                  </div>
-
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={activeMode}
-                      initial={{ opacity: 0, y: -8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 8 }}
-                      transition={{ duration: 0.2 }}
-                      className="grid grid-cols-1 gap-2 w-full max-w-xs"
-                    >
-                      {currentSuggestions.map((s, i) => (
-                        <motion.button
-                          key={s}
-                          initial={{ opacity: 0, y: -6 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: i * 0.05 }}
+                      <div className="flex-1">
+                        <div className="font-semibold text-sm mb-1">{briefingConfig.label}</div>
+                        <div className="text-white/90 text-sm leading-relaxed">
+                          {t('Tap below to get your personalized briefing for today', 'Нажмите ниже для получения персональной сводки')}
+                        </div>
+                        <button
                           onClick={() => {
-                            setInput(s);
+                            setInput(t(`Give me a ${effectiveRole} briefing for today`, `Дай мне сводку для ${effectiveRole} на сегодня`));
                             inputRef.current?.focus();
                           }}
-                          className="text-left text-xs px-3 py-2.5 rounded-xl bg-background border border-border text-foreground hover:border-primary/40 transition-colors"
+                          className="mt-2 text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded-lg transition-colors"
                         >
-                          {s}
-                        </motion.button>
-                      ))}
-                    </motion.div>
-                  </AnimatePresence>
-                </div>
-              </>
-            )}
+                          {t('Get briefing →', 'Получить сводку →')}
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
 
-            {/* Messages list */}
-            {messages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className="max-w-[85%]">
-                  {msg.role === 'assistant' && msg.mode && (
-                    (() => {
-                      const modeLabel = roleModes.find((m) => m.id === msg.mode);
-                      return modeLabel ? (
-                        <div className="flex items-center gap-1 mb-1">
-                          <span className="text-[10px] bg-accent text-accent-foreground px-2 py-0.5 rounded-full font-medium">
-                            {modeLabel.label}
-                          </span>
-                        </div>
-                      ) : null;
-                    })()
-                  )}
-                  <div
-                    className={cn(
-                      'rounded-2xl px-4 py-2.5 text-sm',
-                      msg.role === 'user'
-                        ? cn('bg-gradient-to-br text-white rounded-br-md', config.color)
-                        : 'bg-background border border-border text-foreground rounded-bl-md shadow-sm'
-                    )}
-                  >
-                    {msg.role === 'assistant' ? (
-                      <MarkdownText content={msg.content} />
-                    ) : (
-                      <span className="whitespace-pre-wrap">{msg.content}</span>
-                    )}
-                    {msg.role === 'assistant' && isLoading && i === messages.length - 1 && (
-                      <span className="inline-block w-0.5 h-4 bg-primary animate-pulse ml-0.5 rounded-full align-middle" />
-                    )}
-                  </div>
-                  {/* Message actions for assistant messages */}
-                  {msg.role === 'assistant' && !isLoading && (
-                    <AIMessageActions content={msg.content} role={effectiveRole} />
-                  )}
-                </div>
-              </div>
-            ))}
+                  {/* Greeting + Chips */}
+                  <div className="flex flex-col items-center justify-center text-center gap-4 py-8">
+                    <div className={cn('w-16 h-16 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-lg', config.color)}>
+                      <Sparkles className="w-8 h-8 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="font-bold text-lg text-foreground">{roleModesConfig.greeting[lang]}</h2>
+                      <p className="text-sm text-muted-foreground mt-1">{roleModesConfig.subtitle[lang]}</p>
+                    </div>
 
-            {/* Typing indicator */}
-            {isLoading && messages[messages.length - 1]?.role === 'user' && (
-              <div className="flex justify-start">
-                <div className="bg-background border border-border rounded-2xl rounded-bl-md px-4 py-3 shadow-sm">
-                  <div className="flex gap-1">
-                    {[0, 1, 2].map((i) => (
+                    <AnimatePresence mode="wait">
                       <motion.div
+                        key={activeMode}
+                        initial={{ opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 8 }}
+                        transition={{ duration: 0.2 }}
+                        className="grid grid-cols-1 gap-2 w-full max-w-xs"
+                      >
+                        {currentSuggestions.map((s, i) => (
+                          <motion.button
+                            key={s}
+                            initial={{ opacity: 0, y: -6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.05 }}
+                            onClick={() => {
+                              setInput(s);
+                              inputRef.current?.focus();
+                            }}
+                            className="text-left text-xs px-3 py-2.5 rounded-xl bg-background border border-border text-foreground hover:border-primary/40 transition-colors"
+                          >
+                            {s}
+                          </motion.button>
+                        ))}
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
+                </div>
+              )}
+
+              {/* Messages list */}
+              <div className="max-w-lg mx-auto space-y-4">
+                {messages.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className="max-w-[85%]">
+                      {msg.role === 'assistant' && (
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <div className={cn('w-5 h-5 rounded-md bg-gradient-to-br flex items-center justify-center', config.color)}>
+                            <Sparkles className="w-3 h-3 text-white" />
+                          </div>
+                          <span className="text-[10px] text-muted-foreground font-medium">ProFit AI</span>
+                        </div>
+                      )}
+                      <div
+                        className={cn(
+                          'rounded-2xl px-4 py-2.5 text-sm',
+                          msg.role === 'user'
+                            ? cn('bg-gradient-to-br text-white rounded-br-md', config.color)
+                            : 'bg-muted/50 border border-border text-foreground rounded-bl-md'
+                        )}
+                      >
+                        {msg.role === 'assistant' ? (
+                          <MarkdownText content={msg.content} />
+                        ) : (
+                          <span className="whitespace-pre-wrap">{msg.content}</span>
+                        )}
+                        {msg.role === 'assistant' && isLoading && i === messages.length - 1 && (
+                          <span className="inline-block w-0.5 h-4 bg-primary animate-pulse ml-0.5 rounded-full align-middle" />
+                        )}
+                      </div>
+                      {msg.role === 'assistant' && !isLoading && (
+                        <AIMessageActions content={msg.content} role={effectiveRole} />
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Typing indicator */}
+                {isLoading && messages[messages.length - 1]?.role === 'user' && (
+                  <div className="flex justify-start">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <div className={cn('w-5 h-5 rounded-md bg-gradient-to-br flex items-center justify-center', config.color)}>
+                        <Sparkles className="w-3 h-3 text-white" />
+                      </div>
+                    </div>
+                    <div className="bg-muted/50 border border-border rounded-2xl rounded-bl-md px-4 py-3 ml-1.5">
+                      <div className="flex gap-1">
+                        {[0, 1, 2].map((i) => (
+                          <motion.div
+                            key={i}
+                            className="w-2 h-2 rounded-full bg-primary"
+                            animate={{ y: [0, -6, 0] }}
+                            transition={{ duration: 0.6, delay: i * 0.15, repeat: Infinity }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Follow-up suggestion chips */}
+                {suggestions.length > 0 && !isLoading && (
+                  <div className="flex flex-col gap-2 animate-in fade-in duration-300">
+                    <p className="text-xs text-muted-foreground font-medium px-1">{t('Continue asking:', 'Продолжить:')}</p>
+                    {suggestions.map((suggestion, i) => (
+                      <button
                         key={i}
-                        className="w-2 h-2 rounded-full bg-primary"
-                        animate={{ y: [0, -6, 0] }}
-                        transition={{ duration: 0.6, delay: i * 0.15, repeat: Infinity }}
-                      />
+                        onClick={() => {
+                          setInput(suggestion);
+                          setSuggestions([]);
+                          inputRef.current?.focus();
+                        }}
+                        className="text-left px-4 py-2.5 bg-background rounded-xl border border-primary/20 text-sm text-primary hover:border-primary/40 hover:bg-primary/5 transition-all shadow-sm flex items-center gap-2"
+                      >
+                        <span className="text-primary/40 text-xs">→</span>
+                        {suggestion}
+                      </button>
                     ))}
                   </div>
+                )}
+              </div>
+            </div>
+
+            {/* Recording indicator */}
+            {isRecording && (
+              <div className="flex items-center justify-center gap-2 py-1.5 bg-destructive/5">
+                <div className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
+                <span className="text-xs text-destructive font-medium">{t('Recording... tap to stop', 'Запись... нажмите для остановки')}</span>
+              </div>
+            )}
+
+            {/* Detected task prompt */}
+            {detectedTask && (
+              <div className="px-4 py-2 bg-primary/5 border-t border-primary/10">
+                <div className="max-w-lg mx-auto flex items-center justify-between gap-2">
+                  <p className="text-xs text-foreground truncate">
+                    💡 Create task: &quot;{detectedTask}&quot;?
+                  </p>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => setDetectedTask(null)}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      No
+                    </button>
+                    <button
+                      onClick={async () => {
+                        await createTask.mutateAsync({ title: detectedTask, priority: 'medium', steps: [] });
+                        setDetectedTask(null);
+                        toast({ title: '✅ Task created!' });
+                      }}
+                      className="text-xs bg-primary text-primary-foreground px-3 py-1 rounded-lg hover:bg-primary/90"
+                    >
+                      ✓ Add task
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Follow-up suggestion chips */}
-            {suggestions.length > 0 && !isLoading && (
-              <div className="flex flex-col gap-2 animate-in fade-in duration-300">
-                <p className="text-xs text-muted-foreground font-medium px-1">{t('Continue asking:', 'Продолжить:')}</p>
-                {suggestions.map((suggestion, i) => (
-                  <button
-                    key={i}
-                    onClick={() => {
-                      setInput(suggestion);
-                      setSuggestions([]);
-                      inputRef.current?.focus();
-                    }}
-                    className="text-left px-4 py-2.5 bg-background rounded-xl border border-primary/20 text-sm text-primary hover:border-primary/40 hover:bg-primary/5 transition-all shadow-sm flex items-center gap-2"
-                  >
-                    <span className="text-primary/40 text-xs">→</span>
-                    {suggestion}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Recording indicator */}
-          {isRecording && (
-            <div className="flex items-center justify-center gap-2 py-1.5 bg-destructive/5">
-              <div className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
-              <span className="text-xs text-destructive font-medium">{t('Recording... tap to stop', 'Запись... нажмите для остановки')}</span>
-            </div>
-          )}
-
-          {/* Detected task prompt */}
-          {detectedTask && (
-            <div className="px-4 py-2 bg-primary/5 border-t border-primary/10">
-              <div className="max-w-lg mx-auto flex items-center justify-between gap-2">
-                <p className="text-xs text-foreground truncate">
-                  💡 Create task: &quot;{detectedTask}&quot;?
-                </p>
-                <div className="flex gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => setDetectedTask(null)}
-                    className="text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    No
-                  </button>
-                  <button
-                    onClick={async () => {
-                      await createTask.mutateAsync({ title: detectedTask, priority: 'medium', steps: [] });
-                      setDetectedTask(null);
-                      toast({ title: '✅ Task created!' });
-                    }}
-                    className="text-xs bg-primary text-primary-foreground px-3 py-1 rounded-lg hover:bg-primary/90"
-                  >
-                    ✓ Add task
-                  </button>
-                </div>
+            {/* Input */}
+            <div className="border-t border-border bg-background px-4 py-3">
+              <div className="max-w-lg mx-auto flex items-end gap-2">
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => {
+                    setInput(e.target.value);
+                    if (suggestions.length > 0) setSuggestions([]);
+                  }}
+                  onKeyDown={handleKeyDown}
+                  placeholder={t('Ask ProFit AI...', 'Спросите ProFit AI...')}
+                  rows={1}
+                  className="flex-1 resize-none rounded-2xl border border-border bg-muted/50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent max-h-32 overflow-y-auto"
+                  style={{ minHeight: '42px' }}
+                />
+                <button
+                  onClick={toggleVoice}
+                  className={cn(
+                    'w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all',
+                    isRecording ? 'bg-destructive scale-110 shadow-lg shadow-destructive/30' : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  )}
+                >
+                  {isRecording ? <div className="w-3 h-3 bg-destructive-foreground rounded-sm" /> : <Mic className="w-4 h-4" />}
+                </button>
+                <button
+                  onClick={handleSend}
+                  disabled={!input.trim() || isLoading || messagesRemaining <= 0}
+                  className={cn(
+                    'w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center text-white disabled:opacity-40 transition-opacity flex-shrink-0',
+                    config.color
+                  )}
+                >
+                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                </button>
               </div>
             </div>
-          )}
-
-          {/* Input */}
-          <div className="border-t border-border bg-background px-4 py-3">
-            <div className="max-w-lg mx-auto flex items-end gap-2">
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={(e) => {
-                  setInput(e.target.value);
-                  if (suggestions.length > 0) setSuggestions([]);
-                }}
-                onKeyDown={handleKeyDown}
-                placeholder={t('Ask ProFit AI...', 'Спросите ProFit AI...')}
-                rows={1}
-                className="flex-1 resize-none rounded-2xl border border-border bg-muted/50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent max-h-32 overflow-y-auto"
-                style={{ minHeight: '42px' }}
-              />
-              <button
-                onClick={toggleVoice}
-                className={cn(
-                  'w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all',
-                  isRecording ? 'bg-destructive scale-110 shadow-lg shadow-destructive/30' : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                )}
-              >
-                {isRecording ? <div className="w-3 h-3 bg-destructive-foreground rounded-sm" /> : <Mic className="w-4 h-4" />}
-              </button>
-              <button
-                onClick={handleSend}
-                disabled={!input.trim() || isLoading || messagesRemaining <= 0}
-                className={cn(
-                  'w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center text-white disabled:opacity-40 transition-opacity flex-shrink-0',
-                  config.color
-                )}
-              >
-                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
