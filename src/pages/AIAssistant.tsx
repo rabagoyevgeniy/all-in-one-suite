@@ -894,6 +894,35 @@ export default function AIAssistant() {
             </div>
           )}
 
+          {/* Detected task prompt */}
+          {detectedTask && (
+            <div className="px-4 py-2 bg-primary/5 border-t border-primary/10">
+              <div className="max-w-lg mx-auto flex items-center justify-between gap-2">
+                <p className="text-xs text-foreground truncate">
+                  💡 Create task: &quot;{detectedTask}&quot;?
+                </p>
+                <div className="flex gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => setDetectedTask(null)}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    No
+                  </button>
+                  <button
+                    onClick={async () => {
+                      await createTask.mutateAsync({ title: detectedTask, priority: 'medium', steps: [] });
+                      setDetectedTask(null);
+                      toast({ title: '✅ Task created!' });
+                    }}
+                    className="text-xs bg-primary text-primary-foreground px-3 py-1 rounded-lg hover:bg-primary/90"
+                  >
+                    ✓ Add task
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Input */}
           <div className="border-t border-border bg-background px-4 py-3">
             <div className="max-w-lg mx-auto flex items-end gap-2">
