@@ -7,7 +7,7 @@ import {
   Calendar, Target, FileText,
   TrendingUp, Home, CreditCard,
   Star, Swords, Lightbulb,
-  Clock, Search, X, Copy, Pin, ChevronRight
+  Clock, Search, X, Copy, Pin, ChevronRight, CheckSquare
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/stores/authStore';
