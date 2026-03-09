@@ -3,21 +3,32 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 
 export interface AITaskStep {
+  id: string;
   text: string;
   done: boolean;
+  due_date?: string | null;
+  notes?: string | null;
 }
 
 export interface AITask {
   id: string;
   user_id: string;
+  conversation_id?: string | null;
   title: string;
   description?: string | null;
   status: string;
   priority: string;
   category: string | null;
+  progress_percent: number;
   due_date?: string | null;
   steps: AITaskStep[];
-  ai_notes?: string | null;
+  ai_plan?: string | null;
+  ai_last_advice?: string | null;
+  ai_check_count: number;
+  reminder_at?: string | null;
+  reminder_sent: boolean;
+  notify_admin: boolean;
+  assigned_to?: string | null;
   created_at: string;
   completed_at?: string | null;
   updated_at: string;
@@ -40,6 +51,10 @@ export function useAITasks() {
       return (data ?? []).map((t: any) => ({
         ...t,
         steps: Array.isArray(t.steps) ? t.steps : [],
+        progress_percent: t.progress_percent ?? 0,
+        ai_check_count: t.ai_check_count ?? 0,
+        reminder_sent: t.reminder_sent ?? false,
+        notify_admin: t.notify_admin ?? false,
       })) as AITask[];
     },
     enabled: !!user?.id,
@@ -58,7 +73,8 @@ export function useAITasks() {
           category: task.category ?? 'general',
           due_date: task.due_date ?? null,
           steps: (task.steps ?? []) as unknown as any,
-          ai_notes: task.ai_notes ?? null,
+          ai_plan: task.ai_plan ?? null,
+          notify_admin: task.notify_admin ?? false,
         } as any)
         .select()
         .single();
@@ -70,7 +86,10 @@ export function useAITasks() {
 
   const updateTask = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<AITask> & { id: string }) => {
-      const payload: any = { ...updates, updated_at: new Date().toISOString() };
+      const payload: any = { ...updates };
+      if (updates.steps) {
+        payload.steps = updates.steps as any;
+      }
       const { data, error } = await supabase
         .from('ai_tasks')
         .update(payload)
@@ -89,12 +108,37 @@ export function useAITasks() {
     const newSteps = task.steps.map((s, i) =>
       i === stepIndex ? { ...s, done: !s.done } : s
     );
+    const doneCount = newSteps.filter((s) => s.done).length;
+    const progress = newSteps.length > 0 ? Math.round((doneCount / newSteps.length) * 100) : 0;
     const allDone = newSteps.length > 0 && newSteps.every((s) => s.done);
     await updateTask.mutateAsync({
       id: taskId,
       steps: newSteps as any,
+      progress_percent: progress,
       status: allDone ? 'done' : task.status,
       ...(allDone ? { completed_at: new Date().toISOString() } : {}),
+    });
+  };
+
+  const addStep = async (taskId: string, text: string) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    const newStep: AITaskStep = { id: String(task.steps.length + 1), text, done: false };
+    const newSteps = [...task.steps, newStep];
+    const doneCount = newSteps.filter((s) => s.done).length;
+    const progress = Math.round((doneCount / newSteps.length) * 100);
+    await updateTask.mutateAsync({
+      id: taskId,
+      steps: newSteps as any,
+      progress_percent: progress,
+    });
+  };
+
+  const setReminder = async (taskId: string, reminderAt: string, notifyAdmin: boolean) => {
+    await updateTask.mutateAsync({
+      id: taskId,
+      reminder_at: reminderAt,
+      notify_admin: notifyAdmin,
     });
   };
 
@@ -103,14 +147,20 @@ export function useAITasks() {
   const urgentCount = tasks.filter(
     (t) => t.priority === 'urgent' && t.status !== 'done'
   ).length;
+  const overdueTasks = tasks.filter(
+    (t) => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'done'
+  );
 
   return {
     tasks,
     activeTasks,
     completedTasks,
     urgentCount,
+    overdueTasks,
     createTask,
     updateTask,
     toggleStep,
+    addStep,
+    setReminder,
   };
 }

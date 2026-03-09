@@ -168,53 +168,133 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_task_reminders: {
+        Row: {
+          id: string
+          message: string | null
+          reminder_type: string | null
+          sent_at: string | null
+          sent_to: string | null
+          task_id: string | null
+        }
+        Insert: {
+          id?: string
+          message?: string | null
+          reminder_type?: string | null
+          sent_at?: string | null
+          sent_to?: string | null
+          task_id?: string | null
+        }
+        Update: {
+          id?: string
+          message?: string | null
+          reminder_type?: string | null
+          sent_at?: string | null
+          sent_to?: string | null
+          task_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_task_reminders_sent_to_fkey"
+            columns: ["sent_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_task_reminders_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "ai_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_tasks: {
         Row: {
-          ai_notes: string | null
+          ai_check_count: number | null
+          ai_last_advice: string | null
+          ai_plan: string | null
+          assigned_to: string | null
           category: string | null
           completed_at: string | null
+          conversation_id: string | null
           created_at: string
           description: string | null
           due_date: string | null
           id: string
+          notify_admin: boolean | null
           priority: string
+          progress_percent: number | null
+          reminder_at: string | null
+          reminder_sent: boolean | null
           status: string
-          steps: Json
+          steps: Json | null
           title: string
           updated_at: string
           user_id: string
         }
         Insert: {
-          ai_notes?: string | null
+          ai_check_count?: number | null
+          ai_last_advice?: string | null
+          ai_plan?: string | null
+          assigned_to?: string | null
           category?: string | null
           completed_at?: string | null
+          conversation_id?: string | null
           created_at?: string
           description?: string | null
           due_date?: string | null
           id?: string
+          notify_admin?: boolean | null
           priority?: string
+          progress_percent?: number | null
+          reminder_at?: string | null
+          reminder_sent?: boolean | null
           status?: string
-          steps?: Json
+          steps?: Json | null
           title: string
           updated_at?: string
           user_id: string
         }
         Update: {
-          ai_notes?: string | null
+          ai_check_count?: number | null
+          ai_last_advice?: string | null
+          ai_plan?: string | null
+          assigned_to?: string | null
           category?: string | null
           completed_at?: string | null
+          conversation_id?: string | null
           created_at?: string
           description?: string | null
           due_date?: string | null
           id?: string
+          notify_admin?: boolean | null
           priority?: string
+          progress_percent?: number | null
+          reminder_at?: string | null
+          reminder_sent?: boolean | null
           status?: string
-          steps?: Json
+          steps?: Json | null
           title?: string
           updated_at?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "ai_tasks_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_tasks_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_conversations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ai_tasks_user_id_fkey"
             columns: ["user_id"]
