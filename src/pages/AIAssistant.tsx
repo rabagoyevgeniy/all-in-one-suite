@@ -272,14 +272,17 @@ export default function AIAssistant() {
       const decoder = new TextDecoder();
       let buffer = '';
 
+      const cleanSuggestionMarker = (text: string) => text.replace(/\n?<!--SUGGESTIONS:\s*\[.*?\]\s*-->/s, '').trimEnd();
+
       const upsertAssistant = (chunk: string) => {
         assistantSoFar += chunk;
+        const cleaned = cleanSuggestionMarker(assistantSoFar);
         setMessages(prev => {
           const last = prev[prev.length - 1];
           if (last?.role === 'assistant') {
-            return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
+            return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: cleaned } : m);
           }
-          return [...prev, { role: 'assistant', content: assistantSoFar, mode: activeMode }];
+          return [...prev, { role: 'assistant', content: cleaned, mode: activeMode }];
         });
       };
 
