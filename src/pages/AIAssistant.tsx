@@ -300,6 +300,10 @@ export default function AIAssistant() {
             if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
               upsertAssistant(parsed.delta.text);
             }
+            // Capture suggestions from custom event
+            if (parsed.type === 'suggestions' && Array.isArray(parsed.suggestions)) {
+              setSuggestions(parsed.suggestions);
+            }
           } catch { /* partial JSON */ }
         }
       }
