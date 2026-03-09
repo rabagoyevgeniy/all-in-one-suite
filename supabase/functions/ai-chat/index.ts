@@ -155,6 +155,9 @@ serve(async (req) => {
 
     const modePrompt = MODE_PROMPTS[mode] || "";
     const contextLine = `\nCurrent user: ${userName}, role: ${role}, city: ${userCity}, preferred language: ${userLang}.`;
+    const suggestionsInstruction = `\nIMPORTANT: After your main response, on a NEW LINE, output exactly this format (no extra text around it):
+<!--SUGGESTIONS:["suggestion 1","suggestion 2","suggestion 3"]-->
+The 3 suggestions should be short follow-up questions the user might ask next, relevant to the current topic and mode (${mode}). Write them in ${userLang === 'ru' ? 'Russian' : 'English'}.`;
 
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) {
@@ -171,7 +174,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
         max_tokens: 1024,
-        system: systemPrompt + modePrompt + contextLine,
+        system: systemPrompt + modePrompt + contextLine + suggestionsInstruction,
         messages: messages.map((m: any) => ({
           role: m.role,
           content: m.content,
@@ -197,7 +200,64 @@ serve(async (req) => {
       });
     }
 
-    return new Response(response.body, {
+    // Pipe the Anthropic stream, accumulate text, extract suggestions at the end
+    const upstream = response.body!;
+    const { readable, writable } = new TransformStream();
+    const writer = writable.getWriter();
+    const encoder = new TextEncoder();
+
+    (async () => {
+      const reader = upstream.getReader();
+      const decoder = new TextDecoder();
+      let fullText = "";
+      let buffer = "";
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          buffer += chunk;
+
+          // Forward raw SSE to client
+          await writer.write(value);
+
+          // Accumulate text for suggestion extraction
+          let idx: number;
+          while ((idx = buffer.indexOf("\n")) !== -1) {
+            const line = buffer.slice(0, idx).replace(/\r$/, "");
+            buffer = buffer.slice(idx + 1);
+            if (!line.startsWith("data: ")) continue;
+            const jsonStr = line.slice(6).trim();
+            if (jsonStr === "[DONE]") continue;
+            try {
+              const parsed = JSON.parse(jsonStr);
+              if (parsed.type === "content_block_delta" && parsed.delta?.text) {
+                fullText += parsed.delta.text;
+              }
+            } catch { /* ignore */ }
+          }
+        }
+
+        // Extract suggestions from the accumulated text
+        const sugMatch = fullText.match(/<!--SUGGESTIONS:\s*(\[.*?\])\s*-->/);
+        if (sugMatch) {
+          try {
+            const suggestions = JSON.parse(sugMatch[1]);
+            if (Array.isArray(suggestions)) {
+              const sugEvent = `data: ${JSON.stringify({ type: "suggestions", suggestions: suggestions.slice(0, 3) })}\n\n`;
+              await writer.write(encoder.encode(sugEvent));
+            }
+          } catch { /* ignore parse error */ }
+        }
+      } catch (e) {
+        console.error("Stream pipe error:", e);
+      } finally {
+        await writer.close();
+      }
+    })();
+
+    return new Response(readable, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (e) {
