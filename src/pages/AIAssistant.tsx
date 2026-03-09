@@ -216,6 +216,15 @@ export default function AIAssistant() {
     }
   }, [activeConversationId]);
 
+  // Restore conversation when returning from quick-link navigation
+  useEffect(() => {
+    const savedId = sessionStorage.getItem('ai_conversation_id');
+    if (savedId && savedId !== activeConversationId) {
+      setActiveConversationId(savedId);
+      sessionStorage.removeItem('ai_conversation_id');
+    }
+  }, []);
+
   const effectiveRole = role || null;
   const config = effectiveRole ? (ROLE_CONFIG[effectiveRole] || DEFAULT_ROLE_CONFIG) : DEFAULT_ROLE_CONFIG;
   const lang = language === 'ru' ? 'ru' : 'en';
