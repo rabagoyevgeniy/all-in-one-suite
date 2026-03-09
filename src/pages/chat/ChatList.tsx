@@ -190,7 +190,18 @@ export default function ChatList() {
         </div>
         {room.last_message && (
           <p className="text-xs text-muted-foreground truncate mt-0.5">
-            {room.last_message.length > 40 ? room.last_message.slice(0, 40) + '…' : room.last_message}
+            {(() => {
+              const msg = room.last_message;
+              // Format voice message display
+              const voiceMatch = msg.match(/^Voice message \((\d+\.?\d*)\)$/);
+              if (voiceMatch) {
+                const secs = Math.round(parseFloat(voiceMatch[1]) * (parseFloat(voiceMatch[1]) < 1 ? 100 : 1));
+                const mins = Math.floor(secs / 60);
+                const s = secs % 60;
+                return `🎤 Voice message · ${mins}:${String(s).padStart(2, '0')}`;
+              }
+              return msg.length > 40 ? msg.slice(0, 40) + '…' : msg;
+            })()}
           </p>
         )}
       </div>
@@ -267,7 +278,7 @@ export default function ChatList() {
                 )
               )}
             </div>
-          ) : emptyState(t('No groups yet', 'Пока нет групп'))}
+          ) : emptyState(t('No groups yet. Your coach can add you to a group lesson.', 'Пока нет групп. Тренер может добавить вас в групповое занятие.'))}
         </TabsContent>
 
         <TabsContent value="community">
@@ -295,7 +306,17 @@ export default function ChatList() {
                     </div>
                     {room.last_message && (
                       <p className="text-xs text-muted-foreground truncate mt-0.5">
-                        {room.last_message.length > 40 ? room.last_message.slice(0, 40) + '…' : room.last_message}
+                        {(() => {
+                          const msg = room.last_message;
+                          const voiceMatch = msg.match(/^Voice message \((\d+\.?\d*)\)$/);
+                          if (voiceMatch) {
+                            const secs = Math.round(parseFloat(voiceMatch[1]) * (parseFloat(voiceMatch[1]) < 1 ? 100 : 1));
+                            const mins = Math.floor(secs / 60);
+                            const s = secs % 60;
+                            return `🎤 Voice message · ${mins}:${String(s).padStart(2, '0')}`;
+                          }
+                          return msg.length > 40 ? msg.slice(0, 40) + '…' : msg;
+                        })()}
                       </p>
                     )}
                   </div>
@@ -359,8 +380,8 @@ export default function ChatList() {
 
               {(!communityRooms || communityRooms.length === 0) && (
                 <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <MessageCircle size={36} className="text-muted-foreground mb-3" />
-                  <p className="text-sm text-muted-foreground">{t('No community channels', 'Нет каналов сообщества')}</p>
+                  <Globe size={36} className="text-muted-foreground mb-3" />
+                  <p className="text-sm text-muted-foreground">{t('No communities yet. Communities are created by admins and coaches.', 'Пока нет сообществ. Сообщества создаются администраторами и тренерами.')}</p>
                 </div>
               )}
             </div>

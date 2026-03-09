@@ -180,8 +180,10 @@ export default function ParentDashboard() {
     }
   };
 
-  // Realtime coach GPS tracking
-  const activeBooking = upcomingBookings?.[0] as any;
+  // Find first booking with a valid time_slot for the hero card
+  const activeBooking = (upcomingBookings as any[])?.find(
+    (b: any) => b.time_slots?.date && b.time_slots?.start_time
+  ) || upcomingBookings?.[0] as any;
   const trackingCoachId = activeBooking?.coach_id;
 
   useEffect(() => {
