@@ -57,9 +57,9 @@ export function useAITasks() {
           priority: task.priority ?? 'medium',
           category: task.category ?? 'general',
           due_date: task.due_date ?? null,
-          steps: task.steps ?? [],
+          steps: (task.steps ?? []) as unknown as any,
           ai_notes: task.ai_notes ?? null,
-        })
+        } as any)
         .select()
         .single();
       if (error) throw error;
