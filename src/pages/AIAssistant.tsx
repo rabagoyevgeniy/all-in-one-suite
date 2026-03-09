@@ -662,7 +662,37 @@ export default function AIAssistant() {
         )}
       </AnimatePresence>
 
-      {!canUseAI ? (
+      {/* Task Panel Overlay */}
+      <AnimatePresence>
+        {showTaskPanel && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/40"
+            onClick={() => setShowTaskPanel(false)}
+          >
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="absolute right-0 top-0 bottom-0 w-full max-w-sm bg-background shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <AITaskPanel
+                onClose={() => setShowTaskPanel(false)}
+                onAskAI={(text) => {
+                  setShowTaskPanel(false);
+                  setInput(text);
+                  setTimeout(() => handleSend(), 100);
+                }}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
         <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
           <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
             <Lock className="w-8 h-8 text-muted-foreground" />
