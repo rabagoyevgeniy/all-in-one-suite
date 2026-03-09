@@ -522,13 +522,17 @@ export default function AIAssistant() {
         {/* Header */}
         <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border px-4 py-3">
           <div className="flex items-center gap-3">
-            {/* Mobile: hamburger toggle, Desktop: sidebar toggle */}
+            {/* ALWAYS VISIBLE sidebar toggle */}
             <button
               onClick={() => setSidebarOpen(prev => !prev)}
-              className="p-2 rounded-lg hover:bg-muted transition-colors"
-              aria-label="Toggle sidebar"
+              className="p-2 rounded-lg hover:bg-muted transition-colors flex-shrink-0"
+              aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
             >
-              {sidebarOpen && isMobile ? <X className="w-5 h-5 text-foreground" /> : <Menu className="w-5 h-5 text-foreground" />}
+              {sidebarOpen
+                ? <PanelLeftClose className="w-5 h-5 text-foreground" />
+                : <Menu className="w-5 h-5 text-foreground" />
+              }
+            </button>
             </button>
 
             <div className={cn('w-9 h-9 rounded-xl bg-gradient-to-br flex items-center justify-center', config.color)}>
