@@ -533,7 +533,6 @@ export default function AIAssistant() {
                 : <Menu className="w-5 h-5 text-foreground" />
               }
             </button>
-            </button>
 
             <div className={cn('w-9 h-9 rounded-xl bg-gradient-to-br flex items-center justify-center', config.color)}>
               <Sparkles className="w-5 h-5 text-white" />
