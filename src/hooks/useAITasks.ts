@@ -70,9 +70,10 @@ export function useAITasks() {
 
   const updateTask = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<AITask> & { id: string }) => {
+      const payload: any = { ...updates, updated_at: new Date().toISOString() };
       const { data, error } = await supabase
         .from('ai_tasks')
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update(payload)
         .eq('id', id)
         .select()
         .single();
