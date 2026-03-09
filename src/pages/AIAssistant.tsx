@@ -8,7 +8,7 @@ import {
   TrendingUp, Home, CreditCard,
   Star, Swords, Lightbulb,
   Clock, Search, X, Copy, ChevronRight, CheckSquare,
-  Menu, PanelLeftOpen,
+  Menu, PanelLeftOpen, PanelLeftClose,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/stores/authStore';
