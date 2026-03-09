@@ -744,7 +744,7 @@ export default function AIAssistant() {
                       <Sparkles className="w-8 h-8 text-white" />
                     </div>
                     <div>
-                      <h2 className="font-bold text-lg text-foreground">{roleModesConfig.greeting[lang]}</h2>
+                      <h2 className="font-bold text-lg text-foreground">{roleModesConfig.greeting[lang].replace('{name}', user?.user_metadata?.full_name ? `, ${user.user_metadata.full_name.split(' ')[0]}` : '')}</h2>
                       <p className="text-sm text-muted-foreground mt-1">{roleModesConfig.subtitle[lang]}</p>
                     </div>
 

@@ -74,6 +74,23 @@ export function BottomNav({ role }: { role: UserRole }) {
     refetchInterval: 30000,
   });
 
+  // Pending rating badge for parent home
+  const { data: hasPendingRating } = useQuery({
+    queryKey: ['parent-pending-rating', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return false;
+      const { count } = await supabase
+        .from('bookings')
+        .select('id', { count: 'exact', head: true })
+        .eq('parent_id', user.id)
+        .eq('status', 'completed')
+        .is('reviewed_at', null);
+      return (count ?? 0) > 0;
+    },
+    enabled: !!user?.id && role === 'parent',
+    refetchInterval: 60000,
+  });
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-lg border-t border-border safe-area-bottom">
       <div className="flex justify-around items-center h-16 max-w-lg mx-auto px-2">
