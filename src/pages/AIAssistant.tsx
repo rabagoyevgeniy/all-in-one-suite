@@ -127,6 +127,7 @@ export default function AIAssistant() {
   const { language, t } = useLanguage();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const roleModesConfig = ROLE_MODES[role || 'parent'] || ROLE_MODES.parent;
   const roleModes = roleModesConfig.modes;
@@ -237,6 +238,7 @@ export default function AIAssistant() {
 
     const userMsg: Msg = { role: 'user', content: text, mode: activeMode };
     setInput('');
+    setSuggestions([]);
     setMessages(prev => [...prev, userMsg]);
     setIsLoading(true);
     let assistantSoFar = '';
@@ -270,14 +272,17 @@ export default function AIAssistant() {
       const decoder = new TextDecoder();
       let buffer = '';
 
+      const cleanSuggestionMarker = (text: string) => text.replace(/\n?<!--SUGGESTIONS:\s*\[.*?\]\s*-->/s, '').trimEnd();
+
       const upsertAssistant = (chunk: string) => {
         assistantSoFar += chunk;
+        const cleaned = cleanSuggestionMarker(assistantSoFar);
         setMessages(prev => {
           const last = prev[prev.length - 1];
           if (last?.role === 'assistant') {
-            return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
+            return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: cleaned } : m);
           }
-          return [...prev, { role: 'assistant', content: assistantSoFar, mode: activeMode }];
+          return [...prev, { role: 'assistant', content: cleaned, mode: activeMode }];
         });
       };
 
@@ -297,6 +302,10 @@ export default function AIAssistant() {
             const parsed = JSON.parse(jsonStr);
             if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
               upsertAssistant(parsed.delta.text);
+            }
+            // Capture suggestions from custom event
+            if (parsed.type === 'suggestions' && Array.isArray(parsed.suggestions)) {
+              setSuggestions(parsed.suggestions);
             }
           } catch { /* partial JSON */ }
         }
@@ -600,6 +609,27 @@ export default function AIAssistant() {
                 </div>
               </div>
             )}
+
+            {/* Follow-up suggestion chips */}
+            {suggestions.length > 0 && !isLoading && (
+              <div className="flex flex-col gap-2 animate-in fade-in duration-300">
+                <p className="text-xs text-muted-foreground font-medium px-1">
+                  {t('Continue asking:', 'Продолжить:')}
+                </p>
+                {suggestions.map((suggestion, i) => (
+                  <button
+                    key={i}
+                    onClick={() => { setInput(suggestion); setSuggestions([]); inputRef.current?.focus(); }}
+                    className="text-left px-4 py-2.5 bg-background rounded-xl border border-primary/20 
+                               text-sm text-primary hover:border-primary/40 hover:bg-primary/5 
+                               transition-all shadow-sm flex items-center gap-2"
+                  >
+                    <span className="text-primary/40 text-xs">→</span>
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Recording indicator */}
@@ -618,7 +648,7 @@ export default function AIAssistant() {
               <textarea
                 ref={inputRef}
                 value={input}
-                onChange={e => setInput(e.target.value)}
+                onChange={e => { setInput(e.target.value); if (suggestions.length > 0) setSuggestions([]); }}
                 onKeyDown={handleKeyDown}
                 placeholder={t('Ask ProFit AI...', 'Спросите ProFit AI...')}
                 rows={1}
