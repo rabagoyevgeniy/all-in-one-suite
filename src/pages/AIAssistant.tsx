@@ -620,7 +620,7 @@ export default function AIAssistant() {
               <textarea
                 ref={inputRef}
                 value={input}
-                onChange={e => setInput(e.target.value)}
+                onChange={e => { setInput(e.target.value); if (suggestions.length > 0) setSuggestions([]); }}
                 onKeyDown={handleKeyDown}
                 placeholder={t('Ask ProFit AI...', 'Спросите ProFit AI...')}
                 rows={1}
