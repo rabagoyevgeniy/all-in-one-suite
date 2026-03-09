@@ -127,6 +127,7 @@ export default function AIAssistant() {
   const { language, t } = useLanguage();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const roleModesConfig = ROLE_MODES[role || 'parent'] || ROLE_MODES.parent;
   const roleModes = roleModesConfig.modes;
