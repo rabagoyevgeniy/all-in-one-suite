@@ -8,7 +8,7 @@ import {
   TrendingUp, Home, CreditCard,
   Star, Swords, Lightbulb,
   Clock, Search, X, Copy, ChevronRight, CheckSquare,
-  Menu, PanelLeftOpen,
+  Menu, PanelLeftOpen, PanelLeftClose,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/stores/authStore';
@@ -192,7 +192,7 @@ export default function AIAssistant() {
   const [isRecording, setIsRecording] = useState(false);
   const [showTaskPanel, setShowTaskPanel] = useState(false);
   const [detectedTask, setDetectedTask] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -522,13 +522,16 @@ export default function AIAssistant() {
         {/* Header */}
         <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border px-4 py-3">
           <div className="flex items-center gap-3">
-            {/* Mobile: hamburger toggle, Desktop: sidebar toggle */}
+            {/* ALWAYS VISIBLE sidebar toggle */}
             <button
               onClick={() => setSidebarOpen(prev => !prev)}
-              className="p-2 rounded-lg hover:bg-muted transition-colors"
-              aria-label="Toggle sidebar"
+              className="p-2 rounded-lg hover:bg-muted transition-colors flex-shrink-0"
+              aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
             >
-              {sidebarOpen && isMobile ? <X className="w-5 h-5 text-foreground" /> : <Menu className="w-5 h-5 text-foreground" />}
+              {sidebarOpen
+                ? <PanelLeftClose className="w-5 h-5 text-foreground" />
+                : <Menu className="w-5 h-5 text-foreground" />
+              }
             </button>
 
             <div className={cn('w-9 h-9 rounded-xl bg-gradient-to-br flex items-center justify-center', config.color)}>
