@@ -284,37 +284,35 @@ export function AIConversationSidebar({
     </div>
   );
 
-  // Mobile: drawer overlay — always render portal, animate open/close
+  // Mobile: drawer overlay
   if (isMobile) {
     return (
       <>
-        {/* Backdrop */}
-        <AnimatePresence>
-          {isOpen && (
-            <motion.div
-              key="sidebar-backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[60] bg-black/40"
-              onClick={onClose}
-            />
-          )}
-        </AnimatePresence>
-        {/* Drawer panel */}
+        {/* Backdrop — always in DOM, pointer-events controlled */}
         <div
           className={cn(
-            'fixed left-0 top-0 bottom-0 w-[280px] z-[61] shadow-xl transition-transform duration-300 ease-in-out',
+            'fixed inset-0 z-[100] bg-black/50 transition-opacity duration-300',
+            isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+          )}
+          onClick={onClose}
+        />
+        {/* Drawer panel */}
+        <aside
+          className={cn(
+            'fixed left-0 top-0 bottom-0 w-[280px] z-[101] shadow-2xl',
+            'bg-background transition-transform duration-300 ease-in-out',
             isOpen ? 'translate-x-0' : '-translate-x-full'
           )}
         >
           {sidebarContent}
-        </div>
+        </aside>
       </>
     );
   }
 
-  // Desktop: fixed panel
+  // Desktop: collapsible panel
+  if (!isOpen) return null;
+
   return (
     <div className="w-[260px] flex-shrink-0 h-full">
       {sidebarContent}

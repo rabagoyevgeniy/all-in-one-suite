@@ -121,30 +121,39 @@ function MarkdownText({ content }: { content: string }) {
 // --- Message Actions ---
 function AIMessageActions({ content, role: userRole }: { content: string; role: string }) {
   const navigate = useNavigate();
+
+  const handleQuickLink = (path: string) => {
+    const currentUrl = window.location.pathname + window.location.search;
+    sessionStorage.setItem('ai_return_url', currentUrl);
+    const convId = sessionStorage.getItem('profit_ai_active_conversation');
+    if (convId) sessionStorage.setItem('ai_conversation_id', convId);
+    navigate(path, { state: { from: 'ai-assistant' } });
+  };
+
   const actions: { label: string; onClick: () => void }[] = [];
   const lc = content.toLowerCase();
 
   if (lc.match(/lesson|schedule|booking|урок|расписание/)) {
     if (userRole === 'admin' || userRole === 'head_manager')
-      actions.push({ label: '📅 Bookings', onClick: () => navigate('/admin/bookings') });
+      actions.push({ label: '📅 Bookings', onClick: () => handleQuickLink('/admin/bookings') });
     if (userRole === 'coach')
-      actions.push({ label: '📅 Schedule', onClick: () => navigate('/coach/schedule') });
+      actions.push({ label: '📅 Schedule', onClick: () => handleQuickLink('/coach/schedule') });
     if (userRole === 'parent')
-      actions.push({ label: '📅 My Bookings', onClick: () => navigate('/parent/booking') });
+      actions.push({ label: '📅 My Bookings', onClick: () => handleQuickLink('/parent/booking') });
   }
 
   if (lc.match(/payment|aed|revenue|платёж|выручка/)) {
     if (userRole === 'admin' || userRole === 'head_manager')
-      actions.push({ label: '💰 Finance', onClick: () => navigate('/admin/financial') });
+      actions.push({ label: '💰 Finance', onClick: () => handleQuickLink('/admin/financial') });
     else
-      actions.push({ label: '💳 Payments', onClick: () => navigate('/parent/payments') });
+      actions.push({ label: '💳 Payments', onClick: () => handleQuickLink('/parent/payments') });
   }
 
   if (lc.includes('coach') && (userRole === 'admin' || userRole === 'head_manager'))
-    actions.push({ label: '🏊 Coaches', onClick: () => navigate('/admin/coaches') });
+    actions.push({ label: '🏊 Coaches', onClick: () => handleQuickLink('/admin/coaches') });
 
   if (lc.match(/student|ученик/) && (userRole === 'admin' || userRole === 'head_manager'))
-    actions.push({ label: '👦 Clients', onClick: () => navigate('/admin/clients') });
+    actions.push({ label: '👦 Clients', onClick: () => handleQuickLink('/admin/clients') });
 
   const copyText = () => {
     navigator.clipboard.writeText(content);
@@ -183,7 +192,7 @@ export default function AIAssistant() {
   const [isRecording, setIsRecording] = useState(false);
   const [showTaskPanel, setShowTaskPanel] = useState(false);
   const [detectedTask, setDetectedTask] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -206,6 +215,15 @@ export default function AIAssistant() {
       sessionStorage.setItem('profit_ai_active_conversation', activeConversationId);
     }
   }, [activeConversationId]);
+
+  // Restore conversation when returning from quick-link navigation
+  useEffect(() => {
+    const savedId = sessionStorage.getItem('ai_conversation_id');
+    if (savedId && savedId !== activeConversationId) {
+      setActiveConversationId(savedId);
+      sessionStorage.removeItem('ai_conversation_id');
+    }
+  }, []);
 
   const effectiveRole = role || null;
   const config = effectiveRole ? (ROLE_CONFIG[effectiveRole] || DEFAULT_ROLE_CONFIG) : DEFAULT_ROLE_CONFIG;
@@ -504,16 +522,14 @@ export default function AIAssistant() {
         {/* Header */}
         <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border px-4 py-3">
           <div className="flex items-center gap-3">
-            {/* Menu / Back button */}
-            {isMobile ? (
-              <button onClick={() => setSidebarOpen(true)} className="p-1">
-                <Menu className="w-5 h-5 text-foreground" />
-              </button>
-            ) : (
-              <button onClick={() => navigate(-1)} className="p-1">
-                <ArrowLeft className="w-5 h-5 text-foreground" />
-              </button>
-            )}
+            {/* Mobile: hamburger toggle, Desktop: sidebar toggle */}
+            <button
+              onClick={() => setSidebarOpen(prev => !prev)}
+              className="p-2 rounded-lg hover:bg-muted transition-colors"
+              aria-label="Toggle sidebar"
+            >
+              {sidebarOpen && isMobile ? <X className="w-5 h-5 text-foreground" /> : <Menu className="w-5 h-5 text-foreground" />}
+            </button>
 
             <div className={cn('w-9 h-9 rounded-xl bg-gradient-to-br flex items-center justify-center', config.color)}>
               <Sparkles className="w-5 h-5 text-white" />
