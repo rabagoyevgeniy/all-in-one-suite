@@ -192,7 +192,7 @@ export default function AIAssistant() {
   const [isRecording, setIsRecording] = useState(false);
   const [showTaskPanel, setShowTaskPanel] = useState(false);
   const [detectedTask, setDetectedTask] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<any>(null);
