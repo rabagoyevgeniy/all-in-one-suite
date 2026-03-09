@@ -450,6 +450,19 @@ export default function AIAssistant() {
             <Search className="w-4 h-4 text-muted-foreground" />
           </button>
 
+          {/* Tasks button */}
+          <button
+            onClick={() => setShowTaskPanel(!showTaskPanel)}
+            className="relative w-9 h-9 flex items-center justify-center rounded-xl bg-muted hover:bg-accent transition-colors"
+          >
+            <CheckSquare className="w-4 h-4 text-muted-foreground" />
+            {urgentCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[9px] flex items-center justify-center font-bold">
+                {urgentCount}
+              </span>
+            )}
+          </button>
+
           {/* History button */}
           <button
             onClick={() => { setShowHistory(true); refetchHistory(); }}
