@@ -304,6 +304,20 @@ export default function AIAssistant() {
     setInput('');
     setSuggestions([]);
 
+    // Detect task intent
+    const TASK_PATTERNS = [
+      /^(?:create|add|make|set)?\s*(?:a\s+)?task[:\s]+(.+)/i,
+      /^remind me to\s+(.+)/i,
+      /^(?:i need to|i have to|i should)\s+(.+)/i,
+      /^todo[:\s]+(.+)/i,
+    ];
+    let taskTitle: string | null = null;
+    for (const pattern of TASK_PATTERNS) {
+      const match = text.match(pattern);
+      if (match) { taskTitle = match[match.length - 1].trim(); break; }
+    }
+    if (taskTitle) setDetectedTask(taskTitle);
+
     try {
       await incrementUsage();
       await sendMessage(text, (sugg) => setSuggestions(sugg));
