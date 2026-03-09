@@ -61,7 +61,7 @@ const ROLE_MODES: Record<string, RoleModeConfig> = {
     ],
   },
   parent: {
-    greeting: { en: 'Hello! 👋', ru: 'Привет! 👋' },
+    greeting: { en: 'Hello{name}! 👋', ru: 'Привет{name}! 👋' },
     subtitle: { en: "Track your child's swimming journey", ru: 'Следите за прогрессом вашего ребёнка' },
     modes: [
       { id: 'progress', label: '📈 Progress', chips: { en: ['How is my child progressing?', 'What belt level is my child at?', 'How many lessons until next belt test?', 'Show recent achievements'], ru: ['Как прогрессирует мой ребёнок?', 'Какой пояс у моего ребёнка?', 'Сколько уроков до следующего теста?', 'Показать последние достижения'] } },
@@ -744,7 +744,7 @@ export default function AIAssistant() {
                       <Sparkles className="w-8 h-8 text-white" />
                     </div>
                     <div>
-                      <h2 className="font-bold text-lg text-foreground">{roleModesConfig.greeting[lang]}</h2>
+                      <h2 className="font-bold text-lg text-foreground">{roleModesConfig.greeting[lang].replace('{name}', user?.user_metadata?.full_name ? `, ${user.user_metadata.full_name.split(' ')[0]}` : '')}</h2>
                       <p className="text-sm text-muted-foreground mt-1">{roleModesConfig.subtitle[lang]}</p>
                     </div>
 

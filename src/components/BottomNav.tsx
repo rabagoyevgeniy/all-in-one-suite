@@ -74,6 +74,23 @@ export function BottomNav({ role }: { role: UserRole }) {
     refetchInterval: 30000,
   });
 
+  // Pending rating badge for parent home
+  const { data: hasPendingRating } = useQuery({
+    queryKey: ['parent-pending-rating', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return false;
+      const { count } = await supabase
+        .from('bookings')
+        .select('id', { count: 'exact', head: true })
+        .eq('parent_id', user.id)
+        .eq('status', 'completed')
+        .is('reviewed_at', null);
+      return (count ?? 0) > 0;
+    },
+    enabled: !!user?.id && role === 'parent',
+    refetchInterval: 60000,
+  });
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-lg border-t border-border safe-area-bottom">
       <div className="flex justify-around items-center h-16 max-w-lg mx-auto px-2">
@@ -82,6 +99,7 @@ export function BottomNav({ role }: { role: UserRole }) {
             (path !== '/' && path.split('/').length <= 2 && location.pathname.startsWith(path + '/')) ||
             (path === '/chat' && location.pathname.startsWith('/chat'));
           const isChatItem = path === '/chat';
+          const isHomeItem = path === '/parent' || path === '/coach' || path === '/admin' || path === '/student' || path === '/pro' || path === '/pm';
           return (
             <NavLink
               key={path}
@@ -96,6 +114,9 @@ export function BottomNav({ role }: { role: UserRole }) {
                 <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
                 {isChatItem && hasUnread && (
                   <span className="absolute -top-0.5 -right-1 w-2.5 h-2.5 bg-destructive rounded-full" />
+                )}
+                {isHomeItem && role === 'parent' && hasPendingRating && (
+                  <span className="absolute -top-0.5 -right-1 w-2.5 h-2.5 bg-warning rounded-full" />
                 )}
               </div>
               <span className="text-[10px] font-medium">{label}</span>

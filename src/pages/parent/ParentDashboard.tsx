@@ -1,28 +1,20 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Clock, MapPin, Plus, Loader2, Star, CreditCard, TrendingUp, ShoppingBag, AlertTriangle } from 'lucide-react';
+import { Clock, MapPin, Plus, Loader2, Star, CreditCard, TrendingUp, AlertTriangle, MessageSquare, Calendar, ChevronRight } from 'lucide-react';
 import { SwimBeltBadge } from '@/components/SwimBeltBadge';
-import { CoinBalance } from '@/components/CoinBalance';
 import { SubscriptionWarningBanner } from '@/components/SubscriptionWarningBanner';
-import { RecentMessagesWidget } from '@/components/RecentMessagesWidget';
 import { RatingModal } from '@/components/RatingModal';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useAuthStore } from '@/stores/authStore';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/hooks/useLanguage';
-import { SWIM_BELTS, getBeltByXP, calculateXP } from '@/lib/constants';
+import { SWIM_BELTS, getBeltByXP, calculateXP, COACH_RANKS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
-
-const LOYALTY_COLORS: Record<string, string> = {
-  aqua: 'bg-primary/15 text-primary border-primary/30',
-  loyal: 'bg-success/15 text-success border-success/30',
-  champion: 'bg-warning/15 text-warning border-warning/30',
-  elite_family: 'bg-coin/15 text-coin border-coin/30',
-  profitfamily_legend: 'bg-destructive/15 text-destructive border-destructive/30',
-};
+import { toast } from '@/hooks/use-toast';
 
 const BELT_COLORS: Record<string, string> = {
   white: 'bg-muted',
@@ -42,6 +34,10 @@ export default function ParentDashboard() {
   const [coachLocation, setCoachLocation] = useState<{
     lat: number; lng: number; updatedAt: string; isActive: boolean;
   } | null>(null);
+  const [rescheduleBooking, setRescheduleBooking] = useState<any>(null);
+  const [rescheduleDate, setRescheduleDate] = useState<string | null>(null);
+  const [rescheduleSlot, setRescheduleSlot] = useState<any>(null);
+  const [rescheduling, setRescheduling] = useState(false);
 
   const { data: parentData, isLoading } = useQuery({
     queryKey: ['parent-profile', user?.id],
@@ -94,30 +90,32 @@ export default function ParentDashboard() {
         .select(`
           id, status, lesson_fee, currency, created_at, coach_id,
           pools(name, address),
-          coaches(id, profiles:coaches_id_fkey(full_name))
+          coaches(id, rank, profiles:coaches_id_fkey(full_name)),
+          time_slots(date, start_time, end_time)
         `)
         .eq('parent_id', user!.id)
         .in('status', ['confirmed', 'in_progress'])
         .order('created_at', { ascending: true })
-        .limit(3);
+        .limit(5);
       if (error) throw error;
       return data;
     },
     enabled: !!user?.id,
   });
 
-  const { data: completedBookings } = useQuery({
-    queryKey: ['parent-completed-bookings', user?.id],
+  const { data: completedUnratedBookings } = useQuery({
+    queryKey: ['parent-unrated-bookings', user?.id],
     queryFn: async () => {
       try {
         const { data, error } = await supabase
           .from('bookings')
           .select(`
-            id, status, created_at,
+            id, status, created_at, reviewed_at,
             coaches(id, profiles:coaches_id_fkey(full_name))
           `)
           .eq('parent_id', user!.id)
           .eq('status', 'completed')
+          .is('reviewed_at', null)
           .order('created_at', { ascending: false })
           .limit(3);
         if (error) throw error;
@@ -129,22 +127,58 @@ export default function ParentDashboard() {
     enabled: !!user?.id,
   });
 
-  // Payment summary
-  const { data: paymentSummary } = useQuery({
-    queryKey: ['parent-payments-summary', user?.id],
+  // Reschedule slots
+  const next14Days = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i + 1);
+    return d.toISOString().split('T')[0];
+  });
+
+  const { data: rescheduleSlots } = useQuery({
+    queryKey: ['reschedule-slots', rescheduleBooking?.coach_id, rescheduleDate],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('financial_transactions')
-        .select('amount, status, currency')
-        .eq('payer_id', user!.id);
+        .from('time_slots')
+        .select('*')
+        .eq('coach_id', rescheduleBooking!.coach_id)
+        .eq('date', rescheduleDate!)
+        .eq('status', 'available')
+        .order('start_time');
       if (error) throw error;
-      const paid = data?.filter(t => t.status === 'completed').reduce((s, t) => s + Number(t.amount), 0) || 0;
-      const pending = data?.filter(t => t.status === 'pending').reduce((s, t) => s + Number(t.amount), 0) || 0;
-      const currency = data?.[0]?.currency || 'AED';
-      return { paid, pending, currency };
+      return data;
     },
-    enabled: !!user?.id,
+    enabled: !!rescheduleBooking?.coach_id && !!rescheduleDate,
   });
+
+  const handleRescheduleConfirm = async () => {
+    if (!rescheduleBooking || !rescheduleSlot) return;
+    setRescheduling(true);
+    try {
+      await supabase.from('bookings').update({
+        slot_id: rescheduleSlot.id,
+        reschedule_count: (rescheduleBooking.reschedule_count || 0) + 1,
+      }).eq('id', rescheduleBooking.id);
+
+      await supabase.from('time_slots').update({ status: 'booked' }).eq('id', rescheduleSlot.id);
+
+      await supabase.from('notifications').insert({
+        user_id: rescheduleBooking.coach_id,
+        title: '📅 Lesson rescheduled',
+        body: `A parent has rescheduled their lesson to ${rescheduleDate} at ${rescheduleSlot.start_time?.substring(0, 5)}`,
+        type: 'system',
+      });
+
+      toast({ title: t('Lesson rescheduled! ✅', 'Занятие перенесено! ✅') });
+      setRescheduleBooking(null);
+      setRescheduleDate(null);
+      setRescheduleSlot(null);
+      queryClient.invalidateQueries({ queryKey: ['parent-bookings'] });
+    } catch {
+      toast({ title: t('Failed to reschedule', 'Ошибка при переносе'), variant: 'destructive' });
+    } finally {
+      setRescheduling(false);
+    }
+  };
 
   // Realtime coach GPS tracking
   const activeBooking = upcomingBookings?.[0] as any;
@@ -205,7 +239,16 @@ export default function ParentDashboard() {
     ? Math.floor((Date.now() - new Date(coachLocation.updatedAt).getTime()) / 60000)
     : null;
 
-  const hasNoContent = !children?.length && !upcomingBookings?.length && !completedBookings?.length && !activeSub;
+  // Determine if next booking is within 2 hours
+  const nextBookingSlot = activeBooking?.time_slots as any;
+  const isWithin2Hours = (() => {
+    if (!nextBookingSlot?.date || !nextBookingSlot?.start_time) return false;
+    const lessonTime = new Date(`${nextBookingSlot.date}T${nextBookingSlot.start_time}`);
+    const diff = lessonTime.getTime() - Date.now();
+    return diff > 0 && diff <= 2 * 60 * 60 * 1000;
+  })();
+
+  const lessonsRemaining = activeSub ? (activeSub.total_lessons || 0) - (activeSub.used_lessons || 0) : 0;
 
   if (isLoading) {
     return (
@@ -215,67 +258,83 @@ export default function ParentDashboard() {
     );
   }
 
+  const coachName = (activeBooking?.coaches as any)?.profiles?.full_name || '';
+  const poolName = (activeBooking?.pools as any)?.name || '';
+
   return (
-    <div className="space-y-5 pb-4">
+    <div className="space-y-5 pb-28">
       <SubscriptionWarningBanner />
 
-      {/* Gradient Header */}
-      <div className="bg-gradient-to-br from-emerald-500 to-teal-500 px-5 pt-6 pb-5 -mt-0 rounded-b-3xl">
+      {/* ───── HERO CARD ───── */}
+      <div className="bg-gradient-to-br from-emerald-500 to-teal-500 px-5 pt-6 pb-5 rounded-b-3xl">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <h2 className="font-bold text-xl text-white">
             {t('Hello', 'Привет')}, {profile?.full_name?.split(' ')[0] || t('Parent', 'Родитель')}! 👋
           </h2>
-          <p className="text-sm text-white/70 mt-0.5">
-            {upcomingBookings?.length
-              ? t('Next lesson: ', 'Следующее занятие: ') + new Date(upcomingBookings[0].created_at!).toLocaleDateString()
-              : t('No upcoming lessons', 'Нет предстоящих занятий')}
-          </p>
-          <div className="flex items-center gap-2 mt-2">
-            <Badge variant="outline" className={cn(
-              "text-[10px] border-white/30 text-white/90 bg-white/10"
-            )}>
-              {parentData?.loyalty_rank?.replace('_', ' ') || 'Aqua'}
-            </Badge>
-            <CoinBalance amount={parentData?.coin_balance || 0} size="sm" />
-            <button
-              onClick={() => navigate('/payment')}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-xl text-xs font-medium text-white transition-colors"
-            >
-              <ShoppingBag size={12} />
-              {t('Buy Lessons', 'Купить уроки')}
-            </button>
-          </div>
+
+          {activeBooking && nextBookingSlot ? (
+            <div className="mt-2 space-y-1">
+              <p className="text-sm text-white/90">
+                {t('Next', 'Далее')}: {nextBookingSlot.date ? new Date(nextBookingSlot.date).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }) : ''}{' '}
+                {nextBookingSlot.start_time?.substring(0, 5)} · {coachName}
+              </p>
+              <p className="text-xs text-white/70">{poolName}{isWithin2Hours ? ` · ${t('In less than 2 hours', 'Менее 2 часов')}` : ''}</p>
+              <div className="flex gap-2 mt-2">
+                {coachLocation && (
+                  <button
+                    onClick={() => window.open(`https://maps.google.com/maps?q=${coachLocation.lat},${coachLocation.lng}`, '_blank')}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-xl text-xs font-medium text-white transition-colors"
+                  >
+                    📍 {t('Track Coach', 'Отследить')}
+                  </button>
+                )}
+                <button
+                  onClick={() => navigate('/chat')}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-xl text-xs font-medium text-white transition-colors"
+                >
+                  💬 {t('Message Coach', 'Написать')}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-white/70 mt-0.5">
+              {t('No upcoming lessons', 'Нет предстоящих занятий')}
+            </p>
+          )}
         </motion.div>
       </div>
 
-      {/* Empty state */}
-      {hasNoContent && (
+      {/* ───── COACH GPS TRACKING CARD ───── */}
+      {isWithin2Hours && activeBooking && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mx-4 glass-card rounded-2xl p-6 text-center space-y-4"
+          className="mx-4 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-2xl p-4"
         >
-          <div className="text-4xl">🏊</div>
-          <p className="text-sm text-muted-foreground whitespace-pre-line">
-            {t(
-              'No lessons scheduled yet.\nBook your first swimming lesson to start your child\'s journey.',
-              'У вас пока нет запланированных занятий.\nЗапишитесь на первое занятие, чтобы начать обучение.'
-            )}
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+            <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+              {t(`Coach ${coachName.split(' ')[0]} is on the way`, `Тренер ${coachName.split(' ')[0]} в пути`)}
+            </span>
+          </div>
+          <p className="text-xs text-emerald-600 dark:text-emerald-400/80">
+            {t('Estimated arrival', 'Ориентировочное прибытие')}: {nextBookingSlot?.start_time?.substring(0, 5)} · {poolName}
           </p>
-          <Button
-            className="rounded-2xl font-semibold gap-2"
-            onClick={() => navigate('/parent/booking')}
-          >
-            <Plus size={18} />
-            {t('Book Lesson', 'Записаться на занятие')}
-          </Button>
+          {coachLocation && (
+            <button
+              onClick={() => window.open(`https://maps.google.com/maps?q=${coachLocation.lat},${coachLocation.lng}`, '_blank')}
+              className="mt-2 text-xs bg-emerald-500 text-white px-3 py-1.5 rounded-lg"
+            >
+              📍 {t('Track on map', 'Отследить на карте')}
+            </button>
+          )}
         </motion.div>
       )}
 
-      {/* Children Cards — Horizontal Scroll */}
+      {/* ───── CHILD CARDS ───── */}
       {children && children.length > 0 && (
         <div>
-          <h3 className="font-semibold text-sm text-foreground px-4 mb-3">
+          <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider px-4 mb-3">
             {t('Your Children', 'Ваши дети')}
           </h3>
           <div className="flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide">
@@ -288,45 +347,48 @@ export default function ParentDashboard() {
                 ? Math.min(100, ((xp - belt.minXP) / (nextBelt.minXP - belt.minXP)) * 100)
                 : 100;
 
+              // Get child's subscription info
+              const childSub = activeSub;
+
               return (
                 <motion.div
                   key={child.id}
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.1 }}
-                  className="flex-shrink-0 w-48 bg-card rounded-2xl p-4 shadow-sm border border-border"
+                  className="flex-shrink-0 w-56 bg-card rounded-2xl p-4 shadow-sm border border-border"
                 >
-                  {/* Belt color bar */}
                   <div className={cn("h-1.5 rounded-full mb-3", BELT_COLORS[child.swim_belt || 'white'] || 'bg-muted')} />
-
-                  {/* Avatar */}
                   <div className="w-12 h-12 rounded-full bg-gradient-to-br from-sky-400 to-cyan-500 flex items-center justify-center text-white font-bold text-lg mb-2">
                     {(child.profiles?.full_name || 'C')[0]}
                   </div>
-
                   <div className="font-semibold text-foreground text-sm">{child.profiles?.full_name || t('Child', 'Ребёнок')}</div>
                   <div className="text-xs text-muted-foreground">{belt.name}</div>
 
-                  {/* Progress bar */}
+                  {/* Progress bar with detailed label */}
                   {nextBelt && (
                     <div className="mt-3">
-                      <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-                        <span>{t('Next belt', 'След. пояс')}</span>
-                        <span>{Math.round(progressPct)}%</span>
-                      </div>
                       <div className="h-1.5 bg-muted rounded-full">
                         <div
                           className="h-full rounded-full bg-gradient-to-r from-sky-400 to-cyan-500 transition-all"
                           style={{ width: `${progressPct}%` }}
                         />
                       </div>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        {Math.round(progressPct)}% {t(`to ${nextBelt.name}`, `до ${nextBelt.name}`)}
+                      </p>
                     </div>
                   )}
 
-                  <div className="flex items-center gap-1 mt-2">
-                    <CoinBalance amount={child.coin_balance || 0} size="sm" />
-                    <span className="text-[10px] text-muted-foreground">🔥 {child.current_streak || 0}</span>
-                  </div>
+                  {/* Pack info */}
+                  {childSub && (
+                    <p className="text-[10px] text-muted-foreground mt-2">
+                      {t('Pack', 'Пакет')}: {childSub.used_lessons}/{childSub.total_lessons} · {lessonsRemaining} {t('left', 'ост.')}
+                      {childSub.expires_at && (
+                        <> · {t('Exp', 'До')} {new Date(childSub.expires_at).toLocaleDateString()}</>
+                      )}
+                    </p>
+                  )}
                 </motion.div>
               );
             })}
@@ -334,57 +396,147 @@ export default function ParentDashboard() {
         </div>
       )}
 
-      {/* Coach Tracker Card */}
-      {coachLocation && activeBooking && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mx-4 glass-card rounded-2xl overflow-hidden border border-success/30"
-        >
-          <div className="p-4 pb-2">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-success" />
-              </span>
-              <span className="font-semibold text-sm text-foreground">
-                🚗 {t('Coach is on the way!', 'Тренер в пути!')}
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {t('Coach', 'Тренер')}: {(activeBooking?.coaches as any)?.profiles?.full_name || t('Coach', 'Тренер')}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              📍 {t('Last seen', 'Последний раз')}: {locationAge !== null ? (locationAge < 1 ? t('just now', 'только что') : `${locationAge}${t('m ago', 'м назад')}`) : '—'}
-            </p>
-          </div>
-          <iframe
-            src={`https://maps.google.com/maps?q=${coachLocation.lat},${coachLocation.lng}&z=15&output=embed`}
-            width="100%"
-            height="180"
-            className="border-0"
-            loading="lazy"
-            title="Coach location"
-          />
-        </motion.div>
+      {/* ───── UPCOMING LESSONS (max 2) ───── */}
+      {upcomingBookings && upcomingBookings.length > 0 && (
+        <div className="space-y-3 px-4">
+          <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">
+            {t('Upcoming Lessons', 'Предстоящие занятия')}
+          </h3>
+          {upcomingBookings.slice(0, 2).map((booking: any, i: number) => {
+            const pool = booking.pools as any;
+            const coach = booking.coaches as any;
+            const slot = booking.time_slots as any;
+            const rank = COACH_RANKS.find(r => r.id === coach?.rank);
+            const isToday = slot?.date === new Date().toISOString().split('T')[0];
+
+            return (
+              <motion.div
+                key={booking.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.1 + i * 0.1 }}
+                className="bg-card rounded-2xl p-4 shadow-sm border border-border"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <Clock className="w-4 h-4 text-primary" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-sm text-foreground">
+                        {slot?.date
+                          ? new Date(slot.date).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })
+                          : new Date(booking.created_at!).toLocaleDateString()
+                        }
+                        {slot?.start_time && ` · ${slot.start_time.substring(0, 5)}`}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <span>{coach?.profiles?.full_name || '—'}</span>
+                        {rank && (
+                          <Badge variant="outline" className="text-[9px] py-0 h-4" style={{ borderColor: rank.color, color: rank.color }}>
+                            {rank.label}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className={cn("text-[10px]",
+                    booking.status === 'in_progress' && 'border-emerald-500 text-emerald-600',
+                    isToday && booking.status === 'confirmed' && 'border-primary text-primary'
+                  )}>
+                    {booking.status === 'in_progress' ? t('In Progress', 'В процессе') : t('Confirmed', 'Подтверждено')}
+                  </Badge>
+                </div>
+
+                {pool && (
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground mb-3">
+                    <MapPin className="w-3 h-3" />
+                    {pool.name || pool.address}
+                  </div>
+                )}
+
+                {/* Today + within 2 hours indicator */}
+                {isToday && isWithin2Hours && i === 0 && (
+                  <div className="flex items-center gap-1.5 mb-3 text-xs text-emerald-600">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                    🟢 {t('Coach is on the way', 'Тренер в пути')}
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setRescheduleBooking(booking);
+                      setRescheduleDate(null);
+                      setRescheduleSlot(null);
+                    }}
+                    className="flex-1 py-2 text-xs bg-muted hover:bg-muted/80 rounded-xl transition-colors text-foreground font-medium"
+                  >
+                    {t('Reschedule', 'Перенести')}
+                  </button>
+                  <button
+                    onClick={() => navigate('/chat')}
+                    className="flex-1 py-2 text-xs bg-primary/10 hover:bg-primary/15 rounded-xl transition-colors text-primary font-medium"
+                  >
+                    💬 {t('Message Coach', 'Написать')}
+                  </button>
+                </div>
+              </motion.div>
+            );
+          })}
+          {upcomingBookings.length > 2 && (
+            <button
+              onClick={() => navigate('/parent/booking')}
+              className="w-full text-xs text-primary font-medium py-2"
+            >
+              {t('View all lessons →', 'Все занятия →')}
+            </button>
+          )}
+        </div>
       )}
 
-      {/* Subscription card */}
+      {/* ───── QUICK ACTIONS (2x2 grid) ───── */}
+      <div className="px-4">
+        <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider mb-3">
+          {t('Quick Actions', 'Быстрые действия')}
+        </h3>
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { icon: '📅', label: t('Book Lesson', 'Записаться'), path: '/parent/booking' },
+            { icon: '💬', label: t('Message Coach', 'Написать'), path: '/chat' },
+            { icon: '💳', label: t('Payments', 'Платежи'), path: '/parent/payments' },
+            { icon: '📈', label: t('Progress', 'Прогресс'), path: '/parent/coins' },
+          ].map((action, i) => (
+            <motion.button
+              key={action.path}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2 + i * 0.05 }}
+              onClick={() => navigate(action.path)}
+              className="bg-card rounded-2xl p-4 shadow-sm border border-border flex items-center gap-3 hover:border-primary/30 transition-colors text-left"
+            >
+              <span className="text-xl">{action.icon}</span>
+              <span className="text-sm font-medium text-foreground">{action.label}</span>
+            </motion.button>
+          ))}
+        </div>
+      </div>
+
+      {/* ───── SUBSCRIPTION CARD ───── */}
       {activeSub && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mx-4 glass-card rounded-2xl p-4"
+          className="mx-4 bg-card rounded-2xl p-4 shadow-sm border border-border"
         >
-          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
             {t('Active Subscription', 'Активный абонемент')}
           </p>
           <div className="flex items-center justify-between">
             <div>
               <p className="font-bold text-foreground">{activeSub.package_type?.replace('_', ' ').toUpperCase()}</p>
               <p className="text-sm text-muted-foreground">
-                {activeSub.used_lessons}/{activeSub.total_lessons} {t('lessons used', 'занятий использовано')}
+                {activeSub.used_lessons}/{activeSub.total_lessons} {t('lessons used', 'занятий')} · {lessonsRemaining} {t('left', 'ост.')}
               </p>
             </div>
             <div className="text-right">
@@ -403,66 +555,8 @@ export default function ParentDashboard() {
         </motion.div>
       )}
 
-      {/* Upcoming bookings */}
-      {upcomingBookings && upcomingBookings.length > 0 && (
-        <div className="space-y-3 px-4">
-          <h3 className="font-semibold text-sm text-foreground">
-            {t('Upcoming Lessons', 'Предстоящие занятия')}
-          </h3>
-          {upcomingBookings.map((booking: any, i: number) => {
-            const pool = booking.pools as any;
-            const coach = booking.coaches as any;
-            return (
-              <motion.div
-                key={booking.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.2 + i * 0.1 }}
-                className="bg-card rounded-2xl p-4 shadow-sm border border-border"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <Clock className="w-4 h-4 text-primary" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-sm text-foreground">
-                        {new Date(booking.created_at!).toLocaleDateString()}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {t('Coach', 'Тренер')} {coach?.profiles?.full_name || '—'}
-                      </div>
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="text-[10px]">
-                    {booking.status === 'in_progress' ? t('In Progress', 'В процессе') : t('Confirmed', 'Подтверждено')}
-                  </Badge>
-                </div>
-                {pool && (
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <MapPin className="w-3 h-3" />
-                    {pool.name || pool.address}
-                  </div>
-                )}
-                <div className="flex gap-2 mt-3">
-                  <button className="flex-1 py-2 text-xs bg-muted hover:bg-muted/80 rounded-xl transition-colors text-foreground">
-                    {t('Reschedule', 'Перенести')}
-                  </button>
-                  <button
-                    onClick={() => navigate('/chat')}
-                    className="flex-1 py-2 text-xs bg-primary/10 hover:bg-primary/15 rounded-xl transition-colors text-primary"
-                  >
-                    {t('Message Coach', 'Написать тренеру')}
-                  </button>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Low Lessons Warning */}
-      {activeSub && (activeSub.total_lessons - activeSub.used_lessons) <= 2 && (activeSub.total_lessons - activeSub.used_lessons) > 0 && (
+      {/* ───── LOW LESSONS WARNING ───── */}
+      {activeSub && lessonsRemaining <= 2 && lessonsRemaining > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -473,10 +567,7 @@ export default function ParentDashboard() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm text-foreground">
-              {t(
-                `Only ${activeSub.total_lessons - activeSub.used_lessons} lesson${(activeSub.total_lessons - activeSub.used_lessons) === 1 ? '' : 's'} remaining`,
-                `Осталось ${activeSub.total_lessons - activeSub.used_lessons} ${(activeSub.total_lessons - activeSub.used_lessons) === 1 ? 'занятие' : 'занятия'}`
-              )}
+              {t(`Only ${lessonsRemaining} lesson${lessonsRemaining === 1 ? '' : 's'} remaining`, `Осталось ${lessonsRemaining} занятия`)}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
               {t('Top up to continue your progress', 'Пополните, чтобы продолжить')}
@@ -491,75 +582,23 @@ export default function ParentDashboard() {
         </motion.div>
       )}
 
-      {/* Recent Messages */}
-      <RecentMessagesWidget />
-
-      {/* Quick Book Button */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="px-4">
-        <Button
-          className="w-full h-14 rounded-2xl font-semibold text-base gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-md"
-          onClick={() => navigate('/parent/booking')}
-        >
-          <Plus size={20} />
-          {t('Book New Lesson', 'Записаться на занятие')}
-        </Button>
-      </motion.div>
-
-      {/* Payment Summary */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.35 }}
-        className="mx-4 bg-card rounded-2xl p-4 shadow-sm border border-border"
-      >
-        <div className="flex items-center justify-between mb-3">
-          <span className="font-semibold text-foreground">{t('Payments', 'Платежи')}</span>
-          <button
-            onClick={() => navigate('/parent/payments')}
-            className="text-xs text-primary"
-          >
-            {t('View all', 'Все')}
-          </button>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-emerald-50 dark:bg-emerald-500/10 rounded-xl p-3">
-            <div className="text-xs text-emerald-600 dark:text-emerald-400 mb-1 flex items-center gap-1">
-              <CreditCard className="w-3 h-3" />
-              {t('Paid', 'Оплачено')}
-            </div>
-            <div className="font-bold text-emerald-700 dark:text-emerald-300">
-              {(paymentSummary?.paid || 0).toLocaleString()} {paymentSummary?.currency || 'AED'}
-            </div>
-          </div>
-          <div className="bg-amber-50 dark:bg-amber-500/10 rounded-xl p-3">
-            <div className="text-xs text-amber-600 dark:text-amber-400 mb-1 flex items-center gap-1">
-              <TrendingUp className="w-3 h-3" />
-              {t('Pending', 'Ожидает')}
-            </div>
-            <div className="font-bold text-amber-700 dark:text-amber-300">
-              {(paymentSummary?.pending || 0).toLocaleString()} {paymentSummary?.currency || 'AED'}
-            </div>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Completed — Rate */}
-      {completedBookings && completedBookings.length > 0 && (
+      {/* ───── RATING REQUEST (only if pending) ───── */}
+      {completedUnratedBookings && completedUnratedBookings.length > 0 && (
         <div className="space-y-3 px-4">
-          <h3 className="font-semibold text-sm text-foreground">
-            {t('Rate Your Lessons ⭐', 'Оцените занятия ⭐')}
+          <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">
+            {t('Rate Your Lessons', 'Оцените занятия')} ⭐
           </h3>
-          {completedBookings.map((booking: any, i: number) => (
+          {completedUnratedBookings.map((booking: any, i: number) => (
             <motion.div
               key={booking.id}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 + i * 0.1 }}
-              className="glass-card rounded-xl p-3 flex items-center justify-between"
+              transition={{ delay: 0.3 + i * 0.1 }}
+              className="bg-card rounded-2xl p-4 shadow-sm border border-border flex items-center justify-between"
             >
               <div>
                 <p className="text-sm font-medium text-foreground">
-                  {(booking?.coaches as any)?.profiles?.full_name || t('Coach', 'Тренер')}
+                  ⭐ {t('How was lesson with', 'Как прошёл урок с')} {(booking?.coaches as any)?.profiles?.full_name || t('Coach', 'Тренером')}?
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {new Date(booking.created_at).toLocaleDateString()}
@@ -567,7 +606,6 @@ export default function ParentDashboard() {
               </div>
               <Button
                 size="sm"
-                variant="outline"
                 className="rounded-xl gap-1"
                 onClick={() => setRatingModal({
                   bookingId: booking.id,
@@ -576,13 +614,115 @@ export default function ParentDashboard() {
                   date: new Date(booking.created_at).toLocaleDateString(),
                 })}
               >
-                <Star size={14} className="text-warning" /> {t('Rate', 'Оценить')}
+                <Star size={14} /> {t('Rate Now', 'Оценить')}
               </Button>
             </motion.div>
           ))}
         </div>
       )}
 
+      {/* ───── EMPTY STATE ───── */}
+      {!children?.length && !upcomingBookings?.length && !activeSub && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mx-4 bg-card rounded-2xl p-6 text-center space-y-4 shadow-sm border border-border"
+        >
+          <div className="text-4xl">🏊</div>
+          <p className="text-sm text-muted-foreground">
+            {t(
+              'No lessons scheduled yet.\nBook your first swimming lesson!',
+              'У вас пока нет занятий.\nЗапишитесь на первое занятие!'
+            )}
+          </p>
+          <Button
+            className="rounded-2xl font-semibold gap-2"
+            onClick={() => navigate('/parent/booking')}
+          >
+            <Plus size={18} />
+            {t('Book First Lesson', 'Первое занятие')}
+          </Button>
+        </motion.div>
+      )}
+
+      {/* ───── RESCHEDULE BOTTOM SHEET ───── */}
+      <Sheet open={!!rescheduleBooking} onOpenChange={(open) => !open && setRescheduleBooking(null)}>
+        <SheetContent side="bottom" className="rounded-t-3xl max-h-[80vh] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{t('Reschedule Lesson', 'Перенести занятие')}</SheetTitle>
+          </SheetHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              {t('Select a new date and time', 'Выберите новую дату и время')}
+            </p>
+
+            {/* Date picker - horizontal scroll */}
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {next14Days.map(d => {
+                const day = new Date(d);
+                const sel = rescheduleDate === d;
+                return (
+                  <button
+                    key={d}
+                    onClick={() => { setRescheduleDate(d); setRescheduleSlot(null); }}
+                    className={cn(
+                      "shrink-0 px-3 py-2 rounded-xl text-center transition-all border",
+                      sel ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-foreground'
+                    )}
+                  >
+                    <p className="text-[10px] uppercase">{day.toLocaleDateString('en', { weekday: 'short' })}</p>
+                    <p className="font-bold text-sm">{day.getDate()}</p>
+                    <p className="text-[10px]">{day.toLocaleDateString('en', { month: 'short' })}</p>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Time slots */}
+            {rescheduleDate && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">{t('Available times', 'Доступное время')}</p>
+                {rescheduleSlots && rescheduleSlots.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {rescheduleSlots.map((s: any) => (
+                      <button
+                        key={s.id}
+                        onClick={() => setRescheduleSlot(s)}
+                        className={cn(
+                          "px-4 py-2 rounded-xl text-sm font-medium transition-all border",
+                          rescheduleSlot?.id === s.id ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-foreground'
+                        )}
+                      >
+                        {s.start_time?.substring(0, 5)}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground py-4 text-center">
+                    {t('No available slots on this date', 'Нет свободных слотов на эту дату')}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setRescheduleBooking(null)}>
+                {t('Cancel', 'Отмена')}
+              </Button>
+              <Button
+                className="flex-1 rounded-xl"
+                disabled={!rescheduleSlot || rescheduling}
+                onClick={handleRescheduleConfirm}
+              >
+                {rescheduling ? <Loader2 className="h-4 w-4 animate-spin" /> : t('Confirm', 'Подтвердить')}
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* ───── RATING MODAL ───── */}
       {ratingModal && (
         <RatingModal
           isOpen={!!ratingModal}
@@ -594,7 +734,7 @@ export default function ParentDashboard() {
             date: ratingModal.date,
           }}
           onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ['parent-completed-bookings'] });
+            queryClient.invalidateQueries({ queryKey: ['parent-unrated-bookings'] });
           }}
         />
       )}
