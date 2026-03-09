@@ -238,6 +238,7 @@ export default function AIAssistant() {
 
     const userMsg: Msg = { role: 'user', content: text, mode: activeMode };
     setInput('');
+    setSuggestions([]);
     setMessages(prev => [...prev, userMsg]);
     setIsLoading(true);
     let assistantSoFar = '';
