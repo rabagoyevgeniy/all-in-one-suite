@@ -522,6 +522,31 @@ export default function AIAssistant() {
         {/* Header */}
         <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border px-4 py-3">
           <div className="flex items-center gap-3">
+            {/* Back to dashboard */}
+            <button
+              onClick={() => {
+                const dashboardRoutes: Record<string, string> = {
+                  admin: '/admin',
+                  head_manager: '/admin',
+                  coach: '/coach',
+                  parent: '/parent',
+                  student: '/student',
+                  pro_athlete: '/pro',
+                  personal_manager: '/pm',
+                };
+                const returnUrl = sessionStorage.getItem('ai_return_url');
+                if (returnUrl) {
+                  sessionStorage.removeItem('ai_return_url');
+                  navigate(returnUrl);
+                } else {
+                  navigate(dashboardRoutes[role || 'parent'] || '/');
+                }
+              }}
+              className="p-1 flex items-center gap-1 flex-shrink-0"
+            >
+              <ArrowLeft className="w-5 h-5 text-foreground" />
+            </button>
+
             {/* ALWAYS VISIBLE sidebar toggle */}
             <button
               onClick={() => setSidebarOpen(prev => !prev)}
