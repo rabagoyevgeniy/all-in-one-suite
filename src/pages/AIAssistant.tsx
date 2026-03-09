@@ -1,15 +1,18 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Send, Sparkles, Loader2, Trash2, Lock, Mic,
+import {
+  ArrowLeft, Send, Sparkles, Loader2, Trash2, Lock, Mic,
   BarChart2, Users, DollarSign, Settings,
   Calendar, Target, FileText,
   TrendingUp, Home, CreditCard,
-  Star, Swords, Lightbulb
+  Star, Swords, Lightbulb,
+  Clock, Search, X, Copy, Pin, ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/stores/authStore';
 import { useLanguage } from '@/hooks/useLanguage';
+import { useAIConversation } from '@/hooks/useAIConversation';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -94,53 +97,103 @@ const ROLE_MODES: Record<string, RoleModeConfig> = {
   },
 };
 
-type Msg = { role: 'user' | 'assistant'; content: string; mode?: string };
+// --- Simple Markdown renderer ---
+function MarkdownText({ content }: { content: string }) {
+  const html = content
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^### (.+)$/gm, '<h4 class="font-semibold text-sm mt-2 mb-1">$1</h4>')
+    .replace(/^## (.+)$/gm, '<h3 class="font-semibold text-base mt-3 mb-1">$1</h3>')
+    .replace(/^- (.+)$/gm, '<div class="flex gap-1.5 ml-1"><span class="text-muted-foreground">•</span><span>$1</span></div>')
+    .replace(/^(\d+)\. (.+)$/gm, '<div class="flex gap-1.5 ml-1"><span class="text-muted-foreground font-medium">$1.</span><span>$2</span></div>')
+    .replace(/\n/g, '<br/>');
+  return <div className="leading-relaxed" dangerouslySetInnerHTML={{ __html: html }} />;
+}
 
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
+// --- Message Actions ---
+function AIMessageActions({ content, role: userRole }: { content: string; role: string }) {
+  const navigate = useNavigate();
 
-// --- Daily insight generation ---
-function generateInsight(lang: 'en' | 'ru', lastLessonDaysAgo?: number): { text: string; cta: string } | null {
-  if (lastLessonDaysAgo != null && lastLessonDaysAgo > 5) {
-    return {
-      text: lang === 'ru'
-        ? `Прошло ${lastLessonDaysAgo} дней с последнего урока. Регулярная практика повышает результаты на 40%.`
-        : `It's been ${lastLessonDaysAgo} days since the last lesson. Regular practice improves retention by 40%.`,
-      cta: lang === 'ru' ? 'Записаться на урок →' : 'Book a lesson →',
-    };
-  }
-  // Fallback motivational
-  const tips = lang === 'ru'
-    ? [
-        { text: 'Совет дня: Регулярная разминка перед уроком снижает риск травм на 60%.', cta: 'Узнать больше →' },
-        { text: 'Отличный день для плавания! ☀️ Погода идеально подходит для бассейна.', cta: 'Посмотреть расписание →' },
-      ]
-    : [
-        { text: 'Tip: Regular warm-up before lessons reduces injury risk by 60%.', cta: 'Learn more →' },
-        { text: 'Great day for swimming! ☀️ Perfect pool weather today.', cta: 'View schedule →' },
-      ];
-  return tips[new Date().getDate() % tips.length];
+  const actions: { label: string; onClick: () => void }[] = [];
+
+  if (content.match(/lesson|schedule|booking|урок|расписание/i))
+    actions.push({
+      label: '📅 Schedule',
+      onClick: () => navigate(userRole === 'coach' ? '/coach/schedule' : userRole === 'parent' ? '/parent/booking' : '/admin/bookings'),
+    });
+
+  if (content.match(/payment|AED|revenue|платёж|выручка/i))
+    actions.push({
+      label: '💳 Payments',
+      onClick: () => navigate(userRole === 'admin' ? '/admin/finance' : '/parent/payments'),
+    });
+
+  if (content.match(/coach/i) && (userRole === 'admin' || userRole === 'head_manager'))
+    actions.push({ label: '🏊 Coaches', onClick: () => navigate('/admin/coaches') });
+
+  const copyText = () => {
+    navigator.clipboard.writeText(content);
+    toast({ title: '✅ Copied to clipboard' });
+  };
+
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-2">
+      {actions.map((action, i) => (
+        <button
+          key={i}
+          onClick={action.onClick}
+          className="text-[11px] px-2.5 py-1 rounded-lg bg-muted text-muted-foreground hover:bg-accent transition-colors flex items-center gap-1"
+        >
+          {action.label}
+          <ChevronRight className="w-3 h-3" />
+        </button>
+      ))}
+      <button
+        onClick={copyText}
+        className="text-[11px] px-2.5 py-1 rounded-lg bg-muted text-muted-foreground hover:bg-accent transition-colors flex items-center gap-1"
+      >
+        <Copy className="w-3 h-3" /> Copy
+      </button>
+    </div>
+  );
 }
 
 export default function AIAssistant() {
   const navigate = useNavigate();
   const { role, session, user, isLoading: authLoading } = useAuthStore();
   const { language, t } = useLanguage();
-  const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const roleModesConfig = ROLE_MODES[role || 'parent'] || ROLE_MODES.parent;
-  const roleModes = roleModesConfig.modes;
-  const [activeMode, setActiveMode] = useState(roleModes[0].id);
   const [isRecording, setIsRecording] = useState(false);
-  const [insightDismissed, setInsightDismissed] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [searchMode, setSearchMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [switchingMode, setSwitchingMode] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<any>(null);
 
+  const roleModesConfig = ROLE_MODES[role || 'parent'] || ROLE_MODES.parent;
+  const roleModes = roleModesConfig.modes;
+  const [activeMode, setActiveMode] = useState(roleModes[0].id);
+
   const effectiveRole = role || null;
   const config = effectiveRole ? (ROLE_CONFIG[effectiveRole] || DEFAULT_ROLE_CONFIG) : DEFAULT_ROLE_CONFIG;
   const lang = language === 'ru' ? 'ru' : 'en';
+
+  // Persistent conversation hook
+  const {
+    messages,
+    isLoading,
+    isLoadingHistory,
+    sendMessage,
+    clearConversation,
+    loadConversation,
+  } = useAIConversation(activeMode);
 
   // Fetch AI permissions
   const { data: permissions, isLoading: permLoading } = useQuery({
@@ -173,39 +226,33 @@ export default function AIAssistant() {
     enabled: !!user?.id,
   });
 
-  // Fetch last lesson for insight
-  const { data: lastLessonDaysAgo } = useQuery({
-    queryKey: ['last-lesson-days', user?.id],
+  // Chat history for current mode
+  const { data: history, refetch: refetchHistory } = useQuery({
+    queryKey: ['ai-history', user?.id, activeMode],
     queryFn: async () => {
       const { data } = await supabase
-        .from('bookings')
-        .select('created_at')
-        .or(`parent_id.eq.${user!.id},student_id.eq.${user!.id}`)
-        .eq('status', 'completed')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-      if (!data?.created_at) return undefined;
-      const diff = Math.floor((Date.now() - new Date(data.created_at).getTime()) / 86400000);
-      return diff;
+        .from('ai_conversations')
+        .select('id, title, last_message, message_count, updated_at, is_pinned')
+        .eq('user_id', user!.id)
+        .eq('mode', activeMode)
+        .eq('is_archived', false)
+        .order('is_pinned', { ascending: false })
+        .order('updated_at', { ascending: false })
+        .limit(20);
+      return data ?? [];
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && showHistory,
   });
 
   const dailyLimit = permissions?.daily_message_limit || config.dailyLimit;
   const messagesUsed = typeof usage === 'number' ? usage : 0;
   const messagesRemaining = Math.max(0, dailyLimit - messagesUsed);
   const canUseAI = permissions?.can_use_ai !== false;
-  // Role-aware mode-specific suggestions
+
   const currentSuggestions = useMemo(() => {
-    const currentMode = roleModes.find(m => m.id === activeMode);
+    const currentMode = roleModes.find((m) => m.id === activeMode);
     return currentMode?.chips[lang] || roleModes[0].chips[lang];
   }, [activeMode, lang, roleModes]);
-
-  const insight = useMemo(() => {
-    if (insightDismissed) return null;
-    return generateInsight(lang, lastLessonDaysAgo);
-  }, [lang, lastLessonDaysAgo, insightDismissed]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -228,99 +275,49 @@ export default function AIAssistant() {
     refetchUsage();
   }, [user?.id, refetchUsage]);
 
-  const sendMessage = useCallback(async () => {
+  const handleSend = useCallback(async () => {
     const text = input.trim();
     if (!text || isLoading) return;
     if (messagesRemaining <= 0) {
-      toast({ title: t('Daily limit reached', 'Лимит исчерпан'), description: t(`You've used all ${dailyLimit} messages for today`, `Вы использовали все ${dailyLimit} сообщений на сегодня`), variant: 'destructive' });
+      toast({
+        title: t('Daily limit reached', 'Лимит исчерпан'),
+        description: t(`You've used all ${dailyLimit} messages for today`, `Вы использовали все ${dailyLimit} сообщений на сегодня`),
+        variant: 'destructive',
+      });
       return;
     }
 
-    const userMsg: Msg = { role: 'user', content: text, mode: activeMode };
     setInput('');
     setSuggestions([]);
-    setMessages(prev => [...prev, userMsg]);
-    setIsLoading(true);
-    let assistantSoFar = '';
 
     try {
-      const resp = await fetch(CHAT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ messages: [...messages, userMsg], mode: activeMode }),
-      });
-
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({ error: 'Unknown error' }));
-        if (err.error === 'daily_limit_reached') {
-          toast({ title: t('Daily limit reached', 'Лимит исчерпан'), variant: 'destructive' });
-          setMessages(prev => prev.slice(0, -1));
-          return;
-        }
-        if (err.error === 'mode_not_allowed') {
-          toast({ title: t('Mode not available', 'Режим недоступен'), variant: 'destructive' });
-          setMessages(prev => prev.slice(0, -1));
-          return;
-        }
-        throw new Error(err.error || `Error ${resp.status}`);
-      }
-
-      if (!resp.body) throw new Error('No response body');
       await incrementUsage();
-
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      const cleanSuggestionMarker = (text: string) => text.replace(/\n?<!--SUGGESTIONS:\s*\[.*?\]\s*-->/s, '').trimEnd();
-
-      const upsertAssistant = (chunk: string) => {
-        assistantSoFar += chunk;
-        const cleaned = cleanSuggestionMarker(assistantSoFar);
-        setMessages(prev => {
-          const last = prev[prev.length - 1];
-          if (last?.role === 'assistant') {
-            return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: cleaned } : m);
-          }
-          return [...prev, { role: 'assistant', content: cleaned, mode: activeMode }];
-        });
-      };
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        let newlineIdx: number;
-        while ((newlineIdx = buffer.indexOf('\n')) !== -1) {
-          let line = buffer.slice(0, newlineIdx);
-          buffer = buffer.slice(newlineIdx + 1);
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (!line.startsWith('data: ') || line.trim() === '') continue;
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === '[DONE]') break;
-          try {
-            const parsed = JSON.parse(jsonStr);
-            if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
-              upsertAssistant(parsed.delta.text);
-            }
-            // Capture suggestions from custom event
-            if (parsed.type === 'suggestions' && Array.isArray(parsed.suggestions)) {
-              setSuggestions(parsed.suggestions);
-            }
-          } catch { /* partial JSON */ }
-        }
-      }
+      await sendMessage(text, (sugg) => setSuggestions(sugg));
     } catch (e: any) {
-      console.error('AI chat error:', e);
-      toast({ title: 'AI Error', description: e.message, variant: 'destructive' });
-      if (!assistantSoFar) setMessages(prev => prev.slice(0, -1));
-    } finally {
-      setIsLoading(false);
+      if (e.message === 'daily_limit_reached') {
+        toast({ title: t('Daily limit reached', 'Лимит исчерпан'), variant: 'destructive' });
+      } else if (e.message === 'mode_not_allowed') {
+        toast({ title: t('Mode not available', 'Режим недоступен'), variant: 'destructive' });
+      } else {
+        toast({ title: 'AI Error', description: e.message, variant: 'destructive' });
+      }
     }
-  }, [input, isLoading, messages, session?.access_token, messagesRemaining, incrementUsage, activeMode, dailyLimit, t]);
+  }, [input, isLoading, messagesRemaining, dailyLimit, t, incrementUsage, sendMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  // Tab switching
+  const handleTabSwitch = (newMode: string) => {
+    if (newMode === activeMode) return;
+    setSwitchingMode(true);
+    setActiveMode(newMode);
+    setSuggestions([]);
+    setTimeout(() => setSwitchingMode(false), 600);
   };
 
   // Voice input
@@ -332,15 +329,14 @@ export default function AIAssistant() {
     }
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      toast({ title: t('Not supported', 'Не поддерживается'), description: t('Voice input is not supported in this browser', 'Голосовой ввод не поддерживается в этом браузере'), variant: 'destructive' });
+      toast({ title: t('Not supported', 'Не поддерживается'), variant: 'destructive' });
       return;
     }
     const recognition = new SpeechRecognition();
     recognition.lang = language === 'ru' ? 'ru-RU' : 'en-US';
     recognition.interimResults = false;
     recognition.onresult = (e: any) => {
-      const transcript = e.results[0][0].transcript;
-      setInput(prev => prev ? prev + ' ' + transcript : transcript);
+      setInput((prev) => (prev ? prev + ' ' + e.results[0][0].transcript : e.results[0][0].transcript));
       setIsRecording(false);
     };
     recognition.onerror = () => setIsRecording(false);
@@ -350,8 +346,24 @@ export default function AIAssistant() {
     setIsRecording(true);
   }, [isRecording, language, t]);
 
-  const [loadingTimeout, setLoadingTimeout] = useState(false);
+  // Search
+  const handleSearch = async (q: string) => {
+    setSearchQuery(q);
+    if (!q.trim() || !user?.id) {
+      setSearchResults([]);
+      return;
+    }
+    const { data } = await supabase
+      .from('ai_messages')
+      .select('content, role, created_at, conversation_id')
+      .eq('role', 'assistant')
+      .ilike('content', `%${q}%`)
+      .order('created_at', { ascending: false })
+      .limit(10);
+    setSearchResults(data ?? []);
+  };
 
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
   useEffect(() => {
     if (permLoading || authLoading) {
       const timer = setTimeout(() => setLoadingTimeout(true), 5000);
@@ -378,10 +390,7 @@ export default function AIAssistant() {
           <p className="text-sm text-muted-foreground max-w-xs">
             The AI service is temporarily unavailable. Please try again in a moment.
           </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="bg-primary text-primary-foreground px-6 py-2.5 rounded-xl text-sm font-medium"
-          >
+          <button onClick={() => window.location.reload()} className="bg-primary text-primary-foreground px-6 py-2.5 rounded-xl text-sm font-medium">
             Try Again
           </button>
         </div>
@@ -392,6 +401,17 @@ export default function AIAssistant() {
   const limitSegments = Math.min(dailyLimit, 10);
   const segmentRatio = dailyLimit < 9999 ? dailyLimit / limitSegments : 0;
 
+  // Briefing config per role
+  const briefingConfig = {
+    admin: { icon: '📊', gradient: 'from-purple-500 to-indigo-600', label: 'Director Briefing' },
+    head_manager: { icon: '📊', gradient: 'from-purple-500 to-indigo-600', label: 'Director Briefing' },
+    coach: { icon: '🏊', gradient: 'from-blue-500 to-cyan-500', label: 'Coach Update' },
+    parent: { icon: '👨‍👩‍👧', gradient: 'from-green-400 to-teal-500', label: 'Family Update' },
+    student: { icon: '⭐', gradient: 'from-orange-400 to-pink-500', label: 'Your Daily Goal' },
+    pro_athlete: { icon: '🏆', gradient: 'from-amber-500 to-orange-600', label: 'Training Brief' },
+    personal_manager: { icon: '📋', gradient: 'from-teal-500 to-emerald-600', label: 'Client Brief' },
+  }[effectiveRole] ?? { icon: '💡', gradient: 'from-blue-400 to-blue-600', label: "Today's Insight" };
+
   return (
     <div className="flex flex-col h-screen bg-gradient-to-b from-violet-50 to-background">
       {/* Header */}
@@ -400,33 +420,99 @@ export default function AIAssistant() {
           <button onClick={() => navigate(-1)} className="p-1">
             <ArrowLeft className="w-5 h-5 text-foreground" />
           </button>
-          <div className={cn("w-9 h-9 rounded-xl bg-gradient-to-br flex items-center justify-center", config.color)}>
+          <div className={cn('w-9 h-9 rounded-xl bg-gradient-to-br flex items-center justify-center', config.color)}>
             <Sparkles className="w-5 h-5 text-white" />
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="font-bold text-foreground text-sm">ProFit AI</h1>
             <p className="text-[11px] text-muted-foreground truncate">{roleModesConfig.subtitle[lang]}</p>
           </div>
+
+          {/* Search button */}
+          <button
+            onClick={() => { setSearchMode(!searchMode); setSearchQuery(''); setSearchResults([]); }}
+            className="w-9 h-9 flex items-center justify-center rounded-xl bg-muted hover:bg-accent transition-colors"
+          >
+            <Search className="w-4 h-4 text-muted-foreground" />
+          </button>
+
+          {/* History button */}
+          <button
+            onClick={() => { setShowHistory(true); refetchHistory(); }}
+            className="w-9 h-9 flex items-center justify-center rounded-xl bg-muted hover:bg-accent transition-colors"
+          >
+            <Clock className="w-4 h-4 text-muted-foreground" />
+          </button>
+
+          {/* Clear conversation */}
           {messages.length > 0 && (
-            <button onClick={() => setMessages([])} className="p-2 text-muted-foreground hover:text-destructive transition-colors">
+            <button onClick={clearConversation} className="p-2 text-muted-foreground hover:text-destructive transition-colors">
               <Trash2 className="w-4 h-4" />
             </button>
           )}
         </div>
 
+        {/* Search bar */}
+        <AnimatePresence>
+          {searchMode && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="max-w-lg mx-auto mt-2 overflow-hidden"
+            >
+              <div className="flex items-center gap-2 bg-muted rounded-xl px-3 py-2">
+                <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  placeholder={t('Search past messages...', 'Поиск сообщений...')}
+                  className="flex-1 bg-transparent text-sm outline-none"
+                  autoFocus
+                />
+                <button onClick={() => { setSearchMode(false); setSearchQuery(''); setSearchResults([]); }}>
+                  <X className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </div>
+              {searchResults.length > 0 && (
+                <div className="mt-2 space-y-2 max-h-60 overflow-y-auto">
+                  {searchResults.map((r, i) => (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        loadConversation(r.conversation_id);
+                        setSearchMode(false);
+                        setSearchQuery('');
+                        setSearchResults([]);
+                      }}
+                      className="w-full text-left p-3 rounded-xl bg-background border border-border hover:bg-accent/50 transition-colors"
+                    >
+                      <p className="text-xs text-foreground line-clamp-2">{r.content}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        {new Date(r.created_at).toLocaleDateString()}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Mode pills */}
         {canUseAI && roleModes.length > 1 && (
           <div className="max-w-lg mx-auto mt-2">
             <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-              {roleModes.map(mode => (
+              {roleModes.map((mode) => (
                 <button
                   key={mode.id}
-                  onClick={() => setActiveMode(mode.id)}
+                  onClick={() => handleTabSwitch(mode.id)}
                   className={cn(
-                    "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors",
+                    'flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors',
                     activeMode === mode.id
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
                   )}
                 >
                   {mode.label}
@@ -443,10 +529,7 @@ export default function AIAssistant() {
                     return (
                       <div
                         key={i}
-                        className={cn(
-                          "flex-1 h-1.5 rounded-full transition-colors",
-                          i < filledUpTo ? "bg-primary" : "bg-muted"
-                        )}
+                        className={cn('flex-1 h-1.5 rounded-full transition-colors', i < filledUpTo ? 'bg-primary' : 'bg-muted')}
                       />
                     );
                   })}
@@ -472,6 +555,72 @@ export default function AIAssistant() {
         )}
       </header>
 
+      {/* History bottom sheet */}
+      <AnimatePresence>
+        {showHistory && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/40"
+            onClick={() => setShowHistory(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="absolute bottom-0 left-0 right-0 bg-background rounded-t-2xl max-h-[70vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-foreground">
+                    💬 {roleModes.find((m) => m.id === activeMode)?.label} {t('History', 'История')}
+                  </h3>
+                  <button onClick={() => setShowHistory(false)}>
+                    <X className="w-5 h-5 text-muted-foreground" />
+                  </button>
+                </div>
+                <div className="space-y-2 overflow-y-auto max-h-[50vh]">
+                  {(history ?? []).map((conv) => (
+                    <button
+                      key={conv.id}
+                      onClick={() => {
+                        loadConversation(conv.id);
+                        setShowHistory(false);
+                      }}
+                      className="w-full text-left p-3 rounded-xl hover:bg-accent border border-border transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">
+                            {conv.is_pinned && '📌 '}
+                            {conv.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">{conv.last_message}</p>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground flex-shrink-0">
+                          {new Date(conv.updated_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        {conv.message_count} {t('messages', 'сообщений')}
+                      </p>
+                    </button>
+                  ))}
+                  {(history ?? []).length === 0 && (
+                    <p className="text-center text-sm text-muted-foreground py-8">
+                      {t('No history yet', 'Истории пока нет')}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {!canUseAI ? (
         <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
           <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
@@ -489,82 +638,108 @@ export default function AIAssistant() {
         <>
           {/* Messages */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 max-w-lg mx-auto w-full space-y-4">
-            {/* Daily insight card */}
-            {messages.length === 0 && insight && (
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl p-4 text-white"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 text-lg">
-                    💡
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-semibold text-sm mb-1">{t("Today's Insight", 'Совет дня')}</div>
-                    <div className="text-white/90 text-sm leading-relaxed">{insight.text}</div>
-                    <div className="flex gap-2 mt-2">
-                      <button
-                        onClick={() => { setInput(insight.cta.replace(' →', '')); inputRef.current?.focus(); }}
-                        className="bg-white/20 hover:bg-white/30 text-white text-xs px-3 py-1 rounded-full transition-colors"
-                      >
-                        {insight.cta}
-                      </button>
-                      <button
-                        onClick={() => setInsightDismissed(true)}
-                        className="text-white/50 hover:text-white/80 text-xs px-2 transition-colors"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
+            {/* Mode switching indicator */}
+            <AnimatePresence>
+              {switchingMode && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex items-center justify-center gap-2 py-4"
+                >
+                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                  <span className="text-sm text-muted-foreground">
+                    {t(`Loading ${activeMode}...`, `Загрузка ${activeMode}...`)}
+                  </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            {messages.length === 0 && (
-              <div className="flex flex-col items-center justify-center text-center gap-4 py-12">
-                <div className={cn("w-16 h-16 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-lg", config.color)}>
-                  <Sparkles className="w-8 h-8 text-white" />
-                </div>
-                <div>
-                <h2 className="font-bold text-lg text-foreground">{roleModesConfig.greeting[lang]}</h2>
-                  <p className="text-sm text-muted-foreground mt-1">{roleModesConfig.subtitle[lang]}</p>
-                </div>
-
-                {/* Animated mode-specific suggestions */}
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={activeMode}
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 8 }}
-                    transition={{ duration: 0.2 }}
-                    className="grid grid-cols-1 gap-2 w-full max-w-xs"
-                  >
-                    {currentSuggestions.map((s, i) => (
-                      <motion.button
-                        key={s}
-                        initial={{ opacity: 0, y: -6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.05 }}
-                        onClick={() => { setInput(s); inputRef.current?.focus(); }}
-                        className="text-left text-xs px-3 py-2.5 rounded-xl bg-background border border-border text-foreground hover:border-primary/40 transition-colors"
-                      >
-                        {s}
-                      </motion.button>
-                    ))}
-                  </motion.div>
-                </AnimatePresence>
+            {/* Loading history */}
+            {isLoadingHistory && !switchingMode && (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
               </div>
             )}
 
+            {/* Empty state with briefing + chips */}
+            {messages.length === 0 && !isLoadingHistory && !switchingMode && (
+              <>
+                {/* Daily Briefing Card */}
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={cn('rounded-2xl p-4 text-white bg-gradient-to-br', briefingConfig.gradient)}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 text-lg">
+                      {briefingConfig.icon}
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-semibold text-sm mb-1">{briefingConfig.label}</div>
+                      <div className="text-white/90 text-sm leading-relaxed">
+                        {t('Tap below to get your personalized briefing for today', 'Нажмите ниже для получения персональной сводки')}
+                      </div>
+                      <button
+                        onClick={() => {
+                          setInput(t(`Give me a ${effectiveRole} briefing for today`, `Дай мне сводку для ${effectiveRole} на сегодня`));
+                          inputRef.current?.focus();
+                        }}
+                        className="mt-2 text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded-lg transition-colors"
+                      >
+                        {t('Get briefing →', 'Получить сводку →')}
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Greeting + Chips */}
+                <div className="flex flex-col items-center justify-center text-center gap-4 py-8">
+                  <div className={cn('w-16 h-16 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-lg', config.color)}>
+                    <Sparkles className="w-8 h-8 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-lg text-foreground">{roleModesConfig.greeting[lang]}</h2>
+                    <p className="text-sm text-muted-foreground mt-1">{roleModesConfig.subtitle[lang]}</p>
+                  </div>
+
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={activeMode}
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 8 }}
+                      transition={{ duration: 0.2 }}
+                      className="grid grid-cols-1 gap-2 w-full max-w-xs"
+                    >
+                      {currentSuggestions.map((s, i) => (
+                        <motion.button
+                          key={s}
+                          initial={{ opacity: 0, y: -6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: i * 0.05 }}
+                          onClick={() => {
+                            setInput(s);
+                            inputRef.current?.focus();
+                          }}
+                          className="text-left text-xs px-3 py-2.5 rounded-xl bg-background border border-border text-foreground hover:border-primary/40 transition-colors"
+                        >
+                          {s}
+                        </motion.button>
+                      ))}
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+              </>
+            )}
+
+            {/* Messages list */}
             {messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className="max-w-[85%]">
                   {msg.role === 'assistant' && msg.mode && (
                     (() => {
-                      const modeLabel = roleModes.find(m => m.id === msg.mode);
+                      const modeLabel = roleModes.find((m) => m.id === msg.mode);
                       return modeLabel ? (
                         <div className="flex items-center gap-1 mb-1">
                           <span className="text-[10px] bg-accent text-accent-foreground px-2 py-0.5 rounded-full font-medium">
@@ -574,37 +749,44 @@ export default function AIAssistant() {
                       ) : null;
                     })()
                   )}
-                  {msg.role === 'assistant' && (role === 'admin' || role === 'head_manager') && i === 1 && (
-                    <div className="flex items-center gap-1 mb-1">
-                      <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">
-                        👑 ADMIN ACCESS
-                      </span>
-                    </div>
-                  )}
                   <div
                     className={cn(
-                      "rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap",
+                      'rounded-2xl px-4 py-2.5 text-sm',
                       msg.role === 'user'
-                        ? cn("bg-gradient-to-br text-white rounded-br-md", config.color)
-                        : "bg-background border border-border text-foreground rounded-bl-md shadow-sm"
+                        ? cn('bg-gradient-to-br text-white rounded-br-md', config.color)
+                        : 'bg-background border border-border text-foreground rounded-bl-md shadow-sm'
                     )}
                   >
-                    {msg.content}
+                    {msg.role === 'assistant' ? (
+                      <MarkdownText content={msg.content} />
+                    ) : (
+                      <span className="whitespace-pre-wrap">{msg.content}</span>
+                    )}
                     {msg.role === 'assistant' && isLoading && i === messages.length - 1 && (
                       <span className="inline-block w-0.5 h-4 bg-primary animate-pulse ml-0.5 rounded-full align-middle" />
                     )}
                   </div>
+                  {/* Message actions for assistant messages */}
+                  {msg.role === 'assistant' && !isLoading && (
+                    <AIMessageActions content={msg.content} role={effectiveRole} />
+                  )}
                 </div>
               </div>
             ))}
 
+            {/* Typing indicator */}
             {isLoading && messages[messages.length - 1]?.role === 'user' && (
               <div className="flex justify-start">
                 <div className="bg-background border border-border rounded-2xl rounded-bl-md px-4 py-3 shadow-sm">
                   <div className="flex gap-1">
-                    <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
+                    {[0, 1, 2].map((i) => (
+                      <motion.div
+                        key={i}
+                        className="w-2 h-2 rounded-full bg-primary"
+                        animate={{ y: [0, -6, 0] }}
+                        transition={{ duration: 0.6, delay: i * 0.15, repeat: Infinity }}
+                      />
+                    ))}
                   </div>
                 </div>
               </div>
@@ -613,16 +795,16 @@ export default function AIAssistant() {
             {/* Follow-up suggestion chips */}
             {suggestions.length > 0 && !isLoading && (
               <div className="flex flex-col gap-2 animate-in fade-in duration-300">
-                <p className="text-xs text-muted-foreground font-medium px-1">
-                  {t('Continue asking:', 'Продолжить:')}
-                </p>
+                <p className="text-xs text-muted-foreground font-medium px-1">{t('Continue asking:', 'Продолжить:')}</p>
                 {suggestions.map((suggestion, i) => (
                   <button
                     key={i}
-                    onClick={() => { setInput(suggestion); setSuggestions([]); inputRef.current?.focus(); }}
-                    className="text-left px-4 py-2.5 bg-background rounded-xl border border-primary/20 
-                               text-sm text-primary hover:border-primary/40 hover:bg-primary/5 
-                               transition-all shadow-sm flex items-center gap-2"
+                    onClick={() => {
+                      setInput(suggestion);
+                      setSuggestions([]);
+                      inputRef.current?.focus();
+                    }}
+                    className="text-left px-4 py-2.5 bg-background rounded-xl border border-primary/20 text-sm text-primary hover:border-primary/40 hover:bg-primary/5 transition-all shadow-sm flex items-center gap-2"
                   >
                     <span className="text-primary/40 text-xs">→</span>
                     {suggestion}
@@ -636,9 +818,7 @@ export default function AIAssistant() {
           {isRecording && (
             <div className="flex items-center justify-center gap-2 py-1.5 bg-destructive/5">
               <div className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
-              <span className="text-xs text-destructive font-medium">
-                {t('Recording... tap to stop', 'Запись... нажмите для остановки')}
-              </span>
+              <span className="text-xs text-destructive font-medium">{t('Recording... tap to stop', 'Запись... нажмите для остановки')}</span>
             </div>
           )}
 
@@ -648,37 +828,30 @@ export default function AIAssistant() {
               <textarea
                 ref={inputRef}
                 value={input}
-                onChange={e => { setInput(e.target.value); if (suggestions.length > 0) setSuggestions([]); }}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  if (suggestions.length > 0) setSuggestions([]);
+                }}
                 onKeyDown={handleKeyDown}
                 placeholder={t('Ask ProFit AI...', 'Спросите ProFit AI...')}
                 rows={1}
-                className="flex-1 resize-none rounded-2xl border border-border bg-muted/50 px-4 py-2.5 text-sm
-                           focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
-                           max-h-32 overflow-y-auto"
+                className="flex-1 resize-none rounded-2xl border border-border bg-muted/50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent max-h-32 overflow-y-auto"
                 style={{ minHeight: '42px' }}
               />
-              {/* Voice input */}
               <button
                 onClick={toggleVoice}
                 className={cn(
-                  "w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all",
-                  isRecording
-                    ? "bg-destructive scale-110 shadow-lg shadow-destructive/30"
-                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  'w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all',
+                  isRecording ? 'bg-destructive scale-110 shadow-lg shadow-destructive/30' : 'bg-muted text-muted-foreground hover:bg-muted/80'
                 )}
               >
-                {isRecording ? (
-                  <div className="w-3 h-3 bg-destructive-foreground rounded-sm" />
-                ) : (
-                  <Mic className="w-4 h-4" />
-                )}
+                {isRecording ? <div className="w-3 h-3 bg-destructive-foreground rounded-sm" /> : <Mic className="w-4 h-4" />}
               </button>
-              {/* Send */}
               <button
-                onClick={sendMessage}
+                onClick={handleSend}
                 disabled={!input.trim() || isLoading || messagesRemaining <= 0}
                 className={cn(
-                  "w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center text-white disabled:opacity-40 transition-opacity flex-shrink-0",
+                  'w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center text-white disabled:opacity-40 transition-opacity flex-shrink-0',
                   config.color
                 )}
               >
