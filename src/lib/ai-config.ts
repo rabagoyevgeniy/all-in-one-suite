@@ -174,7 +174,7 @@ export const ROLE_CONFIG: Record<string, RoleConfig> = {
       ],
     },
     modes: ['general', 'scheduling', 'progress', 'translation'],
-    dailyLimit: 20,
+    dailyLimit: 25,
   },
   student: {
     greeting: "Let's swim! 🌊",
