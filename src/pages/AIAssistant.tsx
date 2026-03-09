@@ -606,6 +606,27 @@ export default function AIAssistant() {
                 </div>
               </div>
             )}
+
+            {/* Follow-up suggestion chips */}
+            {suggestions.length > 0 && !isLoading && (
+              <div className="flex flex-col gap-2 animate-in fade-in duration-300">
+                <p className="text-xs text-muted-foreground font-medium px-1">
+                  {t('Continue asking:', 'Продолжить:')}
+                </p>
+                {suggestions.map((suggestion, i) => (
+                  <button
+                    key={i}
+                    onClick={() => { setInput(suggestion); setSuggestions([]); inputRef.current?.focus(); }}
+                    className="text-left px-4 py-2.5 bg-background rounded-xl border border-primary/20 
+                               text-sm text-primary hover:border-primary/40 hover:bg-primary/5 
+                               transition-all shadow-sm flex items-center gap-2"
+                  >
+                    <span className="text-primary/40 text-xs">→</span>
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Recording indicator */}
