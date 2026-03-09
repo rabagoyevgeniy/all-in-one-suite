@@ -207,6 +207,8 @@ export default function AIAssistant() {
     loadConversation,
   } = useAIConversation(activeMode);
 
+  const { urgentCount, createTask } = useAITasks();
+
   // Fetch AI permissions
   const { data: permissions, isLoading: permLoading } = useQuery({
     queryKey: ['ai-permissions', role],
