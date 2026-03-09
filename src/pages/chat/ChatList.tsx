@@ -359,8 +359,8 @@ export default function ChatList() {
 
               {(!communityRooms || communityRooms.length === 0) && (
                 <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <MessageCircle size={36} className="text-muted-foreground mb-3" />
-                  <p className="text-sm text-muted-foreground">{t('No community channels', 'Нет каналов сообщества')}</p>
+                  <Globe size={36} className="text-muted-foreground mb-3" />
+                  <p className="text-sm text-muted-foreground">{t('No communities yet. Communities are created by admins and coaches.', 'Пока нет сообществ. Сообщества создаются администраторами и тренерами.')}</p>
                 </div>
               )}
             </div>
