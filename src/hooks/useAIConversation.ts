@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 export interface AIMessage {
   id?: string;
@@ -11,106 +12,149 @@ export interface AIMessage {
   created_at?: string;
 }
 
+export interface AIConversationItem {
+  id: string;
+  title: string;
+  last_message: string | null;
+  message_count: number;
+  updated_at: string;
+  is_pinned: boolean;
+  mode: string;
+}
+
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
 
-export function useAIConversation(mode: string) {
+function groupByDate(items: AIConversationItem[]) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today.getTime() - 86400000);
+  const weekAgo = new Date(today.getTime() - 7 * 86400000);
+
+  const pinned: AIConversationItem[] = [];
+  const todayItems: AIConversationItem[] = [];
+  const yesterdayItems: AIConversationItem[] = [];
+  const thisWeekItems: AIConversationItem[] = [];
+  const olderItems: AIConversationItem[] = [];
+
+  for (const item of items) {
+    if (item.is_pinned) { pinned.push(item); continue; }
+    const d = new Date(item.updated_at);
+    if (d >= today) todayItems.push(item);
+    else if (d >= yesterday) yesterdayItems.push(item);
+    else if (d >= weekAgo) thisWeekItems.push(item);
+    else olderItems.push(item);
+  }
+
+  return { pinned, todayItems, yesterdayItems, thisWeekItems, olderItems };
+}
+
+export function useAIConversations(userId: string | undefined) {
+  const qc = useQueryClient();
+
+  const { data: conversations = [], isLoading, refetch } = useQuery<AIConversationItem[]>({
+    queryKey: ['ai-conversations', userId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('ai_conversations')
+        .select('id, title, last_message, message_count, updated_at, is_pinned, mode')
+        .eq('user_id', userId!)
+        .eq('is_archived', false)
+        .order('is_pinned', { ascending: false })
+        .order('updated_at', { ascending: false })
+        .limit(50);
+      return (data ?? []) as AIConversationItem[];
+    },
+    enabled: !!userId,
+  });
+
+  const grouped = groupByDate(conversations);
+
+  const createConversation = async (mode: string): Promise<string | null> => {
+    if (!userId) return null;
+    const { data } = await supabase
+      .from('ai_conversations')
+      .insert({ user_id: userId, mode, title: 'New conversation' })
+      .select('id')
+      .single();
+    if (data) {
+      qc.invalidateQueries({ queryKey: ['ai-conversations'] });
+      return data.id;
+    }
+    return null;
+  };
+
+  const deleteConversation = async (id: string) => {
+    await supabase.from('ai_conversations').update({ is_archived: true }).eq('id', id);
+    qc.invalidateQueries({ queryKey: ['ai-conversations'] });
+  };
+
+  const pinConversation = async (id: string, pinned: boolean) => {
+    await supabase.from('ai_conversations').update({ is_pinned: pinned }).eq('id', id);
+    qc.invalidateQueries({ queryKey: ['ai-conversations'] });
+  };
+
+  const renameConversation = async (id: string, title: string) => {
+    await supabase.from('ai_conversations').update({ title }).eq('id', id);
+    qc.invalidateQueries({ queryKey: ['ai-conversations'] });
+  };
+
+  return {
+    conversations,
+    grouped,
+    isLoading,
+    refetch,
+    createConversation,
+    deleteConversation,
+    pinConversation,
+    renameConversation,
+  };
+}
+
+export function useAIConversation(conversationId: string | null, mode: string) {
   const { user, session } = useAuthStore();
-  const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-  const loadedModeRef = useRef<string | null>(null);
+  const loadedIdRef = useRef<string | null>(null);
 
-  // Load or create conversation for this mode
+  // Load messages when conversationId changes
   useEffect(() => {
-    if (!user?.id || !mode) return;
-    if (loadedModeRef.current === mode) return;
-    loadOrCreateConversation();
-  }, [user?.id, mode]);
+    if (!conversationId || conversationId === loadedIdRef.current) return;
+    loadedIdRef.current = conversationId;
+    loadMessages(conversationId);
+  }, [conversationId]);
 
-  const loadOrCreateConversation = async () => {
-    if (!user?.id) return;
+  const loadMessages = async (convId: string) => {
     setIsLoadingHistory(true);
-    loadedModeRef.current = mode;
-
     try {
-      // Find existing non-archived conversation for this user+mode
-      const { data: existing } = await supabase
-        .from('ai_conversations')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('mode', mode)
-        .eq('is_archived', false)
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const { data: msgs } = await supabase
+        .from('ai_messages')
+        .select('id, role, content, suggestions, created_at')
+        .eq('conversation_id', convId)
+        .order('created_at', { ascending: true });
 
-      if (existing) {
-        setConversationId(existing.id);
-        const { data: msgs } = await supabase
-          .from('ai_messages')
-          .select('id, role, content, suggestions, created_at')
-          .eq('conversation_id', existing.id)
-          .order('created_at', { ascending: true });
-
-        setMessages(
-          msgs?.map((m) => ({
-            id: m.id,
-            role: m.role as 'user' | 'assistant',
-            content: m.content,
-            suggestions: m.suggestions ?? [],
-            created_at: m.created_at ?? undefined,
-          })) ?? []
-        );
-      } else {
-        // Create new conversation
-        const { data: newConv } = await supabase
-          .from('ai_conversations')
-          .insert({ user_id: user.id, mode, title: `${mode} chat` })
-          .select('id')
-          .single();
-
-        if (newConv) {
-          setConversationId(newConv.id);
-          setMessages([]);
-        }
-      }
+      setMessages(
+        msgs?.map((m) => ({
+          id: m.id,
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+          suggestions: m.suggestions ?? [],
+          created_at: m.created_at ?? undefined,
+        })) ?? []
+      );
     } finally {
       setIsLoadingHistory(false);
     }
   };
 
-  const loadConversation = async (convId: string) => {
-    setConversationId(convId);
-    const { data: msgs } = await supabase
-      .from('ai_messages')
-      .select('id, role, content, suggestions, created_at')
-      .eq('conversation_id', convId)
-      .order('created_at', { ascending: true });
-
-    setMessages(
-      msgs?.map((m) => ({
-        id: m.id,
-        role: m.role as 'user' | 'assistant',
-        content: m.content,
-        suggestions: m.suggestions ?? [],
-        created_at: m.created_at ?? undefined,
-      })) ?? []
-    );
-  };
-
   const sendMessage = useCallback(
-    async (
-      content: string,
-      onSuggestions: (sugg: string[]) => void
-    ) => {
+    async (content: string, onSuggestions: (sugg: string[]) => void) => {
       if (!conversationId || !user || !session?.access_token) return;
       setIsLoading(true);
 
       const userMsg: AIMessage = { role: 'user', content, mode };
       setMessages((prev) => [...prev, userMsg]);
 
-      // Save user message to DB (fire and forget)
       supabase.from('ai_messages').insert({
         conversation_id: conversationId,
         role: 'user',
@@ -182,13 +226,10 @@ export function useAIConversation(mode: string) {
               if (parsed.type === 'suggestions' && Array.isArray(parsed.suggestions)) {
                 onSuggestions(parsed.suggestions);
               }
-            } catch {
-              /* partial JSON */
-            }
+            } catch { /* partial JSON */ }
           }
         }
 
-        // Save assistant message to DB
         const finalContent = cleanMarker(assistantSoFar);
         if (finalContent) {
           await supabase.from('ai_messages').insert({
@@ -197,7 +238,6 @@ export function useAIConversation(mode: string) {
             content: finalContent,
           });
 
-          // Update conversation metadata
           const title =
             messages.length === 0 && content.length > 0
               ? content.length > 50
@@ -209,7 +249,7 @@ export function useAIConversation(mode: string) {
             .from('ai_conversations')
             .update({
               last_message: finalContent.slice(0, 100),
-              message_count: messages.length + 2, // user + assistant
+              message_count: messages.length + 2,
               updated_at: new Date().toISOString(),
               ...(title ? { title } : {}),
             })
@@ -228,35 +268,16 @@ export function useAIConversation(mode: string) {
     [conversationId, messages, mode, user, session?.access_token]
   );
 
-  const clearConversation = async () => {
-    if (!conversationId || !user?.id) return;
-    await supabase
-      .from('ai_conversations')
-      .update({ is_archived: true })
-      .eq('id', conversationId);
-
-    loadedModeRef.current = null;
+  const clearMessages = () => {
     setMessages([]);
-    setConversationId(null);
-    // Create fresh conversation
-    const { data: newConv } = await supabase
-      .from('ai_conversations')
-      .insert({ user_id: user.id, mode, title: `${mode} chat` })
-      .select('id')
-      .single();
-
-    if (newConv) {
-      setConversationId(newConv.id);
-    }
+    loadedIdRef.current = null;
   };
 
   return {
-    conversationId,
     messages,
     isLoading,
     isLoadingHistory,
     sendMessage,
-    clearConversation,
-    loadConversation,
+    clearMessages,
   };
 }
