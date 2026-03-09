@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -16,8 +16,19 @@ export function PageHeader({
   title, subtitle, backRoute, actions, gradient = false, className, children,
 }: PageHeaderProps) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleBack = () => {
+    // Check if we came from AI assistant via quick-link
+    const returnUrl = sessionStorage.getItem('ai_return_url');
+    const fromAI = (location.state as any)?.from === 'ai-assistant';
+
+    if (fromAI && returnUrl) {
+      sessionStorage.removeItem('ai_return_url');
+      navigate(returnUrl);
+      return;
+    }
+
     if (backRoute) {
       navigate(backRoute);
     } else if (window.history.length > 1) {
