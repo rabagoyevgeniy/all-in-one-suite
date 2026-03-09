@@ -99,6 +99,7 @@ export function BottomNav({ role }: { role: UserRole }) {
             (path !== '/' && path.split('/').length <= 2 && location.pathname.startsWith(path + '/')) ||
             (path === '/chat' && location.pathname.startsWith('/chat'));
           const isChatItem = path === '/chat';
+          const isHomeItem = path === '/parent' || path === '/coach' || path === '/admin' || path === '/student' || path === '/pro' || path === '/pm';
           return (
             <NavLink
               key={path}
@@ -113,6 +114,9 @@ export function BottomNav({ role }: { role: UserRole }) {
                 <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
                 {isChatItem && hasUnread && (
                   <span className="absolute -top-0.5 -right-1 w-2.5 h-2.5 bg-destructive rounded-full" />
+                )}
+                {isHomeItem && role === 'parent' && hasPendingRating && (
+                  <span className="absolute -top-0.5 -right-1 w-2.5 h-2.5 bg-warning rounded-full" />
                 )}
               </div>
               <span className="text-[10px] font-medium">{label}</span>
