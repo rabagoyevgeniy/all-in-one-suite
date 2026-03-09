@@ -40,13 +40,13 @@ const MODE_PROMPTS: Record<string, string> = {
 };
 
 const ROLE_ALLOWED_MODES: Record<string, string[]> = {
-  admin: ['general', 'scheduling', 'progress', 'lesson_plan', 'translation'],
-  head_manager: ['general', 'scheduling', 'progress', 'lesson_plan', 'translation'],
-  coach: ['general', 'scheduling', 'progress', 'lesson_plan', 'translation'],
-  parent: ['general', 'scheduling', 'progress', 'translation'],
-  student: ['general', 'progress'],
-  pro_athlete: ['general', 'progress', 'lesson_plan'],
-  personal_manager: ['general', 'scheduling', 'progress', 'translation'],
+  admin: ['general', 'scheduling', 'progress', 'lesson_plan', 'translation', 'analytics', 'coaches', 'finance', 'operations'],
+  head_manager: ['general', 'scheduling', 'progress', 'lesson_plan', 'translation', 'analytics', 'coaches', 'finance', 'operations'],
+  coach: ['general', 'scheduling', 'progress', 'lesson_plan', 'translation', 'students', 'schedule', 'technique', 'reports'],
+  parent: ['general', 'scheduling', 'progress', 'translation', 'practice', 'billing', 'schedule'],
+  student: ['general', 'progress', 'duels', 'tips', 'goals'],
+  pro_athlete: ['general', 'progress', 'lesson_plan', 'performance', 'duels', 'training', 'nutrition'],
+  personal_manager: ['general', 'scheduling', 'progress', 'translation', 'clients', 'commissions', 'outreach'],
 };
 
 serve(async (req) => {
