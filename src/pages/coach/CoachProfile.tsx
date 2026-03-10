@@ -15,7 +15,7 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { cn } from '@/lib/utils';
 
 export default function CoachProfile() {
-  const { user, logout } = useAuthStore();
+  const { user, reset } = useAuthStore();
   const navigate = useNavigate();
   const { t } = useLanguage();
   const [qrOpen, setQrOpen] = useState(false);
