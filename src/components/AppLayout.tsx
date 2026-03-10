@@ -4,7 +4,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useAdminStore } from '@/stores/adminStore';
 import { supabase } from '@/integrations/supabase/client';
 import { BottomNav } from './BottomNav';
-import { LogOut, User } from 'lucide-react';
+import { LogOut, User, Settings } from 'lucide-react';
 import { CoinBalance } from './CoinBalance';
 import { NotificationBell } from './NotificationBell';
 import { toast } from '@/hooks/use-toast';
