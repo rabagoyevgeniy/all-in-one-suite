@@ -39,12 +39,31 @@ export default function CoachSchedule() {
   });
 
   const updateStatus = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+    mutationFn: async ({ id, status, parentId, coachId }: { id: string; status: string; parentId?: string; coachId?: string }) => {
       const { error } = await supabase
         .from('bookings')
         .update({ status })
         .eq('id', id);
       if (error) throw error;
+
+      // When starting a lesson, notify parent and activate GPS
+      if (status === 'in_progress') {
+        if (parentId) {
+          await supabase.from('notifications').insert({
+            user_id: parentId,
+            title: '🏊 Lesson Started!',
+            body: 'Your coach has started the lesson.',
+            type: 'lesson_started',
+            reference_id: id,
+          });
+        }
+        if (coachId) {
+          await supabase
+            .from('coaches')
+            .update({ gps_tracking_active: true, last_location_update: new Date().toISOString() })
+            .eq('id', coachId);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['coach-all-bookings'] });
