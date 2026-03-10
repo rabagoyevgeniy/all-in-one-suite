@@ -333,10 +333,10 @@ export default function ChatRoom() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)]">
+    <div className="flex flex-col h-screen bg-background">
       {/* ═══ HEADER ═══ */}
       {searchMode ? (
-        <div className="sticky top-0 z-20 px-3 py-2.5 flex items-center gap-2" style={{
+        <div className="flex-shrink-0 sticky top-0 z-20 px-3 py-2.5 flex items-center gap-2" style={{
           background: 'linear-gradient(135deg, hsl(199 89% 48%) 0%, hsl(199 89% 42%) 100%)'
         }}>
           <button onClick={() => { setSearchMode(false); setSearchQuery(''); }}
@@ -366,7 +366,7 @@ export default function ChatRoom() {
           </div>
         </div>
       ) : room?.type === 'direct' ? (
-        <div className="sticky top-0 z-20 px-4 py-3" style={{
+        <div className="flex-shrink-0 sticky top-0 z-20 px-4 py-3" style={{
           background: 'linear-gradient(135deg, hsl(199 89% 48%) 0%, hsl(199 89% 42%) 100%)'
         }}>
           <div className="flex items-center gap-3">
@@ -404,7 +404,7 @@ export default function ChatRoom() {
           </div>
         </div>
       ) : (
-        <div className="sticky top-0 z-20 px-4 py-3" style={{
+        <div className="flex-shrink-0 sticky top-0 z-20 px-4 py-3" style={{
           background: 'linear-gradient(135deg, hsl(199 89% 48%) 0%, hsl(199 89% 42%) 100%)'
         }}>
           <div className="flex items-center gap-3">
@@ -566,7 +566,7 @@ export default function ChatRoom() {
 
       {/* ═══ INPUT BAR ═══ */}
       {canSend ? (
-        <div className="sticky bottom-0 bg-[hsl(0_0%_100%/0.95)] backdrop-blur-sm border-t border-[hsl(var(--border))] px-3 py-2">
+        <div className="flex-shrink-0 sticky bottom-0 bg-[hsl(0_0%_100%/0.95)] backdrop-blur-sm border-t border-[hsl(var(--border))] px-3 py-2">
           <div className="flex items-end gap-2">
             <ChatMediaUpload roomId={roomId || ''} onUploaded={() => queryClient.invalidateQueries({ queryKey: ['chat-room-messages', roomId] })} />
             <div className="flex-1 bg-[hsl(var(--muted))] rounded-2xl px-4 py-2.5 flex items-end gap-2">
