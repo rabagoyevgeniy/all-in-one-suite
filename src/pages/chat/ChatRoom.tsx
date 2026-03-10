@@ -566,7 +566,7 @@ export default function ChatRoom() {
 
       {/* ═══ INPUT BAR ═══ */}
       {canSend ? (
-        <div className="sticky bottom-0 bg-[hsl(0_0%_100%/0.95)] backdrop-blur-sm border-t border-[hsl(var(--border))] px-3 py-2">
+        <div className="flex-shrink-0 sticky bottom-0 bg-[hsl(0_0%_100%/0.95)] backdrop-blur-sm border-t border-[hsl(var(--border))] px-3 py-2">
           <div className="flex items-end gap-2">
             <ChatMediaUpload roomId={roomId || ''} onUploaded={() => queryClient.invalidateQueries({ queryKey: ['chat-room-messages', roomId] })} />
             <div className="flex-1 bg-[hsl(var(--muted))] rounded-2xl px-4 py-2.5 flex items-end gap-2">
