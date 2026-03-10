@@ -192,6 +192,8 @@ export default function AIAssistant() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [showTaskPanel, setShowTaskPanel] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const { prefs } = useAIPreferences();
   const [detectedTask, setDetectedTask] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
   const scrollRef = useRef<HTMLDivElement>(null);
