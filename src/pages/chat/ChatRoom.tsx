@@ -336,7 +336,7 @@ export default function ChatRoom() {
     <div className="flex flex-col h-screen bg-background">
       {/* ═══ HEADER ═══ */}
       {searchMode ? (
-        <div className="sticky top-0 z-20 px-3 py-2.5 flex items-center gap-2" style={{
+        <div className="flex-shrink-0 sticky top-0 z-20 px-3 py-2.5 flex items-center gap-2" style={{
           background: 'linear-gradient(135deg, hsl(199 89% 48%) 0%, hsl(199 89% 42%) 100%)'
         }}>
           <button onClick={() => { setSearchMode(false); setSearchQuery(''); }}
