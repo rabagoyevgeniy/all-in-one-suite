@@ -48,7 +48,7 @@ export default function CoachProfile() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    logout();
+    reset();
     navigate('/login');
   };
 
