@@ -950,6 +950,18 @@ export default function AIAssistant() {
           </>
         )}
       </div>
+
+      <AISettings
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        messagesUsed={messagesUsed}
+        dailyLimit={dailyLimit}
+        activeConversationId={activeConversationId}
+        onClearConversation={() => {
+          clearMessages();
+          handleNewConversation();
+        }}
+      />
     </div>
   );
 }
