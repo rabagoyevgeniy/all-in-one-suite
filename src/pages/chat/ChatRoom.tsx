@@ -333,7 +333,7 @@ export default function ChatRoom() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col h-[calc(100vh-64px)] bg-background">
       {/* ═══ HEADER ═══ */}
       {searchMode ? (
         <div className="flex-shrink-0 sticky top-0 z-20 px-3 py-2.5 flex items-center gap-2" style={{
