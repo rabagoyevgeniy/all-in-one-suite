@@ -404,7 +404,7 @@ export default function ChatRoom() {
           </div>
         </div>
       ) : (
-        <div className="sticky top-0 z-20 px-4 py-3" style={{
+        <div className="flex-shrink-0 sticky top-0 z-20 px-4 py-3" style={{
           background: 'linear-gradient(135deg, hsl(199 89% 48%) 0%, hsl(199 89% 42%) 100%)'
         }}>
           <div className="flex items-center gap-3">
