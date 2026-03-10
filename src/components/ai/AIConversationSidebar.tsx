@@ -169,9 +169,9 @@ export function AIConversationSidebar({
         {/* New conversation button */}
         <button
           onClick={() => { onNewConversation(); if (isMobile) onClose(); }}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-border text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
+          className="flex items-center gap-2 w-full px-3 py-2.5 rounded-xl border-2 border-dashed border-primary/30 text-primary hover:bg-primary/5 hover:border-primary/50 transition-all text-sm font-medium"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4 flex-shrink-0" />
           New conversation
         </button>
 
