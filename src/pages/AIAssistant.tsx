@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   ArrowLeft, Send, Sparkles, Loader2, Trash2, Lock, Mic,
-  BarChart2, Users, DollarSign, Settings,
+  BarChart2, Users, DollarSign, Settings, Settings2,
   Calendar, Target, FileText,
   TrendingUp, Home, CreditCard,
   Star, Swords, Lightbulb,
   Clock, Search, X, Copy, ChevronRight, CheckSquare,
   Menu, PanelLeftOpen, PanelLeftClose,
 } from 'lucide-react';
+import AISettings, { useAIPreferences } from '@/components/ai/AISettings';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/stores/authStore';
 import { useLanguage } from '@/hooks/useLanguage';
@@ -191,6 +192,8 @@ export default function AIAssistant() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [showTaskPanel, setShowTaskPanel] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const { prefs } = useAIPreferences();
   const [detectedTask, setDetectedTask] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -580,6 +583,15 @@ export default function AIAssistant() {
               )}
             </button>
 
+            {/* Settings */}
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="w-9 h-9 flex items-center justify-center rounded-xl bg-muted hover:bg-accent transition-colors"
+              title="Settings"
+            >
+              <Settings2 className="w-4 h-4 text-muted-foreground" />
+            </button>
+
             {/* New conversation */}
             <button
               onClick={handleNewConversation}
@@ -938,6 +950,18 @@ export default function AIAssistant() {
           </>
         )}
       </div>
+
+      <AISettings
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        messagesUsed={messagesUsed}
+        dailyLimit={dailyLimit}
+        activeConversationId={activeConversationId}
+        onClearConversation={() => {
+          clearMessages();
+          handleNewConversation();
+        }}
+      />
     </div>
   );
 }
