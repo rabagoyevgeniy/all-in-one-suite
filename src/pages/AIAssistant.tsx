@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   ArrowLeft, Send, Sparkles, Loader2, Trash2, Lock, Mic,
-  BarChart2, Users, DollarSign, Settings,
+  BarChart2, Users, DollarSign, Settings, Settings2,
   Calendar, Target, FileText,
   TrendingUp, Home, CreditCard,
   Star, Swords, Lightbulb,
   Clock, Search, X, Copy, ChevronRight, CheckSquare,
   Menu, PanelLeftOpen, PanelLeftClose,
 } from 'lucide-react';
+import AISettings, { useAIPreferences } from '@/components/ai/AISettings';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/stores/authStore';
 import { useLanguage } from '@/hooks/useLanguage';
