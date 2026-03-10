@@ -120,7 +120,7 @@ export default function CoachSchedule() {
                     <Button
                       size="sm"
                       className="h-7 rounded-lg text-[10px]"
-                      onClick={() => updateStatus.mutate({ id: booking.id, status: 'in_progress' })}
+                      onClick={() => updateStatus.mutate({ id: booking.id, status: 'in_progress', parentId: booking.parent_id, coachId: user?.id })}
                     >
                       Start Lesson
                     </Button>
