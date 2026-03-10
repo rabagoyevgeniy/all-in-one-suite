@@ -26,7 +26,7 @@ export default function CoachSchedule() {
       const { data, error } = await supabase
         .from('bookings')
         .select(`
-          id, status, lesson_fee, currency, created_at, booking_type,
+          id, status, lesson_fee, currency, created_at, booking_type, parent_id,
           students(id, swim_belt, profiles:students_id_fkey(full_name)),
           pools(name, address)
         `)
@@ -39,12 +39,31 @@ export default function CoachSchedule() {
   });
 
   const updateStatus = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+    mutationFn: async ({ id, status, parentId, coachId }: { id: string; status: string; parentId?: string; coachId?: string }) => {
       const { error } = await supabase
         .from('bookings')
         .update({ status })
         .eq('id', id);
       if (error) throw error;
+
+      // When starting a lesson, notify parent and activate GPS
+      if (status === 'in_progress') {
+        if (parentId) {
+          await supabase.from('notifications').insert({
+            user_id: parentId,
+            title: '🏊 Lesson Started!',
+            body: 'Your coach has started the lesson.',
+            type: 'lesson_started',
+            reference_id: id,
+          });
+        }
+        if (coachId) {
+          await supabase
+            .from('coaches')
+            .update({ gps_tracking_active: true, last_location_update: new Date().toISOString() })
+            .eq('id', coachId);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['coach-all-bookings'] });
@@ -101,7 +120,7 @@ export default function CoachSchedule() {
                     <Button
                       size="sm"
                       className="h-7 rounded-lg text-[10px]"
-                      onClick={() => updateStatus.mutate({ id: booking.id, status: 'in_progress' })}
+                      onClick={() => updateStatus.mutate({ id: booking.id, status: 'in_progress', parentId: booking.parent_id, coachId: user?.id })}
                     >
                       Start Lesson
                     </Button>
