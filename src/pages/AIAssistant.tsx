@@ -583,6 +583,15 @@ export default function AIAssistant() {
               )}
             </button>
 
+            {/* Settings */}
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="w-9 h-9 flex items-center justify-center rounded-xl bg-muted hover:bg-accent transition-colors"
+              title="Settings"
+            >
+              <Settings2 className="w-4 h-4 text-muted-foreground" />
+            </button>
+
             {/* New conversation */}
             <button
               onClick={handleNewConversation}
