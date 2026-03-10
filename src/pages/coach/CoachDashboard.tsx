@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MapPin, Clock, Star, Navigation, ChevronRight, Loader2, Wallet } from 'lucide-react';
+import { MapPin, Star, Navigation, Loader2, Wallet, MessageSquare, ChevronRight } from 'lucide-react';
 import { CoinBalance } from '@/components/CoinBalance';
 import { SwimBeltBadge } from '@/components/SwimBeltBadge';
-import { RecentMessagesWidget } from '@/components/RecentMessagesWidget';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/stores/authStore';
@@ -14,12 +13,6 @@ import { COACH_RANKS } from '@/lib/constants';
 import { toast } from '@/hooks/use-toast';
 import { useLanguage } from '@/hooks/useLanguage';
 import { cn } from '@/lib/utils';
-
-const BOOKING_STATUS_COLORS: Record<string, string> = {
-  confirmed: 'bg-primary/15 text-primary border-primary/30',
-  in_progress: 'bg-success/15 text-success border-success/30 animate-pulse',
-  completed: 'bg-muted text-muted-foreground border-border',
-};
 
 export default function CoachDashboard() {
   const { user } = useAuthStore();
@@ -48,12 +41,12 @@ export default function CoachDashboard() {
       const { data, error } = await supabase
         .from('bookings')
         .select(`
-          id, status, lesson_fee, currency, created_at, booking_type, student_id,
+          id, status, lesson_fee, currency, created_at, booking_type, student_id, parent_id,
           students(id, swim_belt, profiles:students_id_fkey(full_name)),
           pools(name, address)
         `)
         .eq('coach_id', user!.id)
-        .in('status', ['confirmed', 'in_progress', 'completed'])
+        .in('status', ['confirmed', 'in_progress'])
         .order('created_at');
       if (error) throw error;
       return data;
@@ -66,10 +59,10 @@ export default function CoachDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bookings')
-        .select('students(id, swim_belt, profiles:students_id_fkey(full_name))')
+        .select('students(id, swim_belt, coin_balance, profiles:students_id_fkey(full_name))')
         .eq('coach_id', user!.id)
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(20);
       if (error) throw error;
       const seen = new Set<string>();
       return (data || []).filter(b => {
@@ -77,7 +70,7 @@ export default function CoachDashboard() {
         if (!s?.id || seen.has(s.id)) return false;
         seen.add(s.id);
         return true;
-      }).slice(0, 5);
+      }).slice(0, 3);
     },
     enabled: !!user?.id,
   });
@@ -100,19 +93,47 @@ export default function CoachDashboard() {
       const lessonsCount = completedThisMonth?.length || 0;
       const currency = completedThisMonth?.[0]?.currency || 'AED';
 
-      // Next payroll
-      const { data: payroll } = await supabase
-        .from('coach_payroll')
-        .select('period_end, status')
-        .eq('coach_id', user!.id)
-        .eq('status', 'draft')
-        .order('period_end', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      return { totalEarned, lessonsCount, currency, nextPayout: payroll?.period_end };
+      return { totalEarned, lessonsCount, currency };
     },
     enabled: !!user?.id,
+  });
+
+  // Real chat contacts
+  const { data: chatRooms } = useQuery({
+    queryKey: ['coach-chats-preview', user?.id],
+    queryFn: async () => {
+      const { data: members } = await supabase
+        .from('chat_members')
+        .select('room_id')
+        .eq('user_id', user!.id);
+
+      if (!members?.length) return [];
+
+      const roomIds = members.map(m => m.room_id);
+      const { data: rooms } = await supabase
+        .from('chat_rooms')
+        .select('id, last_message, last_message_at, type')
+        .in('id', roomIds)
+        .eq('type', 'direct')
+        .order('last_message_at', { ascending: false })
+        .limit(3);
+
+      const withProfiles = await Promise.all(
+        (rooms || []).map(async (room) => {
+          const { data: other } = await supabase
+            .from('chat_members')
+            .select('user_id, profile:profiles!chat_members_user_id_fkey(full_name, avatar_url)')
+            .eq('room_id', room.id)
+            .neq('user_id', user!.id)
+            .limit(1)
+            .maybeSingle();
+          return { ...room, otherPerson: (other as any)?.profile };
+        })
+      );
+      return withProfiles;
+    },
+    enabled: !!user?.id,
+    refetchInterval: 30000,
   });
 
   const activeBooking = (todayBookings || []).find((b: any) => ['confirmed', 'in_progress'].includes(b.status));
@@ -135,7 +156,7 @@ export default function CoachDashboard() {
 
     const watchId = navigator.geolocation.watchPosition(
       sendLocation,
-      (err) => { console.log('GPS error:', err); setGpsActive(false); },
+      () => setGpsActive(false),
       { enableHighAccuracy: true, maximumAge: 30000 }
     );
 
@@ -149,6 +170,46 @@ export default function CoachDashboard() {
   const profile = coachData?.profiles as any;
   const rankInfo = COACH_RANKS.find(r => r.id === coachData?.rank);
 
+  const openGoogleMaps = (address: string) => {
+    const encoded = encodeURIComponent(address + ' Dubai');
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${encoded}`, '_blank');
+  };
+
+  const handleStartLesson = async (booking: any) => {
+    const student = booking.students as any;
+    setStartingLesson(booking.id);
+    try {
+      await supabase.from('bookings').update({ status: 'in_progress' }).eq('id', booking.id);
+      
+      // Notify parent
+      if (booking.parent_id) {
+        await supabase.from('notifications').insert({
+          user_id: booking.parent_id,
+          title: '🏊 Lesson Started!',
+          body: 'Your coach has started the lesson.',
+          type: 'lesson_started',
+          reference_id: booking.id,
+        });
+      }
+
+      const { data: lesson, error } = await supabase
+        .from('lessons')
+        .insert({
+          booking_id: booking.id,
+          coach_id: user!.id,
+          student_id: booking.student_id || student?.id,
+          started_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      navigate(`/coach/lesson/${booking.id}/active`, { state: { lessonId: lesson.id } });
+    } catch {
+      toast({ title: t('Failed to start lesson', 'Не удалось начать занятие'), variant: 'destructive' });
+      setStartingLesson(null);
+    }
+  };
+
   if (coachLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -158,65 +219,65 @@ export default function CoachDashboard() {
   }
 
   return (
-    <div className="px-4 py-6 space-y-6">
+    <div className="px-4 py-6 space-y-5 pb-28">
+      {/* Header */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <h2 className="font-display font-bold text-xl text-foreground">
+        <h2 className="font-bold text-xl text-foreground">
           {t("Today's Lessons", 'Занятия сегодня')}
         </h2>
         <p className="text-sm text-muted-foreground">
-          {t('Your route and schedule for today', 'Ваш маршрут и расписание на сегодня')}
-          {' • '}{profile?.city || 'Dubai'}
+          {profile?.city || 'Dubai'}
         </p>
       </motion.div>
 
-      {/* GPS Status */}
+      {/* GPS Banner */}
       {gpsActive && (
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="glass-card rounded-xl p-3 flex items-center gap-3 border border-success/30"
+          className="rounded-xl p-3 flex items-center gap-3 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30"
         >
           <span className="relative flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-success" />
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
           </span>
-          <span className="text-sm text-foreground">
-            📍 {t('GPS Active — Parents can see your location', 'GPS активен — родители видят ваше местоположение')}
+          <span className="text-sm text-emerald-700 dark:text-emerald-300">
+            🟢 {t('GPS Active · Parents can see you', 'GPS активен · Родители видят вас')}
           </span>
         </motion.div>
       )}
 
-      {/* Quick Stats */}
+      {/* Stats Row */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
         className="grid grid-cols-4 gap-2"
       >
-        <div className="glass-card rounded-2xl p-3 text-center">
+        <div className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm">
           <p className="text-[10px] text-muted-foreground font-medium">{t('Lessons', 'Уроки')}</p>
-          <p className="font-display font-bold text-lg text-foreground">{coachData?.total_lessons_completed || 0}</p>
+          <p className="font-bold text-lg text-foreground">{coachData?.total_lessons_completed || 0}</p>
         </div>
-        <div className="glass-card rounded-2xl p-3 text-center">
+        <div className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm">
           <p className="text-[10px] text-muted-foreground font-medium">{t('Rating', 'Рейтинг')}</p>
           <div className="flex items-center justify-center gap-0.5 mt-0.5">
-            <Star size={12} className="text-warning fill-warning" />
-            <span className="font-display font-bold text-foreground">{Number(coachData?.avg_rating || 0).toFixed(1)}</span>
+            <Star size={12} className="text-amber-500 fill-amber-500" />
+            <span className="font-bold text-foreground">{Number(coachData?.avg_rating || 0).toFixed(1)}</span>
           </div>
         </div>
-        <div className="glass-card rounded-2xl p-3 text-center">
+        <div className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm">
           <p className="text-[10px] text-muted-foreground font-medium">{t('Coins', 'Монеты')}</p>
           <CoinBalance amount={coachData?.coin_balance || 0} size="sm" />
         </div>
-        <div className="glass-card rounded-2xl p-3 text-center">
+        <div className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm">
           <p className="text-[10px] text-muted-foreground font-medium">{t('Rank', 'Ранг')}</p>
           <Badge variant="outline" className="text-[10px] mt-1" style={{ borderColor: rankInfo?.color, color: rankInfo?.color }}>
-            {rankInfo?.label || coachData?.rank || 'Trainee'}
+            {rankInfo?.label || 'Trainee'}
           </Badge>
         </div>
       </motion.div>
 
-      {/* Today's Route — Timeline */}
+      {/* Today's Route */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-sm text-foreground">
@@ -234,9 +295,7 @@ export default function CoachDashboard() {
                 toast({ description: t('No lessons scheduled today', 'На сегодня нет уроков') });
                 return;
               }
-              const mapsUrl = destinations.length === 1
-                ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destinations[0] + ' Dubai')}`
-                : `https://www.google.com/maps/dir/current+location/${destinations.map((d: string) => encodeURIComponent(d)).join('/')}`;
+              const mapsUrl = `https://www.google.com/maps/dir/current+location/${destinations.map((d: string) => encodeURIComponent(d)).join('/')}`;
               window.open(mapsUrl, '_blank');
             }}
             className="text-xs text-primary font-medium flex items-center gap-1"
@@ -246,103 +305,89 @@ export default function CoachDashboard() {
         </div>
 
         {todayBookings && todayBookings.length > 0 ? (
-          <div className="space-y-0">
-            {todayBookings.map((booking, i) => {
+          <div className="space-y-3">
+            {todayBookings.map((booking: any, i: number) => {
               const student = booking.students as any;
               const pool = booking.pools as any;
-              const studentProfile = student?.profiles as any;
+              const sp = student?.profiles as any;
+              const isLive = booking.status === 'in_progress';
+              const isNext = booking.status === 'confirmed';
+
               return (
-                <div key={booking.id} className="flex gap-3">
-                  {/* Timeline dot + line */}
-                  <div className="flex flex-col items-center">
-                    <div className={cn(
-                      "w-3 h-3 rounded-full mt-4 flex-shrink-0",
-                      booking.status === 'completed' ? 'bg-emerald-500' :
-                      booking.status === 'in_progress' ? 'bg-primary animate-pulse' :
-                      'bg-muted-foreground/30'
-                    )} />
-                    {i < todayBookings.length - 1 && (
-                      <div className="w-0.5 flex-1 bg-border mt-1" />
-                    )}
+                <motion.div
+                  key={booking.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 + i * 0.08 }}
+                  className={cn(
+                    "bg-card rounded-2xl p-4 border shadow-sm",
+                    isLive ? "border-emerald-300 dark:border-emerald-500/40" : "border-border"
+                  )}
+                >
+                  {/* Time + Status */}
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-lg font-bold text-foreground">
+                      {new Date(booking.created_at!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <span className={cn(
+                      "text-xs px-2.5 py-1 rounded-full font-medium",
+                      isLive
+                        ? "bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 animate-pulse"
+                        : "bg-primary/10 text-primary"
+                    )}>
+                      {isLive ? '🔴 LIVE' : 'NEXT'}
+                    </span>
                   </div>
 
-                  {/* Lesson card */}
-                  <motion.div
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 + i * 0.1 }}
-                    className="flex-1 bg-card rounded-2xl p-4 shadow-sm border border-border mb-3 space-y-3"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="font-semibold text-sm text-foreground">
-                          {new Date(booking.created_at!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          {' — '}{studentProfile?.full_name || t('Student', 'Ученик')}
-                        </div>
-                        <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                          <MapPin className="w-3 h-3" />
-                          {pool?.name || pool?.address || 'TBD'}
-                        </div>
-                      </div>
-                      <Badge variant="outline" className={cn(
-                        "text-[10px]",
-                        booking.status === 'completed' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-200' :
-                        booking.status === 'in_progress' ? 'bg-primary/10 text-primary border-primary/30 animate-pulse' :
-                        'bg-muted text-muted-foreground'
-                      )}>
-                        {booking.status === 'in_progress' ? 'LIVE' : booking.status === 'completed' ? t('DONE', 'ГОТОВО') : t('NEXT', 'СЛЕД')}
-                      </Badge>
-                    </div>
+                  {/* Student + Belt */}
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="font-semibold text-sm text-foreground">{sp?.full_name || t('Student', 'Ученик')}</p>
+                    <SwimBeltBadge belt={student?.swim_belt || 'white'} size="sm" />
+                  </div>
 
-                    {booking.status === 'confirmed' && (
+                  {/* Location */}
+                  <p className="text-sm text-muted-foreground mb-3 flex items-center gap-1">
+                    <MapPin className="w-3 h-3 flex-shrink-0" />
+                    {pool?.name || pool?.address || 'TBD'}
+                  </p>
+
+                  {/* Actions */}
+                  {isNext && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => openGoogleMaps(pool?.address || pool?.name || '')}
+                        className="flex-1 py-2.5 border border-border rounded-xl text-sm flex items-center justify-center gap-1 hover:bg-muted/50 transition-colors"
+                      >
+                        🗺️ {t('Navigate', 'Маршрут')}
+                      </button>
+                      <button
+                        onClick={() => navigate('/chat')}
+                        className="flex-1 py-2.5 border border-border rounded-xl text-sm flex items-center justify-center gap-1 hover:bg-muted/50 transition-colors"
+                      >
+                        💬 {t('Message', 'Написать')}
+                      </button>
                       <Button
-                        className="w-full h-12 text-base font-bold rounded-2xl"
+                        className="flex-1 h-auto py-2.5 rounded-xl text-sm font-medium"
                         disabled={startingLesson === booking.id}
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          setStartingLesson(booking.id);
-                          try {
-                            await supabase.from('bookings')
-                              .update({ status: 'in_progress' })
-                              .eq('id', booking.id);
-                            const { data: lesson, error } = await supabase
-                              .from('lessons')
-                              .insert({
-                                booking_id: booking.id,
-                                coach_id: user!.id,
-                                student_id: booking.student_id || student?.id,
-                                started_at: new Date().toISOString(),
-                              })
-                              .select()
-                              .single();
-                            if (error) throw error;
-                            navigate(`/coach/lesson/${booking.id}/active`, {
-                              state: { lessonId: lesson.id },
-                            });
-                          } catch {
-                            toast({ title: t('Failed to start lesson', 'Не удалось начать занятие'), variant: 'destructive' });
-                            setStartingLesson(null);
-                          }
-                        }}
+                        onClick={() => handleStartLesson(booking)}
                       >
                         {startingLesson === booking.id ? (
-                          <Loader2 className="h-5 w-5 animate-spin" />
+                          <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          `🏊 ${t('Start Lesson', 'Начать занятие')}`
+                          `▶ ${t('Start', 'Старт')}`
                         )}
                       </Button>
-                    )}
-                    {booking.status === 'in_progress' && (
-                      <Button
-                        variant="outline"
-                        className="w-full h-10 rounded-xl text-sm"
-                        onClick={() => navigate(`/coach/lesson/${booking.id}/active`)}
-                      >
-                        {t('Continue → Report', 'Продолжить → Отчёт')}
-                      </Button>
-                    )}
-                  </motion.div>
-                </div>
+                    </div>
+                  )}
+                  {isLive && (
+                    <Button
+                      onClick={() => navigate(`/coach/lesson/${booking.id}/active`)}
+                      className="w-full py-2.5 rounded-xl text-sm font-medium bg-emerald-500 hover:bg-emerald-600"
+                    >
+                      {t('Complete → Report', 'Завершить → Отчёт')}
+                    </Button>
+                  )}
+                </motion.div>
               );
             })}
           </div>
@@ -361,7 +406,7 @@ export default function CoachDashboard() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.35 }}
+        transition={{ delay: 0.3 }}
         className="bg-card rounded-2xl p-4 shadow-sm border border-border"
       >
         <div className="flex items-center justify-between mb-3">
@@ -394,11 +439,6 @@ export default function CoachDashboard() {
             <div className="text-[10px] text-muted-foreground">{t('Rating', 'Рейтинг')}</div>
           </div>
         </div>
-        {monthlyEarnings?.nextPayout && (
-          <div className="text-xs text-muted-foreground text-center mt-3">
-            {t('Next payout', 'Следующая выплата')}: {new Date(monthlyEarnings.nextPayout).toLocaleDateString()}
-          </div>
-        )}
       </motion.div>
 
       {/* My Students */}
@@ -407,31 +447,33 @@ export default function CoachDashboard() {
           <h3 className="font-semibold text-sm text-foreground">
             {t('My Students', 'Мои ученики')}
           </h3>
-          <button onClick={() => navigate('/coach/students')} className="text-xs text-primary">
-            {t('View all', 'Все')}
+          <button onClick={() => navigate('/coach/students')} className="text-xs text-primary flex items-center gap-0.5">
+            {t('View all', 'Все')} <ChevronRight size={12} />
           </button>
         </div>
         {recentStudents && recentStudents.length > 0 ? (
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-            {recentStudents.map((b, i) => {
+          <div className="space-y-2">
+            {recentStudents.map((b: any, i: number) => {
               const s = b.students as any;
               const sp = s?.profiles as any;
               return (
-                <motion.div
+                <motion.button
                   key={s?.id || i}
-                  initial={{ opacity: 0, x: 20 }}
+                  initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.4 + i * 0.08 }}
-                  className="flex-shrink-0 bg-card rounded-2xl p-3 border border-border shadow-sm flex flex-col items-center gap-2 w-24"
+                  transition={{ delay: 0.35 + i * 0.06 }}
+                  onClick={() => navigate('/coach/students')}
+                  className="w-full flex items-center gap-3 p-3 bg-card rounded-xl border border-border shadow-sm hover:border-primary/30 transition-colors text-left"
                 >
                   <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center text-sm font-bold text-primary">
                     {sp?.full_name?.[0] || '?'}
                   </div>
-                  <span className="text-xs font-medium text-foreground text-center leading-tight truncate w-full">
-                    {sp?.full_name?.split(' ')[0] || '—'}
-                  </span>
-                  <SwimBeltBadge belt={s?.swim_belt || 'white'} size="sm" />
-                </motion.div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{sp?.full_name || '—'}</p>
+                    <SwimBeltBadge belt={s?.swim_belt || 'white'} size="sm" />
+                  </div>
+                  <CoinBalance amount={s?.coin_balance || 0} size="sm" />
+                </motion.button>
               );
             })}
           </div>
@@ -442,8 +484,48 @@ export default function CoachDashboard() {
         )}
       </div>
 
-      {/* Recent Messages */}
-      <RecentMessagesWidget />
+      {/* Messages */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-sm text-foreground flex items-center gap-2">
+            <MessageSquare className="w-4 h-4 text-primary" />
+            {t('Messages', 'Сообщения')}
+          </h3>
+          <button onClick={() => navigate('/chat')} className="text-xs text-primary flex items-center gap-0.5">
+            {t('View all', 'Все')} <ChevronRight size={12} />
+          </button>
+        </div>
+        <div className="space-y-2">
+          {chatRooms && chatRooms.length > 0 ? (
+            chatRooms.map((room: any) => (
+              <button
+                key={room.id}
+                onClick={() => navigate(`/chat/${room.id}`)}
+                className="w-full flex items-center gap-3 p-3 bg-card rounded-xl border border-border shadow-sm hover:border-primary/30 transition-colors text-left"
+              >
+                <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center font-bold text-sm text-primary">
+                  {room.otherPerson?.full_name?.[0] || '?'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">
+                    {room.otherPerson?.full_name || t('Parent', 'Родитель')}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {room.last_message || t('Start a conversation', 'Начать разговор')}
+                  </p>
+                </div>
+              </button>
+            ))
+          ) : (
+            <button
+              onClick={() => navigate('/chat')}
+              className="w-full py-4 border-2 border-dashed border-border rounded-xl text-sm text-muted-foreground hover:border-primary/30 transition-colors"
+            >
+              💬 {t('Start a conversation', 'Начать разговор')}
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

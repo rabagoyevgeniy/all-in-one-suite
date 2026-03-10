@@ -1,24 +1,46 @@
+import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Calendar, Loader2 } from 'lucide-react';
+import { Calendar, Loader2, ChevronLeft, ChevronRight, MapPin, Navigation } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { SwimBeltBadge } from '@/components/SwimBeltBadge';
 import { useAuthStore } from '@/stores/authStore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
+import { useLanguage } from '@/hooks/useLanguage';
+import { cn } from '@/lib/utils';
 
-const STATUS_COLORS: Record<string, string> = {
-  confirmed: 'bg-primary/15 text-primary border-primary/30',
-  in_progress: 'bg-success/15 text-success border-success/30 animate-pulse',
-  completed: 'bg-muted text-muted-foreground border-border',
-};
+function getWeekDays(baseDate: Date): Date[] {
+  const start = new Date(baseDate);
+  const day = start.getDay();
+  const diff = start.getDate() - day + (day === 0 ? -6 : 1); // Monday start
+  start.setDate(diff);
+  start.setHours(0, 0, 0, 0);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    return d;
+  });
+}
+
+function isSameDay(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function formatDay(d: Date) {
+  return d.toLocaleDateString('en-US', { weekday: 'short' });
+}
 
 export default function CoachSchedule() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { t } = useLanguage();
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const weekDays = useMemo(() => getWeekDays(selectedDate), [selectedDate.toDateString()]);
 
   const { data: bookings, isLoading } = useQuery({
     queryKey: ['coach-all-bookings', user?.id],
@@ -31,53 +53,53 @@ export default function CoachSchedule() {
           pools(name, address)
         `)
         .eq('coach_id', user!.id)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: true });
       if (error) throw error;
       return data;
     },
     enabled: !!user?.id,
   });
 
-  const updateStatus = useMutation({
-    mutationFn: async ({ id, status, parentId, coachId }: { id: string; status: string; parentId?: string; coachId?: string }) => {
-      const { error } = await supabase
-        .from('bookings')
-        .update({ status })
-        .eq('id', id);
-      if (error) throw error;
+  const dayBookings = useMemo(() => {
+    return (bookings || []).filter((b: any) => {
+      const bDate = new Date(b.created_at!);
+      return isSameDay(bDate, selectedDate);
+    });
+  }, [bookings, selectedDate]);
 
-      // When starting a lesson, notify parent and activate GPS
-      if (status === 'in_progress') {
-        if (parentId) {
-          await supabase.from('notifications').insert({
-            user_id: parentId,
-            title: '🏊 Lesson Started!',
-            body: 'Your coach has started the lesson.',
-            type: 'lesson_started',
-            reference_id: id,
-          });
-        }
-        if (coachId) {
-          await supabase
-            .from('coaches')
-            .update({ gps_tracking_active: true, last_location_update: new Date().toISOString() })
-            .eq('id', coachId);
-        }
+  const hasLessonsOnDay = (day: Date) => {
+    return (bookings || []).some((b: any) => isSameDay(new Date(b.created_at!), day));
+  };
+
+  const changeWeek = (dir: number) => {
+    const next = new Date(selectedDate);
+    next.setDate(next.getDate() + dir * 7);
+    setSelectedDate(next);
+  };
+
+  const updateStatus = useMutation({
+    mutationFn: async ({ id, status, parentId }: { id: string; status: string; parentId?: string }) => {
+      const { error } = await supabase.from('bookings').update({ status }).eq('id', id);
+      if (error) throw error;
+      if (status === 'in_progress' && parentId) {
+        await supabase.from('notifications').insert({
+          user_id: parentId,
+          title: '🏊 Lesson Started!',
+          body: 'Your coach has started the lesson.',
+          type: 'lesson_started',
+          reference_id: id,
+        });
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['coach-all-bookings'] });
-      toast({ title: 'Booking updated' });
+      toast({ title: t('Booking updated', 'Бронь обновлена') });
     },
   });
 
-  // Group by date
-  const grouped: Record<string, any[]> = {};
-  (bookings || []).forEach((b: any) => {
-    const date = new Date(b.created_at!).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-    if (!grouped[date]) grouped[date] = [];
-    grouped[date].push(b);
-  });
+  const openGoogleMaps = (address: string) => {
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address + ' Dubai')}`, '_blank');
+  };
 
   if (isLoading) {
     return (
@@ -88,65 +110,138 @@ export default function CoachSchedule() {
   }
 
   return (
-    <div className="px-4 py-6 space-y-6">
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <PageHeader title="Schedule" subtitle={`${bookings?.length || 0} total bookings`} backRoute="/coach" />
-      </motion.div>
+    <div className="pb-28">
+      <div className="px-4 py-4">
+        <PageHeader title={t('Schedule', 'Расписание')} subtitle={`${bookings?.length || 0} ${t('total bookings', 'всего записей')}`} backRoute="/coach" />
+      </div>
 
-      {Object.entries(grouped).map(([date, items], gi) => (
-        <div key={date} className="space-y-2">
-          <h3 className="font-display font-semibold text-xs text-muted-foreground uppercase tracking-wider">{date}</h3>
-          {items.map((booking: any, i: number) => {
+      {/* Week strip */}
+      <div className="flex items-center gap-1 px-3 py-3 border-b border-border overflow-x-auto">
+        <button onClick={() => changeWeek(-1)} className="p-1.5 rounded-lg hover:bg-muted flex-shrink-0">
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        {weekDays.map(day => (
+          <button
+            key={day.toISOString()}
+            onClick={() => setSelectedDate(day)}
+            className={cn(
+              "flex-shrink-0 flex flex-col items-center px-3 py-2 rounded-xl min-w-[48px] transition-colors",
+              isSameDay(day, selectedDate)
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted/50 text-muted-foreground hover:bg-muted"
+            )}
+          >
+            <span className="text-[10px] font-medium">{formatDay(day)}</span>
+            <span className="text-sm font-bold">{day.getDate()}</span>
+            {hasLessonsOnDay(day) && (
+              <div className={cn(
+                "w-1.5 h-1.5 rounded-full mt-0.5",
+                isSameDay(day, selectedDate) ? "bg-primary-foreground" : "bg-primary"
+              )} />
+            )}
+          </button>
+        ))}
+        <button onClick={() => changeWeek(1)} className="p-1.5 rounded-lg hover:bg-muted flex-shrink-0">
+          <ChevronRight className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Day lessons */}
+      <div className="px-4 py-4 space-y-3">
+        {dayBookings.length > 0 ? (
+          dayBookings.map((booking: any, i: number) => {
             const student = booking.students as any;
             const pool = booking.pools as any;
             const sp = student?.profiles as any;
+            const isLive = booking.status === 'in_progress';
+            const isConfirmed = booking.status === 'confirmed';
+
             return (
               <motion.div
                 key={booking.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: gi * 0.05 + i * 0.03 }}
-                className="glass-card rounded-xl p-4"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className={cn(
+                  "bg-card border rounded-2xl p-4 shadow-sm",
+                  isLive ? "border-emerald-300 dark:border-emerald-500/40" : "border-border"
+                )}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <p className="font-semibold text-sm text-foreground">{sp?.full_name || 'Student'}</p>
-                  <Badge variant="outline" className={`text-[10px] ${STATUS_COLORS[booking.status] || ''}`}>
-                    {booking.status === 'in_progress' ? 'LIVE' : booking.status?.toUpperCase()}
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-sm text-foreground">{sp?.full_name || t('Student', 'Ученик')}</p>
+                      <SwimBeltBadge belt={student?.swim_belt || 'white'} size="sm" />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {new Date(booking.created_at!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className={cn(
+                    "text-[10px]",
+                    isLive ? "bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 animate-pulse border-red-200" :
+                    isConfirmed ? "bg-primary/10 text-primary border-primary/30" :
+                    booking.status === 'completed' ? "bg-emerald-100 text-emerald-600 border-emerald-200" :
+                    ""
+                  )}>
+                    {isLive ? '🔴 LIVE' : booking.status === 'completed' ? t('DONE', 'ГОТОВО') : t('NEXT', 'СЛЕД')}
                   </Badge>
                 </div>
-                <p className="text-xs text-muted-foreground">{pool?.name || 'TBD'} · {booking.lesson_fee} {booking.currency}</p>
-                <div className="flex gap-2 mt-3">
-                  {booking.status === 'confirmed' && (
-                    <Button
-                      size="sm"
-                      className="h-7 rounded-lg text-[10px]"
-                      onClick={() => updateStatus.mutate({ id: booking.id, status: 'in_progress', parentId: booking.parent_id, coachId: user?.id })}
-                    >
-                      Start Lesson
-                    </Button>
-                  )}
-                  {booking.status === 'in_progress' && (
-                    <Button
-                      size="sm"
-                      className="h-7 rounded-lg text-[10px]"
-                      onClick={() => navigate(`/coach/lesson/${booking.id}`)}
-                    >
-                      Complete & Report
-                    </Button>
-                  )}
+
+                <div className="flex items-center gap-1 text-xs text-muted-foreground mb-3">
+                  <MapPin className="w-3 h-3" />
+                  {pool?.name || pool?.address || 'TBD'}
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-emerald-600">
+                    {booking.lesson_fee || 0} {booking.currency || 'AED'}
+                  </span>
+                  <div className="flex gap-2">
+                    {isConfirmed && (
+                      <>
+                        <button
+                          onClick={() => openGoogleMaps(pool?.address || pool?.name || '')}
+                          className="p-2 border border-border rounded-lg hover:bg-muted/50"
+                        >
+                          <Navigation className="w-4 h-4 text-muted-foreground" />
+                        </button>
+                        <Button
+                          size="sm"
+                          className="rounded-lg text-xs"
+                          onClick={() => updateStatus.mutate({ id: booking.id, status: 'in_progress', parentId: booking.parent_id })}
+                        >
+                          {t('Start', 'Старт')}
+                        </Button>
+                      </>
+                    )}
+                    {isLive && (
+                      <Button
+                        size="sm"
+                        className="rounded-lg text-xs bg-emerald-500 hover:bg-emerald-600"
+                        onClick={() => navigate(`/coach/lesson/${booking.id}`)}
+                      >
+                        {t('Complete', 'Завершить')}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             );
-          })}
-        </div>
-      ))}
-
-      {(bookings || []).length === 0 && (
-        <div className="glass-card rounded-2xl p-8 text-center">
-          <Calendar size={48} className="text-muted-foreground mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">No bookings yet</p>
-        </div>
-      )}
+          })
+        ) : (
+          <div className="flex flex-col items-center justify-center py-16 gap-3">
+            <Calendar className="w-12 h-12 text-muted-foreground/40" />
+            <p className="text-sm text-muted-foreground">
+              {t(
+                `No lessons on ${selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}`,
+                `Нет занятий ${selectedDate.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'short' })}`
+              )}
+            </p>
+            <p className="text-xs text-muted-foreground">{t('Free day — enjoy your rest! 🏖️', 'Свободный день — отдыхайте! 🏖️')}</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
