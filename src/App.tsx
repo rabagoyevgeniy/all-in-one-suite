@@ -173,6 +173,7 @@ const App = () => (
             {/* Notifications (all roles, uses AppLayout) */}
             <Route element={<RoleGuard allowedRoles={['parent', 'coach', 'student', 'pro_athlete', 'personal_manager', 'admin', 'head_manager']}><AppLayout /></RoleGuard>}>
               <Route path="/notifications" element={<NotificationsPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

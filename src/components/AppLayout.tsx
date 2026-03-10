@@ -129,6 +129,10 @@ export function AppLayout({ theme = 'operations' }: AppLayoutProps) {
                   <User size={14} />
                   Profile
                 </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2 text-sm cursor-pointer" onClick={() => navigate('/settings')}>
+                  <Settings size={14} />
+                  Settings
+                </DropdownMenuItem>
                 <DropdownMenuItem className="gap-2 text-sm text-destructive" onClick={handleLogout}>
                   <LogOut size={14} />
                   Logout
