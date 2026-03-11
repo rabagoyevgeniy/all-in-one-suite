@@ -179,9 +179,17 @@ export default function CoachDashboard() {
     const student = booking.students as any;
     setStartingLesson(booking.id);
     try {
+      // Capture GPS on start
+      let startLocation: { lat: number; lng: number } | null = null;
+      try {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 5000 })
+        );
+        startLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      } catch {}
+
       await supabase.from('bookings').update({ status: 'in_progress' }).eq('id', booking.id);
       
-      // Notify parent
       if (booking.parent_id) {
         await supabase.from('notifications').insert({
           user_id: booking.parent_id,
@@ -199,7 +207,9 @@ export default function CoachDashboard() {
           coach_id: user!.id,
           student_id: booking.student_id || student?.id,
           started_at: new Date().toISOString(),
-        })
+          started_location_lat: startLocation?.lat || null,
+          started_location_lng: startLocation?.lng || null,
+        } as any)
         .select()
         .single();
       if (error) throw error;
