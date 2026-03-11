@@ -256,27 +256,27 @@ export default function CoachDashboard() {
         transition={{ delay: 0.1 }}
         className="grid grid-cols-4 gap-2"
       >
-        <div className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm">
+        <button onClick={() => navigate('/coach/lessons-history')} className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm hover:border-primary/30 transition-colors">
           <p className="text-[10px] text-muted-foreground font-medium">{t('Lessons', 'Уроки')}</p>
           <p className="font-bold text-lg text-foreground">{coachData?.total_lessons_completed || 0}</p>
-        </div>
-        <div className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm">
+        </button>
+        <button onClick={() => navigate('/coach/ratings')} className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm hover:border-primary/30 transition-colors">
           <p className="text-[10px] text-muted-foreground font-medium">{t('Rating', 'Рейтинг')}</p>
           <div className="flex items-center justify-center gap-0.5 mt-0.5">
             <Star size={12} className="text-amber-500 fill-amber-500" />
             <span className="font-bold text-foreground">{Number(coachData?.avg_rating || 0).toFixed(1)}</span>
           </div>
-        </div>
-        <div className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm">
+        </button>
+        <button onClick={() => navigate('/coach/coins')} className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm hover:border-primary/30 transition-colors">
           <p className="text-[10px] text-muted-foreground font-medium">{t('Coins', 'Монеты')}</p>
           <CoinBalance amount={coachData?.coin_balance || 0} size="sm" />
-        </div>
-        <div className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm">
+        </button>
+        <button onClick={() => navigate('/coach/rank')} className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm hover:border-primary/30 transition-colors">
           <p className="text-[10px] text-muted-foreground font-medium">{t('Rank', 'Ранг')}</p>
           <Badge variant="outline" className="text-[10px] mt-1" style={{ borderColor: rankInfo?.color, color: rankInfo?.color }}>
             {rankInfo?.label || 'Trainee'}
           </Badge>
-        </div>
+        </button>
       </motion.div>
 
       {/* Today's Route */}

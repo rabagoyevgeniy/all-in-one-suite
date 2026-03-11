@@ -114,6 +114,11 @@ const App = () => (
               <Route path="/coach/profile" element={<CoachProfile />} />
               <Route path="/coach/lesson/:id" element={<LessonReport />} />
               <Route path="/coach/lesson/:bookingId/active" element={<CoachActiveLesson />} />
+              <Route path="/coach/live-tracking" element={<CoachLiveTracking />} />
+              <Route path="/coach/lessons-history" element={<CoachLessonsHistory />} />
+              <Route path="/coach/ratings" element={<CoachRatings />} />
+              <Route path="/coach/coins" element={<CoachCoins />} />
+              <Route path="/coach/rank" element={<CoachRankHistory />} />
               <Route path="/coach/shop" element={<CoachShop />} />
             </Route>
 
