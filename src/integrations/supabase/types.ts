@@ -869,6 +869,7 @@ export type Database = {
           last_location_update: string | null
           rank: string | null
           rank_frame_style: string | null
+          rank_history: Json | null
           seconding_base_percent: number | null
           specializations: string[] | null
           total_lessons_completed: number | null
@@ -890,6 +891,7 @@ export type Database = {
           last_location_update?: string | null
           rank?: string | null
           rank_frame_style?: string | null
+          rank_history?: Json | null
           seconding_base_percent?: number | null
           specializations?: string[] | null
           total_lessons_completed?: number | null
@@ -911,6 +913,7 @@ export type Database = {
           last_location_update?: string | null
           rank?: string | null
           rank_frame_style?: string | null
+          rank_history?: Json | null
           seconding_base_percent?: number | null
           specializations?: string[] | null
           total_lessons_completed?: number | null
@@ -1661,6 +1664,8 @@ export type Database = {
           created_at: string | null
           duration_minutes: number | null
           ended_at: string | null
+          ended_location_lat: number | null
+          ended_location_lng: number | null
           handoff_note: string | null
           handoff_person: string | null
           handoff_person_name: string | null
@@ -1676,6 +1681,8 @@ export type Database = {
           pm_summary: string | null
           rated_at: string | null
           started_at: string | null
+          started_location_lat: number | null
+          started_location_lng: number | null
           student_id: string | null
           video_duration_seconds: number | null
           video_expires_at: string | null
@@ -1693,6 +1700,8 @@ export type Database = {
           created_at?: string | null
           duration_minutes?: number | null
           ended_at?: string | null
+          ended_location_lat?: number | null
+          ended_location_lng?: number | null
           handoff_note?: string | null
           handoff_person?: string | null
           handoff_person_name?: string | null
@@ -1708,6 +1717,8 @@ export type Database = {
           pm_summary?: string | null
           rated_at?: string | null
           started_at?: string | null
+          started_location_lat?: number | null
+          started_location_lng?: number | null
           student_id?: string | null
           video_duration_seconds?: number | null
           video_expires_at?: string | null
@@ -1725,6 +1736,8 @@ export type Database = {
           created_at?: string | null
           duration_minutes?: number | null
           ended_at?: string | null
+          ended_location_lat?: number | null
+          ended_location_lng?: number | null
           handoff_note?: string | null
           handoff_person?: string | null
           handoff_person_name?: string | null
@@ -1740,6 +1753,8 @@ export type Database = {
           pm_summary?: string | null
           rated_at?: string | null
           started_at?: string | null
+          started_location_lat?: number | null
+          started_location_lng?: number | null
           student_id?: string | null
           video_duration_seconds?: number | null
           video_expires_at?: string | null
