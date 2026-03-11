@@ -31,6 +31,11 @@ import CoachProfile from "./pages/coach/CoachProfile";
 import LessonReport from "./pages/coach/LessonReport";
 import CoachShop from "./pages/coach/CoachShop";
 import CoachActiveLesson from "./pages/coach/CoachActiveLesson";
+import CoachLiveTracking from "./pages/coach/CoachLiveTracking";
+import CoachLessonsHistory from "./pages/coach/CoachLessonsHistory";
+import CoachRatings from "./pages/coach/CoachRatings";
+import CoachCoins from "./pages/coach/CoachCoins";
+import CoachRankHistory from "./pages/coach/CoachRankHistory";
 
 // Parent
 import ParentDashboard from "./pages/parent/ParentDashboard";
