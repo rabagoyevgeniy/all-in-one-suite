@@ -230,21 +230,23 @@ export default function CoachDashboard() {
         </p>
       </motion.div>
 
-      {/* GPS Banner */}
+      {/* GPS Banner — clickable */}
       {gpsActive && (
-        <motion.div
+        <motion.button
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="rounded-xl p-3 flex items-center gap-3 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30"
+          onClick={() => navigate('/coach/live-tracking')}
+          className="w-full rounded-xl p-3 flex items-center gap-3 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 text-left"
         >
           <span className="relative flex h-3 w-3">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
             <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
           </span>
-          <span className="text-sm text-emerald-700 dark:text-emerald-300">
+          <span className="text-sm text-emerald-700 dark:text-emerald-300 flex-1">
             🟢 {t('GPS Active · Parents can see you', 'GPS активен · Родители видят вас')}
           </span>
-        </motion.div>
+          <ChevronRight size={16} className="text-emerald-500" />
+        </motion.button>
       )}
 
       {/* Stats Row */}
