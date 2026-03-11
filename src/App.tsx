@@ -31,6 +31,11 @@ import CoachProfile from "./pages/coach/CoachProfile";
 import LessonReport from "./pages/coach/LessonReport";
 import CoachShop from "./pages/coach/CoachShop";
 import CoachActiveLesson from "./pages/coach/CoachActiveLesson";
+import CoachLiveTracking from "./pages/coach/CoachLiveTracking";
+import CoachLessonsHistory from "./pages/coach/CoachLessonsHistory";
+import CoachRatings from "./pages/coach/CoachRatings";
+import CoachCoins from "./pages/coach/CoachCoins";
+import CoachRankHistory from "./pages/coach/CoachRankHistory";
 
 // Parent
 import ParentDashboard from "./pages/parent/ParentDashboard";
@@ -109,6 +114,11 @@ const App = () => (
               <Route path="/coach/profile" element={<CoachProfile />} />
               <Route path="/coach/lesson/:id" element={<LessonReport />} />
               <Route path="/coach/lesson/:bookingId/active" element={<CoachActiveLesson />} />
+              <Route path="/coach/live-tracking" element={<CoachLiveTracking />} />
+              <Route path="/coach/lessons-history" element={<CoachLessonsHistory />} />
+              <Route path="/coach/ratings" element={<CoachRatings />} />
+              <Route path="/coach/coins" element={<CoachCoins />} />
+              <Route path="/coach/rank" element={<CoachRankHistory />} />
               <Route path="/coach/shop" element={<CoachShop />} />
             </Route>
 

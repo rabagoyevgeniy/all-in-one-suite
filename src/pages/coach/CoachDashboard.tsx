@@ -179,9 +179,17 @@ export default function CoachDashboard() {
     const student = booking.students as any;
     setStartingLesson(booking.id);
     try {
+      // Capture GPS on start
+      let startLocation: { lat: number; lng: number } | null = null;
+      try {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 5000 })
+        );
+        startLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      } catch {}
+
       await supabase.from('bookings').update({ status: 'in_progress' }).eq('id', booking.id);
       
-      // Notify parent
       if (booking.parent_id) {
         await supabase.from('notifications').insert({
           user_id: booking.parent_id,
@@ -199,7 +207,9 @@ export default function CoachDashboard() {
           coach_id: user!.id,
           student_id: booking.student_id || student?.id,
           started_at: new Date().toISOString(),
-        })
+          started_location_lat: startLocation?.lat || null,
+          started_location_lng: startLocation?.lng || null,
+        } as any)
         .select()
         .single();
       if (error) throw error;
@@ -230,21 +240,23 @@ export default function CoachDashboard() {
         </p>
       </motion.div>
 
-      {/* GPS Banner */}
+      {/* GPS Banner — clickable */}
       {gpsActive && (
-        <motion.div
+        <motion.button
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="rounded-xl p-3 flex items-center gap-3 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30"
+          onClick={() => navigate('/coach/live-tracking')}
+          className="w-full rounded-xl p-3 flex items-center gap-3 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 text-left"
         >
           <span className="relative flex h-3 w-3">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
             <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
           </span>
-          <span className="text-sm text-emerald-700 dark:text-emerald-300">
+          <span className="text-sm text-emerald-700 dark:text-emerald-300 flex-1">
             🟢 {t('GPS Active · Parents can see you', 'GPS активен · Родители видят вас')}
           </span>
-        </motion.div>
+          <ChevronRight size={16} className="text-emerald-500" />
+        </motion.button>
       )}
 
       {/* Stats Row */}
@@ -254,27 +266,27 @@ export default function CoachDashboard() {
         transition={{ delay: 0.1 }}
         className="grid grid-cols-4 gap-2"
       >
-        <div className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm">
+        <button onClick={() => navigate('/coach/lessons-history')} className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm hover:border-primary/30 transition-colors">
           <p className="text-[10px] text-muted-foreground font-medium">{t('Lessons', 'Уроки')}</p>
           <p className="font-bold text-lg text-foreground">{coachData?.total_lessons_completed || 0}</p>
-        </div>
-        <div className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm">
+        </button>
+        <button onClick={() => navigate('/coach/ratings')} className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm hover:border-primary/30 transition-colors">
           <p className="text-[10px] text-muted-foreground font-medium">{t('Rating', 'Рейтинг')}</p>
           <div className="flex items-center justify-center gap-0.5 mt-0.5">
             <Star size={12} className="text-amber-500 fill-amber-500" />
             <span className="font-bold text-foreground">{Number(coachData?.avg_rating || 0).toFixed(1)}</span>
           </div>
-        </div>
-        <div className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm">
+        </button>
+        <button onClick={() => navigate('/coach/coins')} className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm hover:border-primary/30 transition-colors">
           <p className="text-[10px] text-muted-foreground font-medium">{t('Coins', 'Монеты')}</p>
           <CoinBalance amount={coachData?.coin_balance || 0} size="sm" />
-        </div>
-        <div className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm">
+        </button>
+        <button onClick={() => navigate('/coach/rank')} className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm hover:border-primary/30 transition-colors">
           <p className="text-[10px] text-muted-foreground font-medium">{t('Rank', 'Ранг')}</p>
           <Badge variant="outline" className="text-[10px] mt-1" style={{ borderColor: rankInfo?.color, color: rankInfo?.color }}>
             {rankInfo?.label || 'Trainee'}
           </Badge>
-        </div>
+        </button>
       </motion.div>
 
       {/* Today's Route */}

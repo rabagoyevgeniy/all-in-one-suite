@@ -94,10 +94,22 @@ export default function CoachActiveLesson() {
 
   const activeRating = hoverRating || rating;
 
+  const captureLocation = (): Promise<{ lat: number; lng: number } | null> => {
+    return new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => resolve(null),
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
+    });
+  };
+
   const handleFinish = async () => {
     if (!bookingId || !lessonId || !user?.id) return;
     setSubmitting(true);
     try {
+      const endLocation = await captureLocation();
+
       await supabase.from('bookings')
         .update({ status: 'completed' })
         .eq('id', bookingId);
@@ -109,7 +121,9 @@ export default function CoachActiveLesson() {
           main_skills_worked: selectedSkills,
           coach_lesson_rating: rating || null,
           challenges_note: notes.trim() || null,
-        })
+          ended_location_lat: endLocation?.lat || null,
+          ended_location_lng: endLocation?.lng || null,
+        } as any)
         .eq('id', lessonId);
 
       if (booking?.student_id) {
