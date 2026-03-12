@@ -5,11 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Waves, Eye, EyeOff, Loader2, Users, GraduationCap, Trophy, ArrowLeft } from 'lucide-react';
+import { Waves, Eye, EyeOff, Loader2, Users, GraduationCap, Trophy, ArrowLeft, Dumbbell, Briefcase } from 'lucide-react';
 import { toast } from 'sonner';
 import loginHero from '@/assets/login-hero.jpg';
 
-type SignUpRole = 'parent' | 'student' | 'pro_athlete';
+type SignUpRole = 'parent' | 'student' | 'pro_athlete' | 'coach' | 'personal_manager';
 
 const ROLE_OPTIONS: { role: SignUpRole; label: string; description: string; icon: React.ReactNode }[] = [
   {
@@ -23,6 +23,18 @@ const ROLE_OPTIONS: { role: SignUpRole; label: string; description: string; icon
     label: 'Student',
     description: 'Train, earn coins & compete in duels',
     icon: <GraduationCap className="h-7 w-7" />,
+  },
+  {
+    role: 'coach',
+    label: 'Coach',
+    description: 'Manage your schedule, track students & earn',
+    icon: <Dumbbell className="h-7 w-7" />,
+  },
+  {
+    role: 'personal_manager',
+    label: 'Personal Manager',
+    description: 'Manage clients & earn commissions',
+    icon: <Briefcase className="h-7 w-7" />,
   },
   {
     role: 'pro_athlete',
