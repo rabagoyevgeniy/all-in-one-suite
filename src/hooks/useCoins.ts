@@ -47,13 +47,15 @@ export async function awardCoins(
     reference_id: referenceId || undefined,
   });
 
-  await supabase.from('notifications').insert({
-    user_id: userId,
-    title: `🪙 +${amount} ProFit Coins!`,
-    body: description,
-    type: 'coin_received',
-    reference_id: referenceId || undefined,
-  });
+  try {
+    await supabase.from('notifications').insert({
+      user_id: userId,
+      title: `🪙 +${amount} ProFit Coins!`,
+      body: description,
+      type: 'coin_received',
+      reference_id: referenceId || undefined,
+    });
+  } catch { /* notification may fail if user doesn't exist */ }
 
   return newBalance;
 }

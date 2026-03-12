@@ -82,42 +82,62 @@ export default function CoachSchedule() {
     const student = booking.students as any;
     setStartingLesson(booking.id);
     try {
-      let startLocation: { lat: number; lng: number } | null = null;
+      let lat: number | null = null, lng: number | null = null;
       try {
         const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 5000 })
+          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 3000 })
         );
-        startLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      } catch {}
+        lat = pos.coords.latitude;
+        lng = pos.coords.longitude;
+      } catch { /* GPS denied */ }
+
+      // Check if lesson already exists
+      const { data: existingLesson } = await supabase
+        .from('lessons')
+        .select('id')
+        .eq('booking_id', booking.id)
+        .maybeSingle();
+
+      let lessonId: string;
+      if (existingLesson) {
+        await supabase.from('lessons').update({
+          started_at: new Date().toISOString(),
+          started_location_lat: lat,
+          started_location_lng: lng,
+        } as any).eq('id', existingLesson.id);
+        lessonId = existingLesson.id;
+      } else {
+        const { data: newLesson, error } = await supabase
+          .from('lessons')
+          .insert({
+            booking_id: booking.id,
+            coach_id: user!.id,
+            student_id: booking.student_id || student?.id,
+            started_at: new Date().toISOString(),
+            started_location_lat: lat,
+            started_location_lng: lng,
+          } as any)
+          .select()
+          .single();
+        if (error) throw error;
+        lessonId = newLesson.id;
+      }
 
       await supabase.from('bookings').update({ status: 'in_progress' }).eq('id', booking.id);
 
       if (booking.parent_id) {
+        const sp = student?.profiles as any;
         await supabase.from('notifications').insert({
           user_id: booking.parent_id,
           title: '🏊 Урок начался!',
-          body: t('Your coach has started the lesson.', 'Тренер начал занятие.'),
+          body: `Тренер начал занятие с ${sp?.full_name || 'учеником'}`,
           type: 'lesson_started',
           reference_id: booking.id,
         });
       }
 
-      const { data: lesson, error } = await supabase
-        .from('lessons')
-        .insert({
-          booking_id: booking.id,
-          coach_id: user!.id,
-          student_id: booking.student_id || student?.id,
-          started_at: new Date().toISOString(),
-          started_location_lat: startLocation?.lat || null,
-          started_location_lng: startLocation?.lng || null,
-        } as any)
-        .select()
-        .single();
-      if (error) throw error;
-
       queryClient.invalidateQueries({ queryKey: ['coach-all-bookings'] });
-      navigate(`/coach/lesson/${booking.id}/active`, { state: { lessonId: lesson.id } });
+      navigate(`/coach/lesson/${booking.id}/active`, { state: { lessonId } });
     } catch (err) {
       console.error('Start lesson error:', err);
       toast({ title: t('Failed to start lesson', 'Не удалось начать занятие'), variant: 'destructive' });

@@ -41,7 +41,7 @@ export default function CoachDashboard() {
       const { data, error } = await supabase
         .from('bookings')
         .select(`
-          id, status, lesson_fee, currency, created_at, booking_type, student_id, parent_id,
+          id, status, lesson_fee, currency, created_at, booking_type, student_id, parent_id, notes,
           students(id, swim_belt, profiles:students_id_fkey(full_name)),
           pools(name, address)
         `)
@@ -83,9 +83,9 @@ export default function CoachDashboard() {
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
       const { data: completedThisMonth, error } = await supabase
         .from('bookings')
-        .select('lesson_fee, currency')
+        .select('lesson_fee, currency, status')
         .eq('coach_id', user!.id)
-        .eq('status', 'completed')
+        .in('status', ['completed', 'in_progress', 'confirmed'])
         .gte('created_at', monthStart);
       if (error) throw error;
 
@@ -171,6 +171,10 @@ export default function CoachDashboard() {
   const rankInfo = COACH_RANKS.find(r => r.id === coachData?.rank);
 
   const openGoogleMaps = (address: string) => {
+    if (!address) {
+      toast({ description: t('Address not specified', 'Адрес не указан') });
+      return;
+    }
     const encoded = encodeURIComponent(address + ' Dubai');
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${encoded}`, '_blank');
   };
@@ -179,45 +183,122 @@ export default function CoachDashboard() {
     const student = booking.students as any;
     setStartingLesson(booking.id);
     try {
-      // Capture GPS on start
-      let startLocation: { lat: number; lng: number } | null = null;
+      // 1. GPS (non-blocking)
+      let lat: number | null = null, lng: number | null = null;
       try {
         const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 5000 })
+          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 3000 })
         );
-        startLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      } catch {}
+        lat = pos.coords.latitude;
+        lng = pos.coords.longitude;
+      } catch { /* GPS denied — continue */ }
 
+      // 2. Check if lesson already exists
+      const { data: existingLesson } = await supabase
+        .from('lessons')
+        .select('id')
+        .eq('booking_id', booking.id)
+        .maybeSingle();
+
+      let lessonId: string;
+
+      if (existingLesson) {
+        await supabase.from('lessons').update({
+          started_at: new Date().toISOString(),
+          started_location_lat: lat,
+          started_location_lng: lng,
+        } as any).eq('id', existingLesson.id);
+        lessonId = existingLesson.id;
+      } else {
+        const { data: newLesson, error } = await supabase
+          .from('lessons')
+          .insert({
+            booking_id: booking.id,
+            coach_id: user!.id,
+            student_id: booking.student_id || student?.id,
+            started_at: new Date().toISOString(),
+            started_location_lat: lat,
+            started_location_lng: lng,
+          } as any)
+          .select()
+          .single();
+        if (error) throw error;
+        lessonId = newLesson.id;
+      }
+
+      // 3. Update booking status
       await supabase.from('bookings').update({ status: 'in_progress' }).eq('id', booking.id);
-      
+
+      // 4. Notify parent
       if (booking.parent_id) {
+        const sp = student?.profiles as any;
         await supabase.from('notifications').insert({
           user_id: booking.parent_id,
-          title: '🏊 Lesson Started!',
-          body: 'Your coach has started the lesson.',
+          title: '🏊 Урок начался!',
+          body: `Тренер начал занятие с ${sp?.full_name || t('your child', 'вашим ребёнком')}`,
           type: 'lesson_started',
           reference_id: booking.id,
         });
       }
 
-      const { data: lesson, error } = await supabase
+      // 5. Navigate
+      navigate(`/coach/lesson/${booking.id}/active`, { state: { lessonId } });
+    } catch (err) {
+      console.error('Start lesson error:', err);
+      toast({ title: t('Failed to start lesson', 'Не удалось начать занятие'), variant: 'destructive' });
+      setStartingLesson(null);
+    }
+  };
+
+  const handleCompleteLesson = async (booking: any) => {
+    // Find the lesson record for this booking
+    const { data: lesson } = await supabase
+      .from('lessons')
+      .select('id')
+      .eq('booking_id', booking.id)
+      .maybeSingle();
+
+    if (lesson?.id) {
+      navigate(`/coach/lesson/${lesson.id}/report`, { state: { bookingId: booking.id } });
+    } else {
+      // No lesson record — create one first
+      const student = booking.students as any;
+      const { data: newLesson } = await supabase
         .from('lessons')
         .insert({
           booking_id: booking.id,
           coach_id: user!.id,
           student_id: booking.student_id || student?.id,
           started_at: new Date().toISOString(),
-          started_location_lat: startLocation?.lat || null,
-          started_location_lng: startLocation?.lng || null,
         } as any)
         .select()
         .single();
-      if (error) throw error;
-      navigate(`/coach/lesson/${booking.id}/active`, { state: { lessonId: lesson.id } });
-    } catch {
-      toast({ title: t('Failed to start lesson', 'Не удалось начать занятие'), variant: 'destructive' });
-      setStartingLesson(null);
+      if (newLesson?.id) {
+        navigate(`/coach/lesson/${newLesson.id}/report`, { state: { bookingId: booking.id } });
+      }
     }
+  };
+
+  const handleMessageParent = async (booking: any) => {
+    if (!booking.parent_id) return;
+
+    // Use the create_direct_chat function
+    const { data: roomId, error } = await supabase.rpc('create_direct_chat', {
+      other_user_id: booking.parent_id,
+    });
+
+    if (!error && roomId) {
+      navigate(`/chat/${roomId}`);
+    } else {
+      navigate('/chat');
+    }
+  };
+
+  const formatLessonTime = (dateStr: string | null) => {
+    if (!dateStr) return '--:--';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '--:--';
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   if (coachLoading) {
@@ -246,7 +327,7 @@ export default function CoachDashboard() {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           onClick={() => navigate('/coach/live-tracking')}
-          className="w-full rounded-xl p-3 flex items-center gap-3 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 text-left"
+          className="w-full rounded-xl p-3 flex items-center gap-3 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 text-left cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-500/15 transition-colors"
         >
           <span className="relative flex h-3 w-3">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
@@ -266,22 +347,22 @@ export default function CoachDashboard() {
         transition={{ delay: 0.1 }}
         className="grid grid-cols-4 gap-2"
       >
-        <button onClick={() => navigate('/coach/lessons-history')} className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm hover:border-primary/30 transition-colors">
+        <button onClick={() => navigate('/coach/lessons-history')} className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm hover:border-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer">
           <p className="text-[10px] text-muted-foreground font-medium">{t('Lessons', 'Уроки')}</p>
           <p className="font-bold text-lg text-foreground">{coachData?.total_lessons_completed || 0}</p>
         </button>
-        <button onClick={() => navigate('/coach/ratings')} className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm hover:border-primary/30 transition-colors">
+        <button onClick={() => navigate('/coach/ratings')} className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm hover:border-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer">
           <p className="text-[10px] text-muted-foreground font-medium">{t('Rating', 'Рейтинг')}</p>
           <div className="flex items-center justify-center gap-0.5 mt-0.5">
             <Star size={12} className="text-amber-500 fill-amber-500" />
             <span className="font-bold text-foreground">{Number(coachData?.avg_rating || 0).toFixed(1)}</span>
           </div>
         </button>
-        <button onClick={() => navigate('/coach/coins')} className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm hover:border-primary/30 transition-colors">
+        <button onClick={() => navigate('/coach/coins')} className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm hover:border-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer">
           <p className="text-[10px] text-muted-foreground font-medium">{t('Coins', 'Монеты')}</p>
           <CoinBalance amount={coachData?.coin_balance || 0} size="sm" />
         </button>
-        <button onClick={() => navigate('/coach/rank')} className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm hover:border-primary/30 transition-colors">
+        <button onClick={() => navigate('/coach/rank')} className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm hover:border-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer">
           <p className="text-[10px] text-muted-foreground font-medium">{t('Rank', 'Ранг')}</p>
           <Badge variant="outline" className="text-[10px] mt-1" style={{ borderColor: rankInfo?.color, color: rankInfo?.color }}>
             {rankInfo?.label || 'Trainee'}
@@ -339,7 +420,7 @@ export default function CoachDashboard() {
                   {/* Time + Status */}
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-lg font-bold text-foreground">
-                      {new Date(booking.created_at!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {formatLessonTime(booking.created_at)}
                     </span>
                     <span className={cn(
                       "text-xs px-2.5 py-1 rounded-full font-medium",
@@ -358,10 +439,19 @@ export default function CoachDashboard() {
                   </div>
 
                   {/* Location */}
-                  <p className="text-sm text-muted-foreground mb-3 flex items-center gap-1">
+                  <p className="text-sm text-muted-foreground mb-1 flex items-center gap-1">
                     <MapPin className="w-3 h-3 flex-shrink-0" />
                     {pool?.name || pool?.address || 'TBD'}
                   </p>
+
+                  {/* Parent notes */}
+                  {booking.notes && (
+                    <p className="text-xs text-muted-foreground mb-3 bg-muted/50 rounded-lg p-2 border border-border">
+                      📝 {booking.notes}
+                    </p>
+                  )}
+
+                  {!booking.notes && <div className="mb-3" />}
 
                   {/* Actions */}
                   {isNext && (
@@ -373,7 +463,7 @@ export default function CoachDashboard() {
                         🗺️ {t('Navigate', 'Маршрут')}
                       </button>
                       <button
-                        onClick={() => navigate('/chat')}
+                        onClick={() => handleMessageParent(booking)}
                         className="flex-1 py-2.5 border border-border rounded-xl text-sm flex items-center justify-center gap-1 hover:bg-muted/50 transition-colors"
                       >
                         💬 {t('Message', 'Написать')}
@@ -393,7 +483,7 @@ export default function CoachDashboard() {
                   )}
                   {isLive && (
                     <Button
-                      onClick={() => navigate(`/coach/lesson/${booking.id}/active`)}
+                      onClick={() => handleCompleteLesson(booking)}
                       className="w-full py-2.5 rounded-xl text-sm font-medium bg-emerald-500 hover:bg-emerald-600"
                     >
                       {t('Complete → Report', 'Завершить → Отчёт')}
