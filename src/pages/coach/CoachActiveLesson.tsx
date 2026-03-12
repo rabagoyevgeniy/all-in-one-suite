@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Star, Loader2 } from 'lucide-react';
+import { Check, Loader2, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { SwimBeltBadge } from '@/components/SwimBeltBadge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { useQuery } from '@tanstack/react-query';
@@ -11,12 +12,10 @@ import { toast } from '@/hooks/use-toast';
 import { useLanguage } from '@/hooks/useLanguage';
 
 const SKILLS = [
-  'Freestyle', 'Backstroke', 'Breaststroke',
-  'Butterfly', 'Starts & Turns', 'Breathing Technique',
-  'Water Safety', 'Diving',
+  'Breathing', 'Kicking', 'Arm stroke', 'Floating',
+  'Diving', 'Backstroke', 'Freestyle', 'Breaststroke',
+  'Water confidence', 'Turns', 'Starts', 'Water Safety',
 ];
-
-const RATING_LABELS = ['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent!'];
 
 export default function CoachActiveLesson() {
   const { bookingId } = useParams<{ bookingId: string }>();
@@ -30,11 +29,10 @@ export default function CoachActiveLesson() {
 
   const [elapsed, setElapsed] = useState(0);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
-  const [rating, setRating] = useState(0);
-  const [hoverRating, setHoverRating] = useState(0);
-  const [notes, setNotes] = useState('');
+  const [quickNote, setQuickNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Fetch booking details
   const { data: booking } = useQuery({
     queryKey: ['active-lesson-booking', bookingId],
     queryFn: async () => {
@@ -42,7 +40,7 @@ export default function CoachActiveLesson() {
         .from('bookings')
         .select(`
           id, parent_id, coach_id, student_id,
-          students(id, profiles:students_id_fkey(full_name)),
+          students(id, swim_belt, profiles:students_id_fkey(full_name)),
           pools(name)
         `)
         .eq('id', bookingId!)
@@ -53,18 +51,31 @@ export default function CoachActiveLesson() {
     enabled: !!bookingId,
   });
 
+  // Find or use lesson id
   const { data: lessonData } = useQuery({
-    queryKey: ['active-lesson', lessonId],
+    queryKey: ['active-lesson', lessonId, bookingId],
     queryFn: async () => {
+      if (lessonId) {
+        const { data, error } = await supabase
+          .from('lessons')
+          .select('id, started_at')
+          .eq('id', lessonId)
+          .single();
+        if (error) throw error;
+        return data;
+      }
+      // Fallback: find lesson by booking_id
       const { data, error } = await supabase
         .from('lessons')
         .select('id, started_at')
-        .eq('id', lessonId!)
-        .single();
+        .eq('booking_id', bookingId!)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
-    enabled: !!lessonId,
+    enabled: !!bookingId,
   });
 
   useEffect(() => {
@@ -81,18 +92,21 @@ export default function CoachActiveLesson() {
   }, []);
 
   const formatTime = (s: number) => {
-    const m = Math.floor(s / 60);
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
     const sec = s % 60;
-    return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
   };
+
+  const startedAtFormatted = lessonData?.started_at
+    ? new Date(lessonData.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : new Date(startTimeRef.current).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   const toggleSkill = (skill: string) => {
     setSelectedSkills(prev =>
       prev.includes(skill) ? prev.filter(s => s !== skill) : [...prev, skill]
     );
   };
-
-  const activeRating = hoverRating || rating;
 
   const captureLocation = (): Promise<{ lat: number; lng: number } | null> => {
     return new Promise((resolve) => {
@@ -104,105 +118,111 @@ export default function CoachActiveLesson() {
     });
   };
 
-  const handleFinish = async () => {
-    if (!bookingId || !lessonId || !user?.id) return;
+  const handleComplete = async () => {
+    const currentLessonId = lessonData?.id || lessonId;
+    if (!bookingId || !currentLessonId || !user?.id) return;
     setSubmitting(true);
     try {
       const endLocation = await captureLocation();
-
-      await supabase.from('bookings')
-        .update({ status: 'completed' })
-        .eq('id', bookingId);
 
       await supabase.from('lessons')
         .update({
           ended_at: new Date().toISOString(),
           duration_minutes: Math.floor(elapsed / 60),
           main_skills_worked: selectedSkills,
-          coach_lesson_rating: rating || null,
-          challenges_note: notes.trim() || null,
+          challenges_note: quickNote.trim() || null,
           ended_location_lat: endLocation?.lat || null,
           ended_location_lng: endLocation?.lng || null,
         } as any)
-        .eq('id', lessonId);
+        .eq('id', currentLessonId);
 
-      if (booking?.student_id) {
-        await supabase.rpc('increment_used_lessons', {
-          p_student_id: booking.student_id,
-        });
-      }
-
-      if (booking?.parent_id) {
-        await supabase.from('notifications').insert({
-          user_id: booking.parent_id,
-          title: '✅ Lesson completed!',
-          body: t('Your coach left a report. Tap to view.', 'Тренер оставил отчёт. Нажмите для просмотра.'),
-          type: 'lesson_completed',
-          reference_id: lessonId,
-        });
-      }
-
-      toast({ title: t('Report sent! Great work 💪', 'Отчёт отправлен! Отличная работа 💪') });
-      navigate('/coach');
+      navigate(`/coach/lesson/${currentLessonId}/report`, {
+        state: {
+          bookingId,
+          selectedSkills,
+          quickNote: quickNote.trim(),
+          durationMinutes: Math.floor(elapsed / 60),
+        },
+      });
     } catch {
-      toast({ title: t('Error finishing lesson', 'Ошибка при завершении занятия'), variant: 'destructive' });
+      toast({ title: t('Error completing lesson', 'Ошибка при завершении занятия'), variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const studentName = (booking?.students as any)?.profiles?.full_name || t('Student', 'Ученик');
+  const student = booking?.students as any;
+  const studentName = student?.profiles?.full_name || t('Student', 'Ученик');
+  const studentBelt = student?.swim_belt || 'white';
   const poolName = (booking?.pools as any)?.name || '';
 
   return (
-    <div className="px-4 py-6 space-y-6 pb-36">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl bg-success/10 p-5 space-y-3"
-      >
-        <div className="flex items-center gap-2">
-          <span className="relative flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-success" />
-          </span>
-          <span className="font-display font-semibold text-sm text-success">
-            🏊 {t('Lesson in Progress', 'Занятие идёт')}
-          </span>
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Top Header — LIVE indicator */}
+      <div className="bg-destructive/10 border-b border-destructive/20 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-destructive" />
+            </span>
+            <span className="font-bold text-sm text-destructive">🔴 LIVE</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-sm text-foreground">{studentName}</span>
+            <SwimBeltBadge belt={studentBelt} size="sm" />
+          </div>
         </div>
-        <p className="font-display font-bold text-2xl text-foreground">{studentName}</p>
         {poolName && (
-          <p className="text-sm text-muted-foreground">{poolName}</p>
+          <p className="text-xs text-muted-foreground mt-1">{poolName}</p>
         )}
-        <p className="font-mono text-4xl text-success font-bold tracking-wider">
-          {formatTime(elapsed)}
+      </div>
+
+      {/* Timer */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="flex flex-col items-center py-8"
+      >
+        <p className="text-xs text-muted-foreground mb-2 uppercase tracking-wider font-medium">
+          {t('Lesson Timer', 'Таймер урока')}
+        </p>
+        <div className="bg-card border border-border rounded-2xl px-8 py-5 shadow-sm">
+          <p className="font-mono text-5xl font-bold tracking-wider text-foreground">
+            {formatTime(elapsed)}
+          </p>
+        </div>
+        <p className="text-xs text-muted-foreground mt-2">
+          {t('Started at', 'Начало в')} {startedAtFormatted}
         </p>
       </motion.div>
 
-      {/* Skills */}
+      {/* Skills Grid */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="space-y-3"
+        className="px-4 space-y-3"
       >
-        <h3 className="font-display font-semibold text-sm text-foreground">
-          {t('Skills worked today', 'Навыки на сегодня')}
+        <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">
+          {t('Quick Skills', 'Навыки')} ({t('tap to mark', 'нажмите для отметки')} ✓)
         </h3>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {SKILLS.map(skill => {
             const active = selectedSkills.includes(skill);
             return (
               <button
                 key={skill}
                 onClick={() => toggleSkill(skill)}
-                className={`h-12 px-5 rounded-full text-sm font-medium transition-all border ${
+                className={`relative flex items-center justify-center h-12 rounded-xl text-sm font-medium transition-all border ${
                   active
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-background text-foreground border-border hover:border-primary/50'
+                    ? 'bg-primary/10 text-primary border-primary'
+                    : 'bg-card text-foreground border-border hover:border-primary/40'
                 }`}
               >
+                {active && (
+                  <Check size={14} className="absolute left-3 text-primary" />
+                )}
                 {skill}
               </button>
             );
@@ -210,72 +230,44 @@ export default function CoachActiveLesson() {
         </div>
       </motion.div>
 
-      {/* Rating */}
+      {/* Quick Note */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="space-y-3"
-      >
-        <h3 className="font-display font-semibold text-sm text-foreground">
-          {t('Quick rating', 'Быстрая оценка')}
-        </h3>
-        <div className="flex flex-col items-center gap-2">
-          <div className="flex gap-1">
-            {[1, 2, 3, 4, 5].map(star => (
-              <button
-                key={star}
-                type="button"
-                className="p-1.5 transition-transform hover:scale-110"
-                onMouseEnter={() => setHoverRating(star)}
-                onMouseLeave={() => setHoverRating(0)}
-                onClick={() => setRating(star)}
-              >
-                <Star
-                  size={36}
-                  className={
-                    star <= activeRating
-                      ? 'fill-coin text-coin'
-                      : 'text-muted-foreground'
-                  }
-                />
-              </button>
-            ))}
-          </div>
-          {activeRating > 0 && (
-            <span className="text-sm font-medium text-foreground">
-              {RATING_LABELS[activeRating]}
-            </span>
-          )}
-        </div>
-      </motion.div>
-
-      {/* Notes */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
+        className="px-4 mt-4"
       >
         <Textarea
           placeholder={t('Quick note (optional)...', 'Краткая заметка (необязательно)...')}
           rows={2}
-          className="resize-none text-base"
-          value={notes}
-          onChange={e => setNotes(e.target.value)}
+          className="resize-none text-base bg-card"
+          value={quickNote}
+          onChange={e => setQuickNote(e.target.value)}
         />
       </motion.div>
 
-      {/* Finish button */}
-      <div className="fixed bottom-20 left-4 right-4 z-40">
+      {/* Spacer */}
+      <div className="flex-1 min-h-8" />
+
+      {/* Bottom Buttons */}
+      <div className="px-4 pb-24 space-y-3">
         <Button
-          className="w-full h-16 text-lg font-bold rounded-2xl bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+          variant="outline"
+          className="w-full h-12 rounded-xl text-sm font-medium"
+          onClick={() => navigate('/chat')}
+        >
+          <MessageSquare size={16} className="mr-2" />
+          {t('Message Parent', 'Написать родителю')}
+        </Button>
+        <Button
+          className="w-full h-14 text-base font-bold rounded-xl"
           disabled={submitting}
-          onClick={handleFinish}
+          onClick={handleComplete}
         >
           {submitting ? (
-            <Loader2 className="h-6 w-6 animate-spin" />
+            <Loader2 className="h-5 w-5 animate-spin" />
           ) : (
-            `✅ ${t('Finish & Send Report', 'Завершить и отправить отчёт')}`
+            `🏁 ${t('Complete Lesson →', 'Завершить урок →')}`
           )}
         </Button>
       </div>

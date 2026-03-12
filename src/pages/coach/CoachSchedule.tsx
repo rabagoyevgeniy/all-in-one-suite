@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { SwimBeltBadge } from '@/components/SwimBeltBadge';
 import { useAuthStore } from '@/stores/authStore';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useLanguage } from '@/hooks/useLanguage';
@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils';
 function getWeekDays(baseDate: Date): Date[] {
   const start = new Date(baseDate);
   const day = start.getDay();
-  const diff = start.getDate() - day + (day === 0 ? -6 : 1); // Monday start
+  const diff = start.getDate() - day + (day === 0 ? -6 : 1);
   start.setDate(diff);
   start.setHours(0, 0, 0, 0);
   return Array.from({ length: 7 }, (_, i) => {
@@ -40,6 +40,7 @@ export default function CoachSchedule() {
   const queryClient = useQueryClient();
   const { t } = useLanguage();
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [startingLesson, setStartingLesson] = useState<string | null>(null);
   const weekDays = useMemo(() => getWeekDays(selectedDate), [selectedDate.toDateString()]);
 
   const { data: bookings, isLoading } = useQuery({
@@ -48,7 +49,7 @@ export default function CoachSchedule() {
       const { data, error } = await supabase
         .from('bookings')
         .select(`
-          id, status, lesson_fee, currency, created_at, booking_type, parent_id,
+          id, status, lesson_fee, currency, created_at, booking_type, parent_id, student_id,
           students(id, swim_belt, profiles:students_id_fkey(full_name)),
           pools(name, address)
         `)
@@ -77,25 +78,52 @@ export default function CoachSchedule() {
     setSelectedDate(next);
   };
 
-  const updateStatus = useMutation({
-    mutationFn: async ({ id, status, parentId }: { id: string; status: string; parentId?: string }) => {
-      const { error } = await supabase.from('bookings').update({ status }).eq('id', id);
-      if (error) throw error;
-      if (status === 'in_progress' && parentId) {
+  const handleStartLesson = async (booking: any) => {
+    const student = booking.students as any;
+    setStartingLesson(booking.id);
+    try {
+      let startLocation: { lat: number; lng: number } | null = null;
+      try {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 5000 })
+        );
+        startLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      } catch {}
+
+      await supabase.from('bookings').update({ status: 'in_progress' }).eq('id', booking.id);
+
+      if (booking.parent_id) {
         await supabase.from('notifications').insert({
-          user_id: parentId,
-          title: '🏊 Lesson Started!',
-          body: 'Your coach has started the lesson.',
+          user_id: booking.parent_id,
+          title: '🏊 Урок начался!',
+          body: t('Your coach has started the lesson.', 'Тренер начал занятие.'),
           type: 'lesson_started',
-          reference_id: id,
+          reference_id: booking.id,
         });
       }
-    },
-    onSuccess: () => {
+
+      const { data: lesson, error } = await supabase
+        .from('lessons')
+        .insert({
+          booking_id: booking.id,
+          coach_id: user!.id,
+          student_id: booking.student_id || student?.id,
+          started_at: new Date().toISOString(),
+          started_location_lat: startLocation?.lat || null,
+          started_location_lng: startLocation?.lng || null,
+        } as any)
+        .select()
+        .single();
+      if (error) throw error;
+
       queryClient.invalidateQueries({ queryKey: ['coach-all-bookings'] });
-      toast({ title: t('Booking updated', 'Бронь обновлена') });
-    },
-  });
+      navigate(`/coach/lesson/${booking.id}/active`, { state: { lessonId: lesson.id } });
+    } catch (err) {
+      console.error('Start lesson error:', err);
+      toast({ title: t('Failed to start lesson', 'Не удалось начать занятие'), variant: 'destructive' });
+      setStartingLesson(null);
+    }
+  };
 
   const openGoogleMaps = (address: string) => {
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address + ' Dubai')}`, '_blank');
@@ -209,9 +237,14 @@ export default function CoachSchedule() {
                         <Button
                           size="sm"
                           className="rounded-lg text-xs"
-                          onClick={() => updateStatus.mutate({ id: booking.id, status: 'in_progress', parentId: booking.parent_id })}
+                          disabled={startingLesson === booking.id}
+                          onClick={() => handleStartLesson(booking)}
                         >
-                          {t('Start', 'Старт')}
+                          {startingLesson === booking.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            t('Start', 'Старт')
+                          )}
                         </Button>
                       </>
                     )}
@@ -219,7 +252,7 @@ export default function CoachSchedule() {
                       <Button
                         size="sm"
                         className="rounded-lg text-xs bg-emerald-500 hover:bg-emerald-600"
-                        onClick={() => navigate(`/coach/lesson/${booking.id}`)}
+                        onClick={() => navigate(`/coach/lesson/${booking.id}/active`)}
                       >
                         {t('Complete', 'Завершить')}
                       </Button>

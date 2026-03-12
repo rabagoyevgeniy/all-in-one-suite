@@ -112,8 +112,9 @@ const App = () => (
               <Route path="/coach/students" element={<CoachStudents />} />
               <Route path="/coach/earnings" element={<CoachEarnings />} />
               <Route path="/coach/profile" element={<CoachProfile />} />
-              <Route path="/coach/lesson/:id" element={<LessonReport />} />
               <Route path="/coach/lesson/:bookingId/active" element={<CoachActiveLesson />} />
+              <Route path="/coach/lesson/:id/report" element={<LessonReport />} />
+              <Route path="/coach/lesson/:id" element={<LessonReport />} />
               <Route path="/coach/live-tracking" element={<CoachLiveTracking />} />
               <Route path="/coach/lessons-history" element={<CoachLessonsHistory />} />
               <Route path="/coach/ratings" element={<CoachRatings />} />
