@@ -2,7 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   Home, Calendar, MessageSquare, User, Trophy,
   BarChart3, Users, Wallet, Swords, Store,
-  ClipboardList, BookOpen
+  ClipboardList, BookOpen, LayoutDashboard
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
