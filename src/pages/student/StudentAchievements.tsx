@@ -98,7 +98,7 @@ export default function StudentAchievements() {
           </div>
           <div className="text-right">
             <p className="text-xs text-muted-foreground">Streak</p>
-            <p className="font-bold text-foreground flex items-center gap-1"><Flame size={14} className="text-warning" />{student?.streak || 0}</p>
+            <p className="font-bold text-foreground flex items-center gap-1"><Flame size={14} className="text-warning" />{student?.current_streak || 0}</p>
           </div>
         </div>
         {nextBelt && (
