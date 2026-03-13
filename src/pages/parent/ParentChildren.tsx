@@ -97,7 +97,8 @@ export default function ParentChildren() {
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.08 }}
-                className="glass-card rounded-2xl p-5 space-y-4"
+                className="glass-card rounded-2xl p-5 space-y-4 cursor-pointer active:scale-[0.98] transition-transform"
+                onClick={() => navigate(`/parent/child/${child.id}`)}
               >
                 {/* Header */}
                 <div className="flex items-center gap-3">
