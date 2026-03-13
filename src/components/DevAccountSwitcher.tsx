@@ -16,11 +16,12 @@ const TEST_ACCOUNTS = [
 const IS_DEV = import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.includes('lovable.app') || window.location.hostname.includes('lovableproject.com');
 
 export function DevAccountSwitcher() {
-  if (!IS_DEV) return null;
   const [switching, setSwitching] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const { reset } = useAuthStore();
   const navigate = useNavigate();
+
+  if (!IS_DEV) return null;
 
   const isDevDomain = window.location.hostname.includes('lovable.app') || window.location.hostname.includes('lovableproject.com') || window.location.hostname === 'localhost';
   if (!isDevDomain) return null;
