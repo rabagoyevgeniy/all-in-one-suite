@@ -112,6 +112,7 @@ export default function ParentChildren() {
                       <span className="text-[11px] text-muted-foreground">{child.beltInfo.name}</span>
                     </div>
                   </div>
+                  <ChevronRight size={18} className="text-muted-foreground shrink-0" />
                 </div>
 
                 {/* XP Progress */}
