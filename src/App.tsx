@@ -12,6 +12,7 @@ import { PageErrorBoundary } from "@/components/PageErrorBoundary";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import LoginPage from "./pages/auth/LoginPage";
+import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
 import ComingSoon from "./pages/ComingSoon";
 
 // Admin
