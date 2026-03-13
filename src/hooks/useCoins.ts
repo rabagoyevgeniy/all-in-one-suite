@@ -1,17 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
 
-type CoinTable = 'coaches' | 'parents' | 'students' | 'pro_athletes';
-
-function getRoleTable(userRole: string): CoinTable | null {
-  const map: Record<string, CoinTable> = {
-    coach: 'coaches',
-    parent: 'parents',
-    student: 'students',
-    pro_athlete: 'pro_athletes',
-  };
-  return map[userRole] || null;
-}
-
 export async function awardCoins(
   userId: string,
   userRole: string,
@@ -20,44 +8,30 @@ export async function awardCoins(
   description: string,
   referenceId?: string
 ): Promise<number> {
-  const table = getRoleTable(userRole);
-  if (!table) return 0;
-
-  const { data } = await supabase
-    .from(table)
-    .select('coin_balance')
-    .eq('id', userId)
-    .single();
-
-  const currentBalance = (data as any)?.coin_balance || 0;
-  const newBalance = currentBalance + amount;
-
-  await supabase
-    .from(table)
-    .update({ coin_balance: newBalance } as any)
-    .eq('id', userId);
-
-  await supabase.from('coin_transactions').insert({
-    user_id: userId,
-    user_role: userRole,
-    amount,
-    transaction_type: type,
-    balance_after: newBalance,
-    description,
-    reference_id: referenceId || undefined,
+  const { data, error } = await supabase.rpc('add_coins', {
+    p_user_id: userId,
+    p_user_role: userRole,
+    p_amount: amount,
+    p_type: type,
+    p_description: description,
+    p_reference_id: referenceId || null,
   });
 
-  try {
-    await supabase.from('notifications').insert({
-      user_id: userId,
-      title: `🪙 +${amount} ProFit Coins!`,
-      body: description,
-      type: 'coin_received',
-      reference_id: referenceId || undefined,
-    });
-  } catch { /* notification may fail if user doesn't exist */ }
+  if (error) {
+    console.error('awardCoins error:', error);
+    return 0;
+  }
 
-  return newBalance;
+  // Fire-and-forget notification
+  supabase.from('notifications').insert({
+    user_id: userId,
+    title: `🪙 +${amount} ProFit Coins!`,
+    body: description,
+    type: 'coin_received',
+    reference_id: referenceId || undefined,
+  }).then(() => {});
+
+  return data as number;
 }
 
 export async function spendCoins(
@@ -68,37 +42,23 @@ export async function spendCoins(
   description: string,
   referenceId?: string
 ): Promise<{ success: boolean; newBalance: number; error?: string }> {
-  const table = getRoleTable(userRole);
-  if (!table) return { success: false, newBalance: 0, error: 'Invalid role' };
-
-  const { data } = await supabase
-    .from(table)
-    .select('coin_balance')
-    .eq('id', userId)
-    .single();
-
-  const currentBalance = (data as any)?.coin_balance || 0;
-
-  if (currentBalance < amount) {
-    return { success: false, newBalance: currentBalance, error: 'Insufficient coins' };
-  }
-
-  const newBalance = currentBalance - amount;
-
-  await supabase
-    .from(table)
-    .update({ coin_balance: newBalance } as any)
-    .eq('id', userId);
-
-  await supabase.from('coin_transactions').insert({
-    user_id: userId,
-    user_role: userRole,
-    amount: -amount,
-    transaction_type: type,
-    balance_after: newBalance,
-    description,
-    reference_id: referenceId || undefined,
+  const { data, error } = await supabase.rpc('spend_coins', {
+    p_user_id: userId,
+    p_user_role: userRole,
+    p_amount: amount,
+    p_type: type,
+    p_description: description,
+    p_reference_id: referenceId || null,
   });
 
-  return { success: true, newBalance };
+  if (error) {
+    const msg = error.message || '';
+    if (msg.includes('Insufficient coins')) {
+      return { success: false, newBalance: 0, error: 'Insufficient coins' };
+    }
+    console.error('spendCoins error:', error);
+    return { success: false, newBalance: 0, error: msg };
+  }
+
+  return { success: true, newBalance: data as number };
 }
