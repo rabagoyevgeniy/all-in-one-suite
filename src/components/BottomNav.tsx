@@ -17,6 +17,13 @@ const NAV_ITEMS: Record<string, { path: string; label: string; icon: React.Eleme
     { path: '/admin/bookings', label: 'Bookings', icon: Calendar },
     { path: '/admin/tasks', label: 'Tasks', icon: ClipboardList },
   ],
+  head_manager: [
+    { path: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/admin/coaches', label: 'Coaches', icon: Users },
+    { path: '/admin/bookings', label: 'Schedule', icon: Calendar },
+    { path: '/admin/financial', label: 'Reports', icon: BarChart3 },
+    { path: '/settings', label: 'Profile', icon: User },
+  ],
   coach: [
     { path: '/coach', label: 'Home', icon: Home },
     { path: '/coach/schedule', label: 'Schedule', icon: Calendar },
