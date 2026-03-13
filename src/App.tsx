@@ -68,8 +68,13 @@ import ProShop from "./pages/pro/ProShop";
 
 // PM
 import PMDashboard from "./pages/pm/PMDashboard";
+import PMClients from "./pages/pm/PMClients";
 import PMReports from "./pages/pm/PMReports";
 import PMEarnings from "./pages/pm/PMEarnings";
+import PMProfile from "./pages/pm/PMProfile";
+import CoachAchievements from "./pages/coach/CoachAchievements";
+import ParentChildren from "./pages/parent/ParentChildren";
+import StudentAchievements from "./pages/student/StudentAchievements";
 import OnboardingPage from "./pages/OnboardingPage";
 import SettingsPage from "./pages/Settings";
 
@@ -121,21 +126,23 @@ const App = () => (
               <Route path="/coach/coins" element={<CoachCoins />} />
               <Route path="/coach/rank" element={<CoachRankHistory />} />
               <Route path="/coach/shop" element={<CoachShop />} />
+              <Route path="/coach/achievements" element={<CoachAchievements />} />
             </Route>
 
             {/* PM routes */}
             <Route element={<RoleGuard allowedRoles={['personal_manager']}><AppLayout /></RoleGuard>}>
               <Route path="/pm" element={<PMDashboard />} />
-              <Route path="/pm/clients" element={<ComingSoon />} />
+              <Route path="/pm/clients" element={<PMClients />} />
               <Route path="/pm/reports" element={<PMReports />} />
               <Route path="/pm/earnings" element={<PMEarnings />} />
-              <Route path="/pm/profile" element={<ComingSoon />} />
+              <Route path="/pm/profile" element={<PMProfile />} />
             </Route>
 
             {/* Parent routes */}
             <Route element={<RoleGuard allowedRoles={['parent']}><AppLayout /></RoleGuard>}>
               <Route path="/parent" element={<ParentDashboard />} />
-              <Route path="/parent/children/:id" element={<ComingSoon />} />
+              <Route path="/parent/children" element={<ParentChildren />} />
+              <Route path="/parent/children/:id" element={<ParentChildren />} />
               <Route path="/parent/booking" element={<ParentBooking />} />
               <Route path="/parent/financial" element={<ComingSoon />} />
               <Route path="/parent/payments" element={<ParentPayments />} />
@@ -167,6 +174,7 @@ const App = () => (
               <Route path="/student/leaderboard" element={<ComingSoon />} />
               <Route path="/student/skills" element={<ComingSoon />} />
               <Route path="/student/profile" element={<StudentProfile />} />
+              <Route path="/student/achievements" element={<StudentAchievements />} />
             </Route>
 
             {/* Pro Athlete routes (Arena theme) */}
