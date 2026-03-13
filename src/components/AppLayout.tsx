@@ -8,6 +8,7 @@ import { LogOut, User, Settings } from 'lucide-react';
 import { CoinBalance } from './CoinBalance';
 import { NotificationBell } from './NotificationBell';
 import { toast } from '@/hooks/use-toast';
+import { InstallPrompt } from './InstallPrompt';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -150,6 +151,9 @@ export function AppLayout({ theme = 'operations' }: AppLayoutProps) {
 
       {/* Bottom navigation */}
       {role && <BottomNav role={role} />}
+
+      {/* PWA Install Prompt */}
+      <InstallPrompt />
     </div>
   );
 }
