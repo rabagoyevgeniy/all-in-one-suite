@@ -140,7 +140,8 @@ const App = () => (
             {/* Parent routes */}
             <Route element={<RoleGuard allowedRoles={['parent']}><AppLayout /></RoleGuard>}>
               <Route path="/parent" element={<ParentDashboard />} />
-              <Route path="/parent/children/:id" element={<ComingSoon />} />
+              <Route path="/parent/children" element={<ParentChildren />} />
+              <Route path="/parent/children/:id" element={<ParentChildren />} />
               <Route path="/parent/booking" element={<ParentBooking />} />
               <Route path="/parent/financial" element={<ComingSoon />} />
               <Route path="/parent/payments" element={<ParentPayments />} />
