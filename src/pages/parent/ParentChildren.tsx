@@ -126,7 +126,7 @@ export default function ParentChildren() {
                 <div className="grid grid-cols-3 gap-2">
                   <div className="bg-muted/50 rounded-xl p-2 text-center">
                     <Trophy size={14} className="mx-auto text-primary mb-0.5" />
-                    <p className="text-sm font-bold text-foreground">{child.lessons_completed || 0}</p>
+                    <p className="text-sm font-bold text-foreground">{child.wins || 0}</p>
                     <p className="text-[9px] text-muted-foreground">Lessons</p>
                   </div>
                   <div className="bg-muted/50 rounded-xl p-2 text-center">
