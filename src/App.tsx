@@ -68,8 +68,13 @@ import ProShop from "./pages/pro/ProShop";
 
 // PM
 import PMDashboard from "./pages/pm/PMDashboard";
+import PMClients from "./pages/pm/PMClients";
 import PMReports from "./pages/pm/PMReports";
 import PMEarnings from "./pages/pm/PMEarnings";
+import PMProfile from "./pages/pm/PMProfile";
+import CoachAchievements from "./pages/coach/CoachAchievements";
+import ParentChildren from "./pages/parent/ParentChildren";
+import StudentAchievements from "./pages/student/StudentAchievements";
 import OnboardingPage from "./pages/OnboardingPage";
 import SettingsPage from "./pages/Settings";
 
