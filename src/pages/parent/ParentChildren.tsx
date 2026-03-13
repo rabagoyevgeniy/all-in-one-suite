@@ -1,12 +1,13 @@
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { SwimBeltBadge } from '@/components/SwimBeltBadge';
 import { SWIM_BELTS, calculateXP, getBeltByXP } from '@/lib/constants';
-import { Calendar, Flame, Trophy, Users } from 'lucide-react';
+import { Calendar, ChevronRight, Flame, Trophy, Users } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
 export default function ParentChildren() {
