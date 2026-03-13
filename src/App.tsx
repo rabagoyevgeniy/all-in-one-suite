@@ -12,6 +12,7 @@ import { PageErrorBoundary } from "@/components/PageErrorBoundary";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import LoginPage from "./pages/auth/LoginPage";
+import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
 import ComingSoon from "./pages/ComingSoon";
 
 // Admin
@@ -105,6 +106,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={P("Home", <Index />)} />
               <Route path="/auth/login" element={P("Login", <LoginPage />)} />
+              <Route path="/auth/reset-password" element={P("Reset Password", <ResetPasswordPage />)} />
               <Route path="/onboarding" element={P("Onboarding", <OnboardingPage />)} />
 
               {/* Admin routes */}

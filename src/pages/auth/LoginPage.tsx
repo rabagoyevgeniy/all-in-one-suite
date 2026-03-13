@@ -5,11 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Waves, Eye, EyeOff, Loader2, Users, GraduationCap, Trophy, ArrowLeft, Dumbbell, Briefcase } from 'lucide-react';
+import { Waves, Eye, EyeOff, Loader2, Users, GraduationCap, Trophy, ArrowLeft, Dumbbell, Briefcase, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 import loginHero from '@/assets/login-hero.jpg';
 
 type SignUpRole = 'parent' | 'student' | 'pro_athlete' | 'coach' | 'personal_manager';
+
+const INVITE_ONLY_ROLES: SignUpRole[] = ['coach', 'personal_manager'];
 
 const ROLE_OPTIONS: { role: SignUpRole; label: string; description: string; icon: React.ReactNode }[] = [
   {
@@ -64,14 +66,12 @@ function DevQuickLogin({ navigate }: { navigate: NavigateFunction }) {
       });
 
       if (error && (error.message.includes('Invalid login') || error.message.includes('Email not confirmed'))) {
-        // Sign up (auto-confirm enabled)
         await supabase.auth.signUp({
           email: acc.email,
           password: acc.password,
           options: { data: { full_name: acc.label.replace(/^[^\w]*\s*/, '') } },
         });
 
-        // Immediately sign in
         const result = await supabase.auth.signInWithPassword({
           email: acc.email,
           password: acc.password,
@@ -130,6 +130,76 @@ function DevQuickLogin({ navigate }: { navigate: NavigateFunction }) {
   );
 }
 
+/* ── Forgot Password Modal ── */
+function ForgotPasswordModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  if (!open) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + '/auth/reset-password',
+      });
+      if (error) throw error;
+      toast.success('Check your email for a reset link');
+      onClose();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to send reset email');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="w-full max-w-sm bg-card rounded-2xl p-6 border border-border shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="font-display font-bold text-lg text-foreground mb-1">Reset Password</h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          Enter your email and we'll send you a reset link
+        </p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="resetEmail" className="text-foreground">Email</Label>
+            <Input
+              id="resetEmail"
+              type="email"
+              placeholder="your@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="h-12 rounded-xl bg-background border-border"
+            />
+          </div>
+          <div className="flex gap-3">
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1 h-11 rounded-xl">
+              Cancel
+            </Button>
+            <Button type="submit" disabled={loading} className="flex-1 h-11 rounded-xl font-display font-semibold">
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Send Link
+            </Button>
+          </div>
+        </form>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const [isSignUp, setIsSignUp] = useState(false);
@@ -137,7 +207,10 @@ export default function LoginPage() {
   const [selectedRole, setSelectedRole] = useState<SignUpRole | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ email: '', password: '', fullName: '' });
+  const [form, setForm] = useState({ email: '', password: '', fullName: '', inviteCode: '' });
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+
+  const needsInviteCode = selectedRole && INVITE_ONLY_ROLES.includes(selectedRole);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,7 +224,25 @@ export default function LoginPage() {
 
     try {
       if (isSignUp) {
-        const { error: signUpError } = await supabase.auth.signUp({
+        // Validate invite code for coach/PM before signup
+        if (needsInviteCode) {
+          if (!form.inviteCode.trim()) {
+            throw new Error('Invite code is required for this role');
+          }
+
+          const { data: codeData, error: codeError } = await supabase
+            .from('invite_codes' as any)
+            .select('id, target_role')
+            .eq('code', form.inviteCode.trim())
+            .eq('is_active', true)
+            .eq('target_role', selectedRole)
+            .maybeSingle();
+
+          if (codeError) throw codeError;
+          if (!codeData) throw new Error('Invalid or expired invite code');
+        }
+
+        const { error: signUpError, data: signUpData } = await supabase.auth.signUp({
           email: form.email,
           password: form.password,
           options: {
@@ -166,6 +257,17 @@ export default function LoginPage() {
           password: form.password,
         });
         if (signInError) throw signInError;
+
+        // Mark invite code as used before assigning role
+        if (needsInviteCode) {
+          const userId = signUpData.user?.id;
+          if (userId) {
+            await supabase
+              .from('invite_codes' as any)
+              .update({ is_active: false, used_by: userId, used_at: new Date().toISOString() } as any)
+              .eq('code', form.inviteCode.trim());
+          }
+        }
 
         // Assign role
         const { error: roleError } = await supabase.rpc('assign_initial_role', {
@@ -258,10 +360,15 @@ export default function LoginPage() {
                   <div className="flex-shrink-0 h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                     {opt.icon}
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="font-display font-semibold text-foreground">{opt.label}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{opt.description}</p>
                   </div>
+                  {INVITE_ONLY_ROLES.includes(opt.role) && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium flex items-center gap-1">
+                      <KeyRound size={10} /> Invite
+                    </span>
+                  )}
                 </motion.button>
               ))}
             </div>
@@ -311,7 +418,18 @@ export default function LoginPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-foreground">Password</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password" className="text-foreground">Password</Label>
+                  {!isSignUp && (
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotPassword(true)}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
                 <div className="relative">
                   <Input
                     id="password"
@@ -338,7 +456,7 @@ export default function LoginPage() {
                 <div className="flex items-center gap-2 p-3 rounded-xl bg-primary/5 border border-primary/20">
                   <span className="text-xs text-muted-foreground">Role:</span>
                   <span className="text-sm font-semibold text-primary capitalize">
-                    {selectedRole === 'pro_athlete' ? 'Pro Athlete' : selectedRole}
+                    {selectedRole === 'pro_athlete' ? 'Pro Athlete' : selectedRole === 'personal_manager' ? 'Personal Manager' : selectedRole}
                   </span>
                   <button
                     type="button"
@@ -347,6 +465,27 @@ export default function LoginPage() {
                   >
                     Change
                   </button>
+                </div>
+              )}
+
+              {/* Invite code field for coach/PM */}
+              {isSignUp && needsInviteCode && (
+                <div className="space-y-2">
+                  <Label htmlFor="inviteCode" className="text-foreground flex items-center gap-1.5">
+                    <KeyRound size={14} className="text-primary" />
+                    Invite Code
+                  </Label>
+                  <Input
+                    id="inviteCode"
+                    placeholder="Enter your invite code"
+                    value={form.inviteCode}
+                    onChange={(e) => setForm(p => ({ ...p, inviteCode: e.target.value }))}
+                    required
+                    className="h-12 rounded-xl bg-card border-border"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Coach and Personal Manager accounts require an invite code from an admin.
+                  </p>
                 </div>
               )}
 
@@ -370,6 +509,7 @@ export default function LoginPage() {
                   setIsSignUp(!isSignUp);
                   setSelectedRole(null);
                   setShowRoleSelect(false);
+                  setForm(p => ({ ...p, inviteCode: '' }));
                 }}
                 className="text-sm text-muted-foreground hover:text-primary transition-colors"
               >
@@ -387,7 +527,13 @@ export default function LoginPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Forgot Password Modal */}
+      <AnimatePresence>
+        {showForgotPassword && (
+          <ForgotPasswordModal open={showForgotPassword} onClose={() => setShowForgotPassword(false)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
-
