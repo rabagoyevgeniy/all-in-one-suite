@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { DollarSign, Calendar, Users, AlertTriangle, UserPlus, CreditCard, BarChart3, Heart, Settings, Loader2, Tag } from 'lucide-react';
+import { DollarSign, Calendar, Users, AlertTriangle, UserPlus, CreditCard, BarChart3, Heart, Settings, Loader2, Tag, PlusCircle, ListChecks, MessageSquareWarning } from 'lucide-react';
 import { useAdminDashboardStats, useRevenueChart, useActiveCoaches, useRecentBookings, useActiveSubscriptions } from '@/hooks/useAdminDashboardStats';
 import { useAdminStore } from '@/stores/adminStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -53,13 +53,13 @@ export default function AdminDashboard() {
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const { data: stats, isLoading: statsLoading } = useAdminDashboardStats();
-  const { data: revenueData } = useRevenueChart();
-  const { data: coaches } = useActiveCoaches();
-  const { data: bookings } = useRecentBookings();
-  const { data: subs } = useActiveSubscriptions();
+  const { data: revenueData, isLoading: revenueLoading } = useRevenueChart();
+  const { data: coaches, isLoading: coachesLoading } = useActiveCoaches();
+  const { data: bookings, isLoading: bookingsLoading } = useRecentBookings();
+  const { data: subs, isLoading: subsLoading } = useActiveSubscriptions();
 
   // Pending community requests
-  const { data: pendingCommunities } = useQuery({
+  const { data: pendingCommunities, isLoading: communitiesLoading } = useQuery({
     queryKey: ['pending-communities'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -117,10 +117,10 @@ export default function AdminDashboard() {
 
   const quickActions = [
     { icon: UserPlus, label: 'Add Coach', action: () => navigate('/admin/coaches'), bgColor: 'bg-primary/10', color: 'text-primary' },
-    { icon: Calendar, label: 'Bookings', action: () => navigate('/admin/bookings'), bgColor: 'bg-success/10', color: 'text-success' },
-    { icon: CreditCard, label: 'Finance', action: () => navigate('/admin/financial'), bgColor: 'bg-accent/10', color: 'text-accent' },
-    { icon: Settings, label: 'Economy', action: () => navigate('/admin/economy'), bgColor: 'bg-warning/10', color: 'text-warning' },
-    { icon: Tag, label: 'Pricing', action: () => navigate('/admin/pricing'), bgColor: 'bg-accent/10', color: 'text-accent' },
+    { icon: PlusCircle, label: 'New Booking', action: () => navigate('/admin/bookings/new'), bgColor: 'bg-success/10', color: 'text-success' },
+    { icon: ListChecks, label: 'Approve Subs', action: () => navigate('/admin/subscriptions'), bgColor: 'bg-accent/10', color: 'text-accent' },
+    { icon: MessageSquareWarning, label: 'Complaints', action: () => navigate('/admin/complaints'), bgColor: 'bg-warning/10', color: 'text-warning' },
+    { icon: Settings, label: 'Settings', action: () => navigate('/admin/economy'), bgColor: 'bg-muted', color: 'text-muted-foreground' },
   ];
 
   const activityFeed = getActivityFromBookings(bookings);
@@ -128,6 +128,15 @@ export default function AdminDashboard() {
   const chartConfig = {
     revenue: { label: 'Revenue', color: 'hsl(var(--primary))' },
   };
+
+  const EmptyState = ({ icon: Icon, title, description, action, actionLabel }: any) => (
+    <div className="text-center p-6 bg-muted/50 rounded-2xl flex flex-col items-center">
+      <Icon className="w-12 h-12 text-muted-foreground/50 mb-4" />
+      <h4 className="font-semibold text-sm text-foreground">{title}</h4>
+      <p className="text-xs text-muted-foreground mt-1 mb-4">{description}</p>
+      {action && <button onClick={action} className="text-xs bg-primary text-primary-foreground py-1.5 px-3 rounded-lg font-medium">{actionLabel}</button>}
+    </div>
+  );
 
   return (
     <div className="px-4 py-6 space-y-6 pb-24">
@@ -170,6 +179,7 @@ export default function AdminDashboard() {
 
       {/* Quick Actions */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}>
+        <h3 className="font-display font-semibold text-sm text-foreground mb-3">Quick Actions</h3>
         <div className="grid grid-cols-5 gap-3">
           {quickActions.map((action) => (
             <button
@@ -180,14 +190,14 @@ export default function AdminDashboard() {
               <div className={`w-10 h-10 rounded-xl ${action.bgColor} flex items-center justify-center`}>
                 <action.icon size={20} className={action.color} />
               </div>
-              <span className="text-[11px] font-medium text-muted-foreground">{action.label}</span>
+              <span className="text-[11px] font-medium text-muted-foreground text-center">{action.label}</span>
             </button>
           ))}
         </div>
       </motion.div>
 
       {/* Pending Community Requests */}
-      {pendingCommunities && pendingCommunities.length > 0 && (
+      {communitiesLoading ? <Skeleton className="h-24 w-full rounded-2xl" /> : pendingCommunities && pendingCommunities.length > 0 && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.27 }}>
           <h3 className="font-display font-semibold text-sm text-foreground mb-3 flex items-center gap-2">
             🏘️ Pending Communities
@@ -233,7 +243,7 @@ export default function AdminDashboard() {
           <span className="font-display font-semibold text-sm text-foreground">Today's Activity</span>
           <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
         </div>
-        {activityFeed.length > 0 ? (
+        {bookingsLoading ? <div className="p-6 flex justify-center"><Loader2 className="animate-spin text-primary" /></div> : activityFeed.length > 0 ? (
           activityFeed.map((event) => (
             <div key={event.id} className="flex items-center gap-3 px-4 py-3 border-b border-border/50 last:border-0">
               <div className="text-xl">{event.emoji}</div>
@@ -246,104 +256,72 @@ export default function AdminDashboard() {
             </div>
           ))
         ) : (
-          <div className="p-6 text-center text-muted-foreground text-sm">No activity yet today</div>
+          <EmptyState icon={Calendar} title="No Activity Yet" description="Bookings and other events will appear here." />
         )}
       </motion.div>
 
       {/* Revenue Chart */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }} className="glass-card rounded-2xl p-4">
-        <h3 className="font-display font-semibold text-sm text-foreground mb-3">Monthly Revenue</h3>
-        {revenueData && revenueData.length > 0 ? (
-          <ChartContainer config={chartConfig} className="h-[200px] w-full">
-            <BarChart data={revenueData}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-              <XAxis dataKey="month" className="text-[10px]" />
-              <YAxis className="text-[10px]" />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+        <h3 className="font-display font-semibold text-sm text-foreground mb-3">Revenue (6 months)</h3>
+        {revenueLoading ? <Skeleton className="h-48 w-full" /> : !revenueData || revenueData.length === 0 ? (
+          <EmptyState icon={BarChart3} title="No Revenue Data" description="Income from lessons and subscriptions will be shown here." action={() => navigate('/admin/financial')} actionLabel="View Finances" />
+        ) : (
+          <ChartContainer config={chartConfig} className="w-full h-48">
+            <BarChart accessibilityLayer data={revenueData}>
+              <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.2)" />
+              <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => value.slice(0, 3)} />
+              <YAxis tickLine={false} axisLine={false} tickMargin={8} width={35} />
+              <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+              <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={5} />
             </BarChart>
           </ChartContainer>
-        ) : (
-          <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">No revenue data yet</div>
         )}
       </motion.div>
 
-      {/* Coach Performance Row */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
-        <h3 className="font-display font-semibold text-sm text-foreground mb-3">Coach Performance</h3>
-        {coaches && coaches.length > 0 ? (
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-            {coaches.map((coach) => {
-              const rankInfo = COACH_RANKS.find(r => r.id === coach.rank);
-              const profile = coach.profiles as any;
-              return (
-                <div key={coach.id} className="flex-shrink-0 w-36 glass-card rounded-2xl p-3 text-center">
-                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm font-bold text-muted-foreground mx-auto mb-2">
-                    {profile?.full_name?.[0] || '?'}
-                  </div>
-                  <p className="text-xs font-semibold text-foreground truncate">{profile?.full_name || 'Unknown'}</p>
-                  <p className="text-[10px] text-muted-foreground">{coach.total_lessons_completed} lessons</p>
-                  <div className="flex items-center justify-center gap-1 mt-1.5">
-                    <Badge variant="outline" className="text-[9px] px-1.5" style={{ borderColor: rankInfo?.color, color: rankInfo?.color }}>
-                      {rankInfo?.label || coach.rank}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-warning mt-1">★ {Number(coach.avg_rating).toFixed(1)}</p>
-                </div>
-              );
-            })}
-          </div>
+      {/* Active Coaches */}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="glass-card rounded-2xl p-4">
+        <h3 className="font-display font-semibold text-sm text-foreground mb-3">Top Active Coaches</h3>
+        {coachesLoading ? <div className="space-y-3">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div> : !coaches || coaches.length === 0 ? (
+          <EmptyState icon={Users} title="No Active Coaches" description="Add coaches and they will appear here." action={() => navigate('/admin/coaches')} actionLabel="Add Coach" />
         ) : (
-          <div className="glass-card rounded-2xl p-4 text-center text-muted-foreground text-sm">No coaches yet</div>
-        )}
-      </motion.div>
-
-      {/* Recent Bookings */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className="glass-card rounded-2xl p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-display font-semibold text-sm text-foreground">Recent Bookings</h3>
-          <button onClick={() => navigate('/admin/bookings')} className="text-[11px] text-primary font-medium">View all</button>
-        </div>
-        {bookings && bookings.length > 0 ? (
           <div className="space-y-3">
-            {bookings.map((b) => {
-              const student = b.students as any;
-              const coach = b.coaches as any;
-              const pool = b.pools as any;
-              return (
-                <div key={b.id} className="flex items-center justify-between">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground truncate">
-                      {student?.profiles?.full_name || b.booking_type || 'Lesson'}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground truncate">
-                      {coach?.profiles?.full_name ? `Coach: ${coach.profiles.full_name}` : ''}
-                      {pool?.name ? ` · ${pool.name}` : ''}
-                      {' · '}{b.lesson_fee ?? 0} {b.currency}
-                    </p>
-                  </div>
-                  <Badge variant="outline" className={`text-[10px] ml-2 flex-shrink-0 ${BOOKING_STATUS_COLORS[b.status || 'confirmed'] || ''}`}>
-                    {b.status?.replace('_', ' ')}
-                  </Badge>
+            {coaches.map((coach: any) => (
+              <div key={coach.id} className="flex items-center gap-3">
+                <img src={coach.profiles.avatar_url} alt={coach.profiles.full_name} className="w-10 h-10 rounded-full object-cover" />
+                <div className="flex-1">
+                  <div className="font-medium text-sm text-foreground">{coach.profiles.full_name}</div>
+                  <div className="text-xs text-muted-foreground">{coach.specialization}</div>
                 </div>
-              );
-            })}
+                <Badge variant="secondary" className="text-xs">{COACH_RANKS[coach.rank]}</Badge>
+              </div>
+            ))}
           </div>
-        ) : (
-          <p className="text-sm text-muted-foreground text-center py-4">No bookings yet</p>
         )}
       </motion.div>
 
-      {/* Active Subscriptions Summary */}
-      {subs && subs.length > 0 && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.55 }} className="glass-card rounded-2xl p-4">
-          <h3 className="font-display font-semibold text-sm text-foreground mb-2">Active Subscriptions</h3>
-          <p className="text-2xl font-bold text-foreground">{subs.length}</p>
-          <p className="text-[11px] text-muted-foreground">
-            {subs.reduce((s, sub) => s + (sub.total_lessons ?? 0) - (sub.used_lessons ?? 0), 0)} lessons remaining across all packages
-          </p>
-        </motion.div>
-      )}
+      {/* Active Subscriptions */}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.45 }} className="glass-card rounded-2xl p-4">
+        <h3 className="font-display font-semibold text-sm text-foreground mb-3">Active Subscriptions</h3>
+        {subsLoading ? <div className="space-y-3">{[...Array(2)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div> : !subs || subs.length === 0 ? (
+          <EmptyState icon={CreditCard} title="No Active Subscriptions" description="When parents purchase packages, they will appear here." action={() => navigate('/admin/subscriptions')} actionLabel="Manage Subscriptions" />
+        ) : (
+          <div className="space-y-3">
+            {subs.map((sub: any) => (
+              <div key={sub.id} className="bg-muted/50 rounded-lg p-3">
+                <div className="flex justify-between items-start">
+                  <div className="font-semibold text-sm">{sub.package_type}</div>
+                  <div className="text-sm font-mono bg-primary/10 text-primary px-2 py-0.5 rounded">{sub.price} {sub.currency}</div>
+                </div>
+                <div className="flex items-end justify-between mt-1">
+                  <div className="text-xs text-muted-foreground">Expires: {new Date(sub.expires_at).toLocaleDateString()}</div>
+                  <div className="text-sm font-medium">{sub.used_lessons}/{sub.total_lessons} lessons</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </motion.div>
+
     </div>
   );
 }
