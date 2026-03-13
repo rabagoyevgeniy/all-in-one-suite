@@ -76,6 +76,7 @@ import PMEarnings from "./pages/pm/PMEarnings";
 import PMProfile from "./pages/pm/PMProfile";
 import CoachAchievements from "./pages/coach/CoachAchievements";
 import ParentChildren from "./pages/parent/ParentChildren";
+import ParentChildDetail from "./pages/parent/ParentChildDetail";
 import StudentAchievements from "./pages/student/StudentAchievements";
 import OnboardingPage from "./pages/OnboardingPage";
 import SettingsPage from "./pages/Settings";
