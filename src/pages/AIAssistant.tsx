@@ -362,7 +362,7 @@ export default function AIAssistant() {
       await incrementUsage();
       await sendMessage(text, (sugg) => setSuggestions(sugg));
       refetchConversations();
-    } catch (e: any) {
+    } catch (e: unknown) {
       if (e.message === 'daily_limit_reached') {
         toast({ title: t('Daily limit reached', 'Лимит исчерпан'), variant: 'destructive' });
       } else if (e.message === 'mode_not_allowed') {
@@ -440,7 +440,7 @@ export default function AIAssistant() {
       setIsRecording(false);
       return;
     }
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const SpeechRecognition = (window as unknown as Record<string, unknown>).SpeechRecognition || (window as unknown as Record<string, unknown>).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       toast({ title: t('Not supported', 'Не поддерживается'), variant: 'destructive' });
       return;

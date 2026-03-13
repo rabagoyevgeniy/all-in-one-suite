@@ -66,7 +66,7 @@ export function useNotifications() {
     mutationFn: async (notificationId: string) => {
       const { error } = await supabase
         .from('notifications')
-        .update({ is_read: true } as any)
+        .update({ is_read: true } as Record<string, unknown>)
         .eq('id', notificationId);
       if (error) throw error;
     },

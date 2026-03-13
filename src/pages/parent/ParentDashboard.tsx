@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Clock, MapPin, Plus, Loader2, Star, CreditCard, TrendingUp, AlertTriangle, MessageSquare, Calendar, ChevronRight } from 'lucide-react';
+import { Clock, MapPin, Plus, Loader2, Star, CreditCard, TrendingUp, AlertTriangle, MessageSquare, Calendar, ChevronRight, Package, Sparkles, ArrowRight } from 'lucide-react';
+import { usePricingPlans, type PricingPlan } from '@/hooks/usePricingPlans';
 import { SwimBeltBadge } from '@/components/SwimBeltBadge';
 import { SubscriptionWarningBanner } from '@/components/SubscriptionWarningBanner';
 import { RatingModal } from '@/components/RatingModal';
@@ -14,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/hooks/useLanguage';
 import { SWIM_BELTS, getBeltByXP, calculateXP, COACH_RANKS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
+import { toast as sonnerToast } from 'sonner';
 import { toast } from '@/hooks/use-toast';
 
 const BELT_COLORS: Record<string, string> = {
@@ -251,6 +253,17 @@ export default function ParentDashboard() {
   })();
 
   const lessonsRemaining = activeSub ? (activeSub.total_lessons || 0) - (activeSub.used_lessons || 0) : 0;
+
+  // Pricing plans
+  const parentCity = (profile?.city?.toLowerCase() === 'baku' ? 'baku' : 'dubai') as 'dubai' | 'baku';
+  const { data: pricingPlans = [] } = usePricingPlans(parentCity);
+  const [planType, setPlanType] = useState<'private' | 'group'>('private');
+
+  // Filter plans by type — private plans don't have 'group' in plan_key
+  const filteredPlans = pricingPlans.filter(p => {
+    if (planType === 'group') return p.plan_key.includes('group');
+    return !p.plan_key.includes('group');
+  });
 
   if (isLoading) {
     return (
@@ -556,6 +569,127 @@ export default function ParentDashboard() {
           </div>
         </motion.div>
       )}
+
+      {/* ───── PRICING PLANS ───── */}
+      <div className="px-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">
+            {t('Choose a Plan', 'Выберите пакет')} 🏊
+          </h3>
+          <button
+            onClick={() => navigate('/payment')}
+            className="text-xs text-primary font-medium flex items-center gap-1"
+          >
+            {t('View All', 'Все пакеты')} <ArrowRight size={12} />
+          </button>
+        </div>
+
+        {/* Private / Group toggle */}
+        <div className="flex gap-2 bg-muted/50 rounded-xl p-1">
+          <button
+            onClick={() => setPlanType('private')}
+            className={cn(
+              'flex-1 py-2 rounded-xl text-xs font-medium transition-all',
+              planType === 'private'
+                ? 'bg-card text-primary shadow-sm'
+                : 'text-muted-foreground'
+            )}
+          >
+            🏠 {t('Private', 'Личные')}
+          </button>
+          <button
+            onClick={() => setPlanType('group')}
+            className={cn(
+              'flex-1 py-2 rounded-xl text-xs font-medium transition-all',
+              planType === 'group'
+                ? 'bg-card text-primary shadow-sm'
+                : 'text-muted-foreground'
+            )}
+          >
+            👥 {t('Group', 'Группа')}
+          </button>
+        </div>
+
+        {/* Plan cards — horizontal scroll */}
+        <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 snap-x snap-mandatory">
+          {filteredPlans.length > 0 ? filteredPlans.map((plan, i) => {
+            const isTrial = plan.plan_key.includes('trial');
+            const isPopular = plan.plan_key.includes('pack_10') || plan.plan_key.includes('pack_8') || plan.plan_key.includes('premium');
+            return (
+              <motion.div
+                key={plan.id}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className={cn(
+                  'snap-start shrink-0 w-[200px] rounded-2xl border p-4 space-y-2 relative cursor-pointer hover:border-primary/50 transition-all',
+                  isTrial
+                    ? 'bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-950/30 dark:to-red-950/30 border-orange-300 dark:border-orange-700'
+                    : isPopular
+                      ? 'bg-gradient-to-br from-primary/5 to-primary/10 border-primary/30'
+                      : 'bg-card border-border'
+                )}
+                onClick={() => navigate('/payment')}
+              >
+                {isTrial && (
+                  <span className="absolute -top-2 right-3 bg-gradient-to-r from-red-500 to-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    🎁 -50%
+                  </span>
+                )}
+                {isPopular && !isTrial && (
+                  <span className="absolute -top-2 right-3 bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    ⭐ {t('Popular', 'Хит')}
+                  </span>
+                )}
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{plan.icon || '🏊'}</span>
+                  <p className="font-semibold text-sm text-foreground leading-tight">{plan.name}</p>
+                </div>
+                {plan.description && (
+                  <p className="text-[11px] text-muted-foreground line-clamp-2">{plan.description}</p>
+                )}
+                <div className="pt-1">
+                  <div className="flex items-baseline gap-1">
+                    <span className={cn(
+                      'text-lg font-black',
+                      isTrial ? 'text-orange-500' : 'text-primary'
+                    )}>
+                      {plan.price.toLocaleString()}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{plan.currency}</span>
+                  </div>
+                  {plan.original_price && plan.original_price > plan.price && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-muted-foreground line-through">
+                        {plan.original_price.toLocaleString()} {plan.currency}
+                      </span>
+                      {plan.discount_percent && (
+                        <span className="text-[10px] text-emerald-600 font-semibold">-{plan.discount_percent}%</span>
+                      )}
+                    </div>
+                  )}
+                  {plan.price_per_lesson && (
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      {plan.price_per_lesson} {plan.currency}/{t('lesson', 'занятие')}
+                    </p>
+                  )}
+                </div>
+                {plan.features && plan.features.length > 0 && (
+                  <div className="space-y-0.5 pt-1 border-t border-border/50">
+                    {plan.features.slice(0, 2).map((f, fi) => (
+                      <p key={fi} className="text-[10px] text-muted-foreground">✓ {f}</p>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            );
+          }) : (
+            <div className="w-full text-center py-6 text-sm text-muted-foreground">
+              {t('No plans available for your city', 'Нет доступных пакетов для вашего города')}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* ───── LOW LESSONS WARNING ───── */}
       {activeSub && lessonsRemaining <= 2 && lessonsRemaining > 0 && (

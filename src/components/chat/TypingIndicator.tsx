@@ -60,8 +60,8 @@ export default function TypingIndicator({ roomId }: TypingIndicatorProps) {
       .on('presence', { event: 'sync' }, () => {
         const state = typingChannel.presenceState();
         const names: string[] = [];
-        Object.values(state).forEach((presences: any) => {
-          presences.forEach((p: any) => {
+        Object.values(state).forEach((presences) => {
+          (presences as Array<{ typing?: boolean; user_id?: string; name?: string }>).forEach((p) => {
             if (p.typing && p.user_id !== user.id && p.name) {
               names.push(p.name.split(' ')[0]);
             }

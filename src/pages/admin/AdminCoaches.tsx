@@ -62,7 +62,7 @@ export default function AdminCoaches() {
       ) : coaches && coaches.length > 0 ? (
         <div className="space-y-2">
           {coaches.map((coach) => {
-            const profile = coach.profiles as any;
+            const profile = coach.profiles as Record<string, unknown>;
             const rankInfo = COACH_RANKS.find(r => r.id === coach.rank);
             return (
               <motion.button
@@ -99,7 +99,7 @@ export default function AdminCoaches() {
       <Sheet open={!!selectedId} onOpenChange={() => setSelectedId(null)}>
         <SheetContent side="bottom" className="rounded-t-3xl max-h-[80vh] overflow-y-auto">
           <SheetHeader>
-            <SheetTitle className="font-display">{(selectedCoach?.profiles as any)?.full_name || 'Coach'}</SheetTitle>
+            <SheetTitle className="font-display">{(selectedCoach?.profiles as Record<string, unknown>)?.full_name || 'Coach'}</SheetTitle>
           </SheetHeader>
           {selectedCoach && (
             <div className="space-y-4 mt-4">

@@ -52,8 +52,8 @@ export function CoachStudentDetailSheet({ studentId, onClose }: Props) {
     enabled: !!studentId,
   });
 
-  const student = data?.student as any;
-  const profile = student?.profiles as any;
+  const student = data?.student as Record<string, unknown>;
+  const profile = student?.profiles as Record<string, unknown>;
   const lessons = data?.lessons || [];
   const totalLessons = lessons.length;
   const avgRating = totalLessons > 0

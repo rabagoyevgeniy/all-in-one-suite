@@ -51,7 +51,7 @@ export function AppLayout({ theme = 'operations' }: AppLayoutProps) {
         .select('coin_balance')
         .eq('id', user.id)
         .single();
-      setCoinBalance((data as any)?.coin_balance || 0);
+      setCoinBalance((data as Record<string, unknown>)?.coin_balance || 0);
     };
 
     loadBalance();
@@ -65,8 +65,8 @@ export function AppLayout({ theme = 'operations' }: AppLayoutProps) {
         table: 'coin_transactions',
         filter: `user_id=eq.${user.id}`,
       }, (payload) => {
-        const newBal = (payload.new as any).balance_after;
-        const amount = (payload.new as any).amount;
+        const newBal = (payload.new as Record<string, unknown>).balance_after;
+        const amount = (payload.new as Record<string, unknown>).amount;
         setCoinBalance(newBal);
         if (amount > 0) {
           toast({ title: `+${amount} 🪙`, duration: 2000 });

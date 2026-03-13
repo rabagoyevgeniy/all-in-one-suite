@@ -43,13 +43,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Fetch onboarding_completed (exists in DB but not in generated types)
             const { data: obData } = await supabase
               .from('profiles')
-              .select('onboarding_completed' as any)
+              .select('onboarding_completed' as string)
               .eq('id', session.user.id)
               .maybeSingle();
 
             const profileWithOnboarding = profileData ? {
               ...profileData,
-              onboarding_completed: (obData as any)?.onboarding_completed ?? false,
+              onboarding_completed: (obData as Record<string, unknown>)?.onboarding_completed ?? false,
             } : null;
 
             // If no role yet, check if user signed up with a role in metadata

@@ -358,7 +358,7 @@ export default function ChatList() {
                         requested_by: user.id,
                         request_reason: communityReason.trim() || null,
                         status: 'pending',
-                      } as any);
+                      } as Record<string, unknown>);
                       setSubmitting(false);
                       if (error) {
                         toast({ title: t('Error', 'Ошибка'), description: error.message, variant: 'destructive' });

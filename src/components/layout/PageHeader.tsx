@@ -21,7 +21,7 @@ export function PageHeader({
   const handleBack = () => {
     // Check if we came from AI assistant via quick-link
     const returnUrl = sessionStorage.getItem('ai_return_url');
-    const fromAI = (location.state as any)?.from === 'ai-assistant';
+    const fromAI = (location.state as Record<string, unknown>)?.from === 'ai-assistant';
 
     if (fromAI && returnUrl) {
       sessionStorage.removeItem('ai_return_url');

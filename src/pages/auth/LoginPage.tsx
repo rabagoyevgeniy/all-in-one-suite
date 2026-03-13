@@ -91,7 +91,7 @@ function DevQuickLogin({ navigate }: { navigate: NavigateFunction }) {
         navigate(acc.route, { replace: true });
         setTimeout(() => window.location.reload(), 100);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Dev login error:', err);
       toast.error(err.message || 'Dev login failed');
     } finally {
@@ -231,7 +231,7 @@ export default function LoginPage() {
           }
 
           const { data: codeData, error: codeError } = await supabase
-            .from('invite_codes' as any)
+            .from('invite_codes' as string)
             .select('id, target_role')
             .eq('code', form.inviteCode.trim())
             .eq('is_active', true)
@@ -264,7 +264,7 @@ export default function LoginPage() {
           if (userId) {
             await supabase
               .from('invite_codes' as any)
-              .update({ is_active: false, used_by: userId, used_at: new Date().toISOString() } as any)
+              .update({ is_active: false, used_by: userId, used_at: new Date().toISOString() } as Record<string, unknown>)
               .eq('code', form.inviteCode.trim());
           }
         }
