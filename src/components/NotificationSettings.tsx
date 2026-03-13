@@ -60,7 +60,7 @@ export function NotificationSettings() {
 
     const { error } = await supabase
       .from('profiles')
-      .update({ notification_prefs: newSettings } as any)
+      .update({ notification_prefs: newSettings } as Record<string, unknown>)
       .eq('id', user!.id);
 
     if (error) {

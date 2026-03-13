@@ -255,7 +255,7 @@ export function useAIConversation(conversationId: string | null, mode: string) {
             })
             .eq('id', conversationId);
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.error('AI chat error:', e);
         if (!assistantSoFar) {
           setMessages((prev) => prev.slice(0, -1));

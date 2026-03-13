@@ -50,7 +50,7 @@ export default function ForwardSheet({ open, onOpenChange, message }: ForwardShe
     return allUsers.filter(u => u.full_name?.toLowerCase().includes(search.toLowerCase()));
   }, [allUsers, search]);
 
-  const handleForward = async (targetUser: any) => {
+  const handleForward = async (targetUser: { id: string; full_name: string | null; avatar_url: string | null }) => {
     if (!message || !user?.id || sending) return;
     setSending(targetUser.id);
 
@@ -68,7 +68,7 @@ export default function ForwardSheet({ open, onOpenChange, message }: ForwardShe
         media_url: message.media_url || null,
         forwarded_from_id: message.id,
         forwarded_from_name: message.senderName,
-      } as any);
+      } as Record<string, unknown>);
       if (msgErr) throw msgErr;
 
       await supabase.from('chat_rooms').update({
@@ -79,7 +79,7 @@ export default function ForwardSheet({ open, onOpenChange, message }: ForwardShe
       onOpenChange(false);
       toast({ title: t('Message forwarded', 'Сообщение переслано') });
       navigate(`/chat/${roomId}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({ title: t('Forward failed', 'Ошибка пересылки'), variant: 'destructive' });
     } finally {
       setSending(null);
@@ -127,7 +127,7 @@ export default function ForwardSheet({ open, onOpenChange, message }: ForwardShe
               </div>
             ) : filtered.length > 0 ? (
               <div className="space-y-1 pr-3">
-                {filtered.map((u: any) => (
+                {filtered.map((u) => (
                   <button
                     key={u.id}
                     disabled={!!sending}

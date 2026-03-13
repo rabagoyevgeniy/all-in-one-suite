@@ -84,7 +84,7 @@ export default function AdminTasks() {
         coin_reward: coinReward,
         xp_reward: xpReward,
         status: 'assigned',
-      } as any);
+      } as Record<string, unknown>);
       if (error) throw error;
     },
     onSuccess: () => {

@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { spendCoins } from '@/hooks/useCoins';
 import { useNavigate } from 'react-router-dom';
+import type { StoreItem } from '@/types';
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
   gear: ShoppingBag,
@@ -64,7 +65,7 @@ export function ProFitShop({ storeType, userRole, balanceTable, theme = 'default
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [confirmItem, setConfirmItem] = useState<any>(null);
+  const [confirmItem, setConfirmItem] = useState<StoreItem | null>(null);
 
   const { data: balanceData } = useQuery({
     queryKey: ['shop-balance', user?.id, balanceTable],
@@ -109,12 +110,12 @@ export function ProFitShop({ storeType, userRole, balanceTable, theme = 'default
   });
 
   const buyMutation = useMutation({
-    mutationFn: async (item: any) => {
+    mutationFn: async (item: StoreItem) => {
       const coinCost = item.price_coins || 0;
       if (coinCost <= 0) throw new Error('Invalid price');
 
       if (item.max_per_user_per_period) {
-        const periodPurchases = (purchases || []).filter((p: any) => p.item_id === item.id);
+        const periodPurchases = (purchases || []).filter((p) => p.item_id === item.id);
         if (periodPurchases.length >= item.max_per_user_per_period) {
           throw new Error('Purchase limit reached for this item');
         }
@@ -145,7 +146,7 @@ export function ProFitShop({ storeType, userRole, balanceTable, theme = 'default
       if (item.is_limited && item.stock_count !== null) {
         await supabase
           .from('store_items')
-          .update({ stock_count: item.stock_count - 1 } as any)
+          .update({ stock_count: (item.stock_count ?? 0) - 1 })
           .eq('id', item.id);
       }
 
@@ -159,14 +160,14 @@ export function ProFitShop({ storeType, userRole, balanceTable, theme = 'default
       toast({ title: `✅ ${result.itemName} purchased!`, description: `Balance: ${result.newBalance} 🪙` });
       setConfirmItem(null);
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       toast({ title: 'Purchase failed', description: err.message, variant: 'destructive' });
       setConfirmItem(null);
     },
   });
 
   const balance = balanceData?.coin_balance || 0;
-  const categories = Array.from(new Set((items || []).map((i: any) => i.category || 'general')));
+  const categories = Array.from(new Set((items || []).map((i) => i.category || 'general')));
   const allItems = items || [];
 
   if (isLoading) {
@@ -177,7 +178,7 @@ export function ProFitShop({ storeType, userRole, balanceTable, theme = 'default
     );
   }
 
-  const purchasedIds = new Set((purchases || []).map((p: any) => p.item_id));
+  const purchasedIds = new Set((purchases || []).map((p) => p.item_id));
 
   return (
     <div className={`px-4 py-6 space-y-6 pb-28 ${theme === 'arena' ? 'arena bg-gradient-arena min-h-screen -mt-[1px]' : ''}`}>
@@ -224,7 +225,7 @@ export function ProFitShop({ storeType, userRole, balanceTable, theme = 'default
             ))}
           </TabsList>
           <TabsContent value="all" className="space-y-3 mt-3">
-            {allItems.map((item: any, i: number) => (
+            {allItems.map((item, i) => (
               <ShopItemCard
                 key={item.id}
                 item={item}
@@ -238,7 +239,7 @@ export function ProFitShop({ storeType, userRole, balanceTable, theme = 'default
           </TabsContent>
           {categories.map(cat => (
             <TabsContent key={cat} value={cat} className="space-y-3 mt-3">
-              {allItems.filter((item: any) => (item.category || 'general') === cat).map((item: any, i: number) => (
+              {allItems.filter((item) => (item.category || 'general') === cat).map((item, i) => (
                 <ShopItemCard
                   key={item.id}
                   item={item}
@@ -254,7 +255,7 @@ export function ProFitShop({ storeType, userRole, balanceTable, theme = 'default
         </Tabs>
       ) : (
         <div className="space-y-3">
-          {allItems.map((item: any, i: number) => (
+          {allItems.map((item, i) => (
             <ShopItemCard
               key={item.id}
               item={item}
@@ -339,7 +340,7 @@ export function ProFitShop({ storeType, userRole, balanceTable, theme = 'default
 }
 
 function ShopItemCard({ item, index, balance, isPurchased, isPending, onBuy }: {
-  item: any;
+  item: StoreItem;
   index: number;
   balance: number;
   isPurchased: boolean;

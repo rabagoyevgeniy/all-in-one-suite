@@ -3,8 +3,28 @@ import { Download, FileText, Play, Pause, Forward } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 
+interface ChatMsg {
+  id: string;
+  body: string;
+  sender_id: string;
+  created_at: string;
+  media_url?: string | null;
+  media_name?: string | null;
+  media_type?: string | null;
+  media_size?: number | null;
+  message_type?: string | null;
+  reply_to_id?: string | null;
+  is_forwarded?: boolean | null;
+  is_edited?: boolean | null;
+  deleted_at?: string | null;
+  forwarded_from_name?: string | null;
+  sender?: { full_name: string } | null;
+  reply_message?: { body: string; sender?: { full_name: string } | null } | null;
+  [key: string]: unknown;
+}
+
 interface ChatMessageBubbleProps {
-  msg: any;
+  msg: ChatMsg;
   isOwn: boolean;
   showName: boolean;
   otherLastRead?: string | null;

@@ -85,7 +85,7 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
 
       onOpenChange(false);
       navigate(`/chat/${roomId}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[Chat] Error:', err);
       toast({
         title: t('Failed to start conversation', 'Не удалось начать диалог'),

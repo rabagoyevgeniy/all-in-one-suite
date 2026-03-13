@@ -31,7 +31,7 @@ export default function AdminPricing() {
     mutationFn: async ({ id, link }: { id: string; link: string }) => {
       const { error } = await supabase
         .from('pricing_plans')
-        .update({ stripe_payment_link: link || null, updated_at: new Date().toISOString() } as any)
+        .update({ stripe_payment_link: link || null, updated_at: new Date().toISOString() } as Record<string, unknown>)
         .eq('id', id);
       if (error) throw error;
     },
@@ -47,7 +47,7 @@ export default function AdminPricing() {
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
       const { error } = await supabase
         .from('pricing_plans')
-        .update({ is_active: active } as any)
+        .update({ is_active: active } as Record<string, unknown>)
         .eq('id', id);
       if (error) throw error;
     },

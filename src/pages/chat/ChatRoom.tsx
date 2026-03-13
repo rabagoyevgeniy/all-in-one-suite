@@ -190,7 +190,7 @@ export default function ChatRoom() {
     const channel = supabase
       .channel(`room-${roomId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` }, async (payload) => {
-        const newMsg = payload.new as any;
+        const newMsg = payload.new as Record<string, unknown>;
         const { data: profile } = await supabase.from('profiles').select('full_name, avatar_url').eq('id', newMsg.sender_id).single();
         newMsg.sender = profile;
         setRealtimeMessages(prev => [...prev, newMsg]);
@@ -200,7 +200,7 @@ export default function ChatRoom() {
         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_reactions' }, (payload) => {
-        if (payload.eventType === 'INSERT') setRealtimeReactions(prev => [...prev, payload.new as any]);
+        if (payload.eventType === 'INSERT') setRealtimeReactions(prev => [...prev, payload.new as Record<string, unknown>]);
         else if (payload.eventType === 'DELETE') setRealtimeReactions(prev => prev.filter(r => r.id !== (payload.old as any).id));
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` }, () => {

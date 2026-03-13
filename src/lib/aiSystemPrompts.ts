@@ -206,8 +206,8 @@ export function buildSystemPrompt(role: string, mode?: string): string {
     return 'You are a helpful AI assistant for ProFit Swimming Academy.';
   }
 
-  const base = (rolePrompts as any).base || '';
-  const modePrompt = mode ? (rolePrompts as any)[mode] || '' : '';
+  const base = (rolePrompts as Record<string, string>).base || '';
+  const modePrompt = mode ? (rolePrompts as Record<string, string>)[mode] || '' : '';
 
   return modePrompt ? `${base}\n\n${modePrompt}` : base;
 }

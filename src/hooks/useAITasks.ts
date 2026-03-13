@@ -72,10 +72,10 @@ export function useAITasks() {
           priority: task.priority ?? 'medium',
           category: task.category ?? 'general',
           due_date: task.due_date ?? null,
-          steps: (task.steps ?? []) as unknown as any,
+          steps: (task.steps ?? []) as unknown as AITaskStep[],
           ai_plan: task.ai_plan ?? null,
           notify_admin: task.notify_admin ?? false,
-        } as any)
+        } as Record<string, unknown>)
         .select()
         .single();
       if (error) throw error;
@@ -88,7 +88,7 @@ export function useAITasks() {
     mutationFn: async ({ id, ...updates }: Partial<AITask> & { id: string }) => {
       const payload: any = { ...updates };
       if (updates.steps) {
-        payload.steps = updates.steps as any;
+        payload.steps = updates.steps as unknown;
       }
       const { data, error } = await supabase
         .from('ai_tasks')
@@ -113,7 +113,7 @@ export function useAITasks() {
     const allDone = newSteps.length > 0 && newSteps.every((s) => s.done);
     await updateTask.mutateAsync({
       id: taskId,
-      steps: newSteps as any,
+      steps: newSteps as unknown,
       progress_percent: progress,
       status: allDone ? 'done' : task.status,
       ...(allDone ? { completed_at: new Date().toISOString() } : {}),

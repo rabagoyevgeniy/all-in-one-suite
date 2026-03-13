@@ -138,7 +138,7 @@ export default function VoiceRecorder({ roomId, onSent }: VoiceRecorderProps) {
         media_url: publicUrl,
         media_mime_type: blobRef.current.type,
         media_size: blobRef.current.size,
-      } as any);
+      } as Record<string, unknown>);
       if (msgErr) throw msgErr;
 
       await supabase.from('chat_rooms').update({
@@ -148,7 +148,7 @@ export default function VoiceRecorder({ roomId, onSent }: VoiceRecorderProps) {
 
       discard();
       onSent();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({ title: t('Failed to send voice', 'Не удалось отправить'), variant: 'destructive' });
       setState('recorded');
     }

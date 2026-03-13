@@ -26,8 +26,8 @@ const BOOKING_STATUS_COLORS: Record<string, string> = {
 function getActivityFromBookings(bookings: any[] | undefined) {
   if (!bookings?.length) return [];
   return bookings.map((b) => {
-    const student = (b.students as any)?.profiles?.full_name || b.booking_type || 'Student';
-    const coach = (b.coaches as any)?.profiles?.full_name;
+    const student = (b.students as Record<string, unknown>)?.profiles?.full_name || b.booking_type || 'Student';
+    const coach = (b.coaches as Record<string, unknown>)?.profiles?.full_name;
     const status = b.status || 'confirmed';
     let emoji = '📅';
     let text = `New booking: ${student}`;
@@ -205,7 +205,7 @@ export default function AdminDashboard() {
           </h3>
           <div className="space-y-3">
             {pendingCommunities.map((room: any) => {
-              const requester = room.profiles as any;
+              const requester = room.profiles as Record<string, unknown>;
               return (
                 <div key={room.id} className="bg-warning/5 border border-warning/20 rounded-2xl p-4">
                   <div className="font-semibold text-sm text-foreground">{room.name}</div>
