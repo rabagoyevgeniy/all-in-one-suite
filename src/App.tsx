@@ -131,10 +131,10 @@ const App = () => (
             {/* PM routes */}
             <Route element={<RoleGuard allowedRoles={['personal_manager']}><AppLayout /></RoleGuard>}>
               <Route path="/pm" element={<PMDashboard />} />
-              <Route path="/pm/clients" element={<ComingSoon />} />
+              <Route path="/pm/clients" element={<PMClients />} />
               <Route path="/pm/reports" element={<PMReports />} />
               <Route path="/pm/earnings" element={<PMEarnings />} />
-              <Route path="/pm/profile" element={<ComingSoon />} />
+              <Route path="/pm/profile" element={<PMProfile />} />
             </Route>
 
             {/* Parent routes */}
