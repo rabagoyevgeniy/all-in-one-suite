@@ -131,7 +131,7 @@ export default function ParentChildren() {
                   </div>
                   <div className="bg-muted/50 rounded-xl p-2 text-center">
                     <Flame size={14} className="mx-auto text-warning mb-0.5" />
-                    <p className="text-sm font-bold text-foreground">{child.streak || 0}</p>
+                    <p className="text-sm font-bold text-foreground">{child.current_streak || 0}</p>
                     <p className="text-[9px] text-muted-foreground">Streak</p>
                   </div>
                   <div className="bg-muted/50 rounded-xl p-2 text-center">

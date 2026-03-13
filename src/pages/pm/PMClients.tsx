@@ -40,7 +40,7 @@ export default function PMClients() {
 
       const { data: subscriptions } = await supabase
         .from('subscriptions')
-        .select('parent_id, status, plan_type')
+        .select('parent_id, status')
         .in('parent_id', clientIds)
         .order('created_at', { ascending: false });
 

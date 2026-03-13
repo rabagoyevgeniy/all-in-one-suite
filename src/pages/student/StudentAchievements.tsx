@@ -114,7 +114,7 @@ export default function StudentAchievements() {
         )}
         <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
           <div><p className="font-bold text-foreground">{student?.wins || 0}</p><p className="text-muted-foreground">Wins</p></div>
-          <div><p className="font-bold text-foreground">{student?.lessons_completed || 0}</p><p className="text-muted-foreground">Lessons</p></div>
+          <div><p className="font-bold text-foreground">{student?.total_coins_earned || 0}</p><p className="text-muted-foreground">Lessons</p></div>
           <div><p className="font-bold text-foreground">{student?.total_coins_earned || 0}</p><p className="text-muted-foreground">Coins</p></div>
         </div>
       </motion.div>
