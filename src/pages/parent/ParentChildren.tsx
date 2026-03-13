@@ -12,6 +12,7 @@ import { format, parseISO } from 'date-fns';
 
 export default function ParentChildren() {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
 
   const { data: children, isLoading } = useQuery({
     queryKey: ['parent-children-list', user?.id],
