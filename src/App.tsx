@@ -7,6 +7,8 @@ import { AuthProvider } from "@/components/AuthProvider";
 import { DevAccountSwitcher } from "@/components/DevAccountSwitcher";
 import { AppLayout } from "@/components/AppLayout";
 import { RoleGuard } from "@/components/RoleGuard";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { PageErrorBoundary } from "@/components/PageErrorBoundary";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import LoginPage from "./pages/auth/LoginPage";
@@ -84,6 +86,11 @@ import NotificationsPage from "./pages/NotificationsPage";
 import { AIAssistantFAB } from "./components/AIAssistantFAB";
 import { OnboardingGuard } from "./components/OnboardingGuard";
 
+// Helper to wrap page elements with PageErrorBoundary
+const P = (name: string, element: React.ReactNode) => (
+  <PageErrorBoundary pageName={name}>{element}</PageErrorBoundary>
+);
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -92,115 +99,117 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth/login" element={<LoginPage />} />
-            <Route path="/onboarding" element={<OnboardingPage />} />
+        <ErrorBoundary>
+          <AuthProvider>
+            <Routes>
+              <Route path="/" element={P("Home", <Index />)} />
+              <Route path="/auth/login" element={P("Login", <LoginPage />)} />
+              <Route path="/onboarding" element={P("Onboarding", <OnboardingPage />)} />
 
-            {/* Admin routes */}
-            <Route element={<RoleGuard allowedRoles={['admin', 'head_manager']}><AppLayout /></RoleGuard>}>
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/admin/coaches" element={<AdminCoaches />} />
-              <Route path="/admin/clients" element={<AdminClients />} />
-              <Route path="/admin/bookings" element={<AdminBookings />} />
-              <Route path="/admin/financial" element={<AdminFinance />} />
-              <Route path="/admin/economy" element={<AdminEconomy />} />
-              <Route path="/admin/tasks" element={<AdminTasks />} />
-              <Route path="/admin/pricing" element={<AdminPricing />} />
-            </Route>
+              {/* Admin routes */}
+              <Route element={<RoleGuard allowedRoles={['admin', 'head_manager']}><AppLayout /></RoleGuard>}>
+                <Route path="/admin" element={P("Admin Dashboard", <AdminDashboard />)} />
+                <Route path="/admin/coaches" element={P("Admin Coaches", <AdminCoaches />)} />
+                <Route path="/admin/clients" element={P("Admin Clients", <AdminClients />)} />
+                <Route path="/admin/bookings" element={P("Admin Bookings", <AdminBookings />)} />
+                <Route path="/admin/financial" element={P("Admin Finance", <AdminFinance />)} />
+                <Route path="/admin/economy" element={P("Admin Economy", <AdminEconomy />)} />
+                <Route path="/admin/tasks" element={P("Admin Tasks", <AdminTasks />)} />
+                <Route path="/admin/pricing" element={P("Admin Pricing", <AdminPricing />)} />
+              </Route>
 
-            {/* Coach routes */}
-            <Route element={<RoleGuard allowedRoles={['coach']}><AppLayout /></RoleGuard>}>
-              <Route path="/coach" element={<CoachDashboard />} />
-              <Route path="/coach/schedule" element={<CoachSchedule />} />
-              <Route path="/coach/students" element={<CoachStudents />} />
-              <Route path="/coach/earnings" element={<CoachEarnings />} />
-              <Route path="/coach/profile" element={<CoachProfile />} />
-              <Route path="/coach/lesson/:bookingId/active" element={<CoachActiveLesson />} />
-              <Route path="/coach/lesson/:id/report" element={<LessonReport />} />
-              <Route path="/coach/lesson/:id" element={<LessonReport />} />
-              <Route path="/coach/live-tracking" element={<CoachLiveTracking />} />
-              <Route path="/coach/lessons-history" element={<CoachLessonsHistory />} />
-              <Route path="/coach/ratings" element={<CoachRatings />} />
-              <Route path="/coach/coins" element={<CoachCoins />} />
-              <Route path="/coach/rank" element={<CoachRankHistory />} />
-              <Route path="/coach/shop" element={<CoachShop />} />
-              <Route path="/coach/achievements" element={<CoachAchievements />} />
-            </Route>
+              {/* Coach routes */}
+              <Route element={<RoleGuard allowedRoles={['coach']}><AppLayout /></RoleGuard>}>
+                <Route path="/coach" element={P("Coach Dashboard", <CoachDashboard />)} />
+                <Route path="/coach/schedule" element={P("Coach Schedule", <CoachSchedule />)} />
+                <Route path="/coach/students" element={P("Coach Students", <CoachStudents />)} />
+                <Route path="/coach/earnings" element={P("Coach Earnings", <CoachEarnings />)} />
+                <Route path="/coach/profile" element={P("Coach Profile", <CoachProfile />)} />
+                <Route path="/coach/lesson/:bookingId/active" element={P("Active Lesson", <CoachActiveLesson />)} />
+                <Route path="/coach/lesson/:id/report" element={P("Lesson Report", <LessonReport />)} />
+                <Route path="/coach/lesson/:id" element={P("Lesson Report", <LessonReport />)} />
+                <Route path="/coach/live-tracking" element={P("Live Tracking", <CoachLiveTracking />)} />
+                <Route path="/coach/lessons-history" element={P("Lessons History", <CoachLessonsHistory />)} />
+                <Route path="/coach/ratings" element={P("Coach Ratings", <CoachRatings />)} />
+                <Route path="/coach/coins" element={P("Coach Coins", <CoachCoins />)} />
+                <Route path="/coach/rank" element={P("Coach Rank", <CoachRankHistory />)} />
+                <Route path="/coach/shop" element={P("Coach Shop", <CoachShop />)} />
+                <Route path="/coach/achievements" element={P("Coach Achievements", <CoachAchievements />)} />
+              </Route>
 
-            {/* PM routes */}
-            <Route element={<RoleGuard allowedRoles={['personal_manager']}><AppLayout /></RoleGuard>}>
-              <Route path="/pm" element={<PMDashboard />} />
-              <Route path="/pm/clients" element={<PMClients />} />
-              <Route path="/pm/reports" element={<PMReports />} />
-              <Route path="/pm/earnings" element={<PMEarnings />} />
-              <Route path="/pm/profile" element={<PMProfile />} />
-            </Route>
+              {/* PM routes */}
+              <Route element={<RoleGuard allowedRoles={['personal_manager']}><AppLayout /></RoleGuard>}>
+                <Route path="/pm" element={P("PM Dashboard", <PMDashboard />)} />
+                <Route path="/pm/clients" element={P("PM Clients", <PMClients />)} />
+                <Route path="/pm/reports" element={P("PM Reports", <PMReports />)} />
+                <Route path="/pm/earnings" element={P("PM Earnings", <PMEarnings />)} />
+                <Route path="/pm/profile" element={P("PM Profile", <PMProfile />)} />
+              </Route>
 
-            {/* Parent routes */}
-            <Route element={<RoleGuard allowedRoles={['parent']}><AppLayout /></RoleGuard>}>
-              <Route path="/parent" element={<ParentDashboard />} />
-              <Route path="/parent/children" element={<ParentChildren />} />
-              <Route path="/parent/children/:id" element={<ParentChildren />} />
-              <Route path="/parent/booking" element={<ParentBooking />} />
-              <Route path="/parent/financial" element={<ComingSoon />} />
-              <Route path="/parent/payments" element={<ParentPayments />} />
-              <Route path="/parent/coins" element={<ParentCoins />} />
-              <Route path="/parent/referrals" element={<ComingSoon />} />
-              <Route path="/parent/shop" element={<ParentShop />} />
-            </Route>
+              {/* Parent routes */}
+              <Route element={<RoleGuard allowedRoles={['parent']}><AppLayout /></RoleGuard>}>
+                <Route path="/parent" element={P("Parent Dashboard", <ParentDashboard />)} />
+                <Route path="/parent/children" element={P("My Children", <ParentChildren />)} />
+                <Route path="/parent/children/:id" element={P("My Children", <ParentChildren />)} />
+                <Route path="/parent/booking" element={P("Booking", <ParentBooking />)} />
+                <Route path="/parent/financial" element={P("Financial", <ComingSoon />)} />
+                <Route path="/parent/payments" element={P("Payments", <ParentPayments />)} />
+                <Route path="/parent/coins" element={P("Coins", <ParentCoins />)} />
+                <Route path="/parent/referrals" element={P("Referrals", <ComingSoon />)} />
+                <Route path="/parent/shop" element={P("Shop", <ParentShop />)} />
+              </Route>
 
-            {/* Payment routes (parent accessible) */}
-            <Route element={<RoleGuard allowedRoles={['parent']}><AppLayout /></RoleGuard>}>
-              <Route path="/payment" element={<PaymentScreen />} />
-              <Route path="/payment/success" element={<PaymentSuccess />} />
-            </Route>
+              {/* Payment routes */}
+              <Route element={<RoleGuard allowedRoles={['parent']}><AppLayout /></RoleGuard>}>
+                <Route path="/payment" element={P("Payment", <PaymentScreen />)} />
+                <Route path="/payment/success" element={P("Payment Success", <PaymentSuccess />)} />
+              </Route>
 
-            {/* Chat routes (all authenticated roles) */}
-            <Route element={<RoleGuard allowedRoles={['parent', 'coach', 'student', 'pro_athlete', 'personal_manager', 'admin', 'head_manager']}><AppLayout /></RoleGuard>}>
-              <Route path="/chat" element={<ChatList />} />
-              <Route path="/chat/:roomId" element={<ChatRoom />} />
-            </Route>
+              {/* Chat routes */}
+              <Route element={<RoleGuard allowedRoles={['parent', 'coach', 'student', 'pro_athlete', 'personal_manager', 'admin', 'head_manager']}><AppLayout /></RoleGuard>}>
+                <Route path="/chat" element={P("Chat", <ChatList />)} />
+                <Route path="/chat/:roomId" element={P("Chat Room", <ChatRoom />)} />
+              </Route>
 
-            {/* Student routes (Arena theme) */}
-            <Route element={<RoleGuard allowedRoles={['student']}><AppLayout theme="arena" /></RoleGuard>}>
-              <Route path="/student" element={<StudentDashboard />} />
-              <Route path="/student/tasks" element={<TaskBoard />} />
-              <Route path="/student/store" element={<StudentStore />} />
-              <Route path="/student/duels" element={<DuelArena />} />
-              <Route path="/student/education" element={<Education />} />
-              <Route path="/student/live-duels" element={<LiveDuels />} />
-              <Route path="/student/leaderboard" element={<ComingSoon />} />
-              <Route path="/student/skills" element={<ComingSoon />} />
-              <Route path="/student/profile" element={<StudentProfile />} />
-              <Route path="/student/achievements" element={<StudentAchievements />} />
-            </Route>
+              {/* Student routes */}
+              <Route element={<RoleGuard allowedRoles={['student']}><AppLayout theme="arena" /></RoleGuard>}>
+                <Route path="/student" element={P("Student Dashboard", <StudentDashboard />)} />
+                <Route path="/student/tasks" element={P("Tasks", <TaskBoard />)} />
+                <Route path="/student/store" element={P("Store", <StudentStore />)} />
+                <Route path="/student/duels" element={P("Duels", <DuelArena />)} />
+                <Route path="/student/education" element={P("Education", <Education />)} />
+                <Route path="/student/live-duels" element={P("Live Duels", <LiveDuels />)} />
+                <Route path="/student/leaderboard" element={P("Leaderboard", <ComingSoon />)} />
+                <Route path="/student/skills" element={P("Skills", <ComingSoon />)} />
+                <Route path="/student/profile" element={P("Student Profile", <StudentProfile />)} />
+                <Route path="/student/achievements" element={P("Achievements", <StudentAchievements />)} />
+              </Route>
 
-            {/* Pro Athlete routes (Arena theme) */}
-            <Route element={<RoleGuard allowedRoles={['pro_athlete']}><AppLayout theme="arena" /></RoleGuard>}>
-              <Route path="/pro" element={<ProDashboard />} />
-              <Route path="/pro/arena" element={<ProArena />} />
-              <Route path="/pro/records" element={<ProRecords />} />
-              <Route path="/pro/shop" element={<ProShop />} />
-              <Route path="/pro/profile" element={<ProProfile />} />
-            </Route>
+              {/* Pro Athlete routes */}
+              <Route element={<RoleGuard allowedRoles={['pro_athlete']}><AppLayout theme="arena" /></RoleGuard>}>
+                <Route path="/pro" element={P("Pro Dashboard", <ProDashboard />)} />
+                <Route path="/pro/arena" element={P("Arena", <ProArena />)} />
+                <Route path="/pro/records" element={P("Records", <ProRecords />)} />
+                <Route path="/pro/shop" element={P("Shop", <ProShop />)} />
+                <Route path="/pro/profile" element={P("Pro Profile", <ProProfile />)} />
+              </Route>
 
-            {/* AI Assistant (all authenticated roles, no AppLayout wrapper) */}
-            <Route path="/ai-assistant" element={<RoleGuard allowedRoles={['parent', 'coach', 'student', 'pro_athlete', 'personal_manager', 'admin', 'head_manager']}><AIAssistant /></RoleGuard>} />
+              {/* AI Assistant */}
+              <Route path="/ai-assistant" element={<RoleGuard allowedRoles={['parent', 'coach', 'student', 'pro_athlete', 'personal_manager', 'admin', 'head_manager']}>{P("AI Assistant", <AIAssistant />)}</RoleGuard>} />
 
-            {/* Notifications (all roles, uses AppLayout) */}
-            <Route element={<RoleGuard allowedRoles={['parent', 'coach', 'student', 'pro_athlete', 'personal_manager', 'admin', 'head_manager']}><AppLayout /></RoleGuard>}>
-              <Route path="/notifications" element={<NotificationsPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-            </Route>
+              {/* Notifications & Settings */}
+              <Route element={<RoleGuard allowedRoles={['parent', 'coach', 'student', 'pro_athlete', 'personal_manager', 'admin', 'head_manager']}><AppLayout /></RoleGuard>}>
+                <Route path="/notifications" element={P("Notifications", <NotificationsPage />)} />
+                <Route path="/settings" element={P("Settings", <SettingsPage />)} />
+              </Route>
 
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          <OnboardingGuard />
-          <AIAssistantFAB />
-          <DevAccountSwitcher />
-        </AuthProvider>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <OnboardingGuard />
+            <AIAssistantFAB />
+            <DevAccountSwitcher />
+          </AuthProvider>
+        </ErrorBoundary>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
