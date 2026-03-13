@@ -3168,6 +3168,17 @@ export type Database = {
       }
     }
     Functions: {
+      add_coins: {
+        Args: {
+          p_amount: number
+          p_description: string
+          p_reference_id?: string
+          p_type: string
+          p_user_id: string
+          p_user_role: string
+        }
+        Returns: number
+      }
       assign_initial_role: { Args: { _role: string }; Returns: undefined }
       create_direct_chat: { Args: { other_user_id: string }; Returns: string }
       get_user_role: {
@@ -3190,6 +3201,17 @@ export type Database = {
         Returns: boolean
       }
       is_public_chat_room: { Args: { _room_id: string }; Returns: boolean }
+      spend_coins: {
+        Args: {
+          p_amount: number
+          p_description: string
+          p_reference_id?: string
+          p_type: string
+          p_user_id: string
+          p_user_role: string
+        }
+        Returns: number
+      }
     }
     Enums: {
       app_role:
