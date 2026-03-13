@@ -31,7 +31,7 @@ export function useRevenueChart() {
 
       if (error) throw error;
 
-      // Group by month, only income
+      // Group by month, only income. Handles empty data gracefully.
       const months: Record<string, number> = {};
       (data || []).forEach((t) => {
         if (t.direction !== 'income') return;
@@ -50,9 +50,9 @@ export function useActiveCoaches() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('coaches')
-        .select('id, rank, avg_rating, total_lessons_completed, coin_balance, has_rayban_meta, specializations, profiles!coaches_id_fkey(full_name, avatar_url, city)')
-        .order('avg_rating', { ascending: false })
-        .limit(5);
+        .select('id, specialization, rank, profiles!inner(full_name, avatar_url, is_active)')
+        .eq('profiles.is_active', true)
+        .limit(10);
       if (error) throw error;
       return data;
     },
@@ -67,8 +67,8 @@ export function useRecentBookings() {
         .from('bookings')
         .select(`
           id, status, lesson_fee, currency, created_at, booking_type,
-          students(id, profiles:students_id_fkey(full_name)),
-          coaches(id, profiles:coaches_id_fkey(full_name)),
+          students(id, profiles(full_name)),
+          coaches(id, profiles(full_name)),
           pools(name)
         `)
         .order('created_at', { ascending: false })
