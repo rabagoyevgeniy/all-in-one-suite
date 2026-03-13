@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Clock, Signal, Users } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, Signal, Users, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { useQuery } from '@tanstack/react-query';
@@ -15,7 +15,7 @@ export default function CoachLiveTracking() {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
-  const { data: coachData } = useQuery({
+  const { data: coachData, isLoading: isCoachLoading } = useQuery({
     queryKey: ['coach-tracking-profile', user?.id],
     queryFn: async () => {
       const { data } = await supabase
@@ -79,6 +79,14 @@ export default function CoachLiveTracking() {
   const timeSinceUpdate = lastUpdate
     ? Math.floor((Date.now() - lastUpdate.getTime()) / 1000)
     : null;
+
+  if (isCoachLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-background">
