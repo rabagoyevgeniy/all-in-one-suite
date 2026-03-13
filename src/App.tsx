@@ -78,6 +78,7 @@ import PMProfile from "./pages/pm/PMProfile";
 import CoachAchievements from "./pages/coach/CoachAchievements";
 import ParentChildren from "./pages/parent/ParentChildren";
 import ParentChildDetail from "./pages/parent/ParentChildDetail";
+import ParentFinancials from "./pages/parent/ParentFinancials";
 import StudentAchievements from "./pages/student/StudentAchievements";
 import OnboardingPage from "./pages/OnboardingPage";
 import SettingsPage from "./pages/Settings";
@@ -155,7 +156,7 @@ const App = () => (
                 <Route path="/parent/children" element={P("My Children", <ParentChildren />)} />
                 <Route path="/parent/child/:childId" element={P("Child Detail", <ParentChildDetail />)} />
                 <Route path="/parent/booking" element={P("Booking", <ParentBooking />)} />
-                <Route path="/parent/financial" element={P("Financial", <ComingSoon />)} />
+                <Route path="/parent/financial" element={P("Financial", <ParentFinancials />)} />
                 <Route path="/parent/payments" element={P("Payments", <ParentPayments />)} />
                 <Route path="/parent/coins" element={P("Coins", <ParentCoins />)} />
                 <Route path="/parent/referrals" element={P("Referrals", <ComingSoon />)} />
