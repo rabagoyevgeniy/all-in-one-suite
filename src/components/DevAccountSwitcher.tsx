@@ -13,7 +13,10 @@ const TEST_ACCOUNTS = [
   { emoji: '📋', label: 'PM', email: 'pm1@profitswimming.ae', password: 'Manager2026!', route: '/pm' },
 ];
 
+const IS_DEV = import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.includes('lovable.app') || window.location.hostname.includes('lovableproject.com');
+
 export function DevAccountSwitcher() {
+  if (!IS_DEV) return null;
   const [switching, setSwitching] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const { reset } = useAuthStore();
