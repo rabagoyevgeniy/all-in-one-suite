@@ -17,7 +17,7 @@ export default function ParentChildren() {
     queryFn: async () => {
       const { data: students, error } = await supabase
         .from('students')
-        .select('id, swim_belt, wins, losses, total_coins_earned, lessons_completed, streak, parent_id')
+        .select('id, swim_belt, wins, losses, total_coins_earned, current_streak, parent_id')
         .eq('parent_id', user!.id);
       if (error) throw error;
       if (!students?.length) return [];
