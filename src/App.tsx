@@ -48,6 +48,7 @@ import ChatList from "./pages/chat/ChatList";
 import ChatRoom from "./pages/chat/ChatRoom";
 import ParentShop from "./pages/parent/ParentShop";
 import ParentPayments from "./pages/parent/ParentPayments";
+import ParentReferrals from "./pages/parent/ParentReferrals";
 
 // Payment
 import PaymentScreen from "./pages/payment/PaymentScreen";
@@ -61,6 +62,8 @@ import DuelArena from "./pages/student/DuelArena";
 import StudentProfile from "./pages/student/StudentProfile";
 import Education from "./pages/student/Education";
 import LiveDuels from "./pages/student/LiveDuels";
+import StudentLeaderboard from "./pages/student/StudentLeaderboard";
+import StudentSkills from "./pages/student/StudentSkills";
 
 // Pro
 import ProDashboard from "./pages/pro/ProDashboard";
@@ -159,7 +162,7 @@ const App = () => (
                 <Route path="/parent/financial" element={P("Financial", <ParentFinancials />)} />
                 <Route path="/parent/payments" element={P("Payments", <ParentPayments />)} />
                 <Route path="/parent/coins" element={P("Coins", <ParentCoins />)} />
-                <Route path="/parent/referrals" element={P("Referrals", <ComingSoon />)} />
+                <Route path="/parent/referrals" element={P("Referrals", <ParentReferrals />)} />
                 <Route path="/parent/shop" element={P("Shop", <ParentShop />)} />
               </Route>
 
@@ -183,8 +186,8 @@ const App = () => (
                 <Route path="/student/duels" element={P("Duels", <DuelArena />)} />
                 <Route path="/student/education" element={P("Education", <Education />)} />
                 <Route path="/student/live-duels" element={P("Live Duels", <LiveDuels />)} />
-                <Route path="/student/leaderboard" element={P("Leaderboard", <ComingSoon />)} />
-                <Route path="/student/skills" element={P("Skills", <ComingSoon />)} />
+                <Route path="/student/leaderboard" element={P("Leaderboard", <StudentLeaderboard />)} />
+                <Route path="/student/skills" element={P("Skills", <StudentSkills />)} />
                 <Route path="/student/profile" element={P("Student Profile", <StudentProfile />)} />
                 <Route path="/student/achievements" element={P("Achievements", <StudentAchievements />)} />
               </Route>
