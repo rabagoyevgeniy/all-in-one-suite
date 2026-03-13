@@ -1,16 +1,18 @@
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { SwimBeltBadge } from '@/components/SwimBeltBadge';
 import { SWIM_BELTS, calculateXP, getBeltByXP } from '@/lib/constants';
-import { Calendar, Flame, Trophy, Users } from 'lucide-react';
+import { Calendar, ChevronRight, Flame, Trophy, Users } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
 export default function ParentChildren() {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
 
   const { data: children, isLoading } = useQuery({
     queryKey: ['parent-children-list', user?.id],
@@ -95,7 +97,8 @@ export default function ParentChildren() {
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.08 }}
-                className="glass-card rounded-2xl p-5 space-y-4"
+                className="glass-card rounded-2xl p-5 space-y-4 cursor-pointer active:scale-[0.98] transition-transform"
+                onClick={() => navigate(`/parent/child/${child.id}`)}
               >
                 {/* Header */}
                 <div className="flex items-center gap-3">
@@ -109,6 +112,7 @@ export default function ParentChildren() {
                       <span className="text-[11px] text-muted-foreground">{child.beltInfo.name}</span>
                     </div>
                   </div>
+                  <ChevronRight size={18} className="text-muted-foreground shrink-0" />
                 </div>
 
                 {/* XP Progress */}
