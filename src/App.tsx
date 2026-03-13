@@ -126,6 +126,7 @@ const App = () => (
               <Route path="/coach/coins" element={<CoachCoins />} />
               <Route path="/coach/rank" element={<CoachRankHistory />} />
               <Route path="/coach/shop" element={<CoachShop />} />
+              <Route path="/coach/achievements" element={<CoachAchievements />} />
             </Route>
 
             {/* PM routes */}
