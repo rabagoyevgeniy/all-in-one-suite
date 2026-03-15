@@ -1,0 +1,201 @@
+# Project Map — ProFit Platform
+
+## Overview
+
+ProFit is a gamified swimming training platform built as a multi-role SPA.
+
+The system supports:
+
+- training management
+- gamification and competitions
+- academy CRM
+- analytics and reporting
+- AI-assisted features
+
+The current implementation is a frontend-first architecture using Supabase as the backend service.
+
+---
+
+# Core Stack
+
+Frontend:
+- React 18
+- TypeScript
+- Vite (SWC)
+- Tailwind CSS
+- shadcn/ui
+- Framer Motion
+
+State:
+- Zustand (client state)
+- TanStack React Query (server state)
+
+Backend:
+- Supabase
+  - Auth
+  - Database
+  - Realtime
+
+Validation:
+- React Hook Form
+- Zod
+
+Routing:
+- React Router v6
+
+---
+
+# Folder Architecture
+
+src/
+
+pages/
+Role-based route modules:
+
+admin/
+coach/
+parent/
+student/
+pro/
+pm/
+
+components/
+
+ui/
+shadcn UI primitives
+
+chat/
+chat system
+
+ai/
+AI assistant components
+
+hooks/
+custom logic hooks
+
+lib/
+business logic
+constants
+pricing
+AI config
+
+integrations/
+
+supabase/
+Supabase client and types
+
+---
+
+# System Layers
+
+UI Layer
+→ components + pages
+
+Logic Layer
+→ hooks + lib
+
+Data Layer
+→ React Query + Supabase
+
+Infrastructure
+→ auth, realtime, storage
+
+---
+
+# Key Systems
+
+## Role Access
+
+RoleGuard enforces route-level permissions.
+
+Roles:
+
+Admin
+Coach
+Parent
+Student
+Pro Athlete
+Personal Manager
+
+---
+
+## AI System
+
+Components:
+
+AIAssistantFAB
+AI Conversation Sidebar
+AI Tasks Panel
+
+Future direction:
+
+AI agents will assist with:
+
+- training planning
+- analytics
+- student development
+- admin automation
+
+---
+
+# Gamification System
+
+Coins economy
+Achievements
+Leaderboards
+Duels
+Shop
+
+Gamification drives engagement for students.
+
+---
+
+# Current Limitations
+
+Current architecture is frontend-heavy.
+
+Supabase is used directly from client.
+
+Missing:
+
+backend services
+worker jobs
+analytics pipelines
+AI orchestration layer
+
+---
+
+# Future Architecture
+
+Planned modules:
+
+backend/
+API services
+
+dashboard/
+advanced analytics dashboard
+
+mobile/
+mobile application
+
+ai-agents/
+autonomous AI services
+
+---
+
+# Development Guidelines
+
+Prefer:
+
+- modular architecture
+- isolated components
+- typed APIs
+- small composable hooks
+
+Avoid:
+
+- large monolithic components
+- duplicated business logic
+- direct Supabase queries in UI components
+
+Prefer data abstraction through hooks.
