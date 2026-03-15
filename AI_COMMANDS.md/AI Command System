@@ -1,0 +1,73 @@
+# AI Command System
+
+These commands allow the AI to operate as a senior architect and developer.
+
+---
+
+## /audit
+
+Analyze the entire repository.
+
+Focus on:
+
+- architecture
+- performance
+- scalability
+- security
+
+Return a detailed technical report.
+
+---
+
+## /refactor
+
+Improve the codebase.
+
+Goals:
+
+- simplify architecture
+- reduce duplication
+- improve readability
+- increase modularity
+
+Always explain changes before applying them.
+
+---
+
+## /design-backend
+
+Design a backend architecture for the platform.
+
+Include:
+
+- service boundaries
+- database schema
+- API structure
+- scaling strategy
+
+---
+
+## /build-feature
+
+Implement a new feature.
+
+Steps:
+
+1. analyze requirements
+2. design architecture
+3. implement minimal version
+4. explain changes
+5. suggest commit message
+
+---
+
+## /fix-bug
+
+Identify and fix a bug in the codebase.
+
+Steps:
+
+1. locate problem
+2. explain root cause
+3. implement fix
+4. verify stability
