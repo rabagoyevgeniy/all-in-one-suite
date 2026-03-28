@@ -37,7 +37,7 @@ export function RatingModal({ isOpen, onClose, booking, onSuccess }: RatingModal
     if (!rating || !user?.id) return;
     setSubmitting(true);
     try {
-      const { error } = await (supabase as unknown as { from: (t: string) => unknown })
+      const { error } = await (supabase as any)
         .from('lesson_reviews')
         .insert({
           booking_id: booking.id,

@@ -79,7 +79,7 @@ export function CommunityInfoSheet({ roomId, open, onOpenChange }: Props) {
               <p className="text-white/70 text-sm">{room.name}</p>
             </div>
             <div className="px-5 py-4 space-y-2">
-              {(leaders || []).map((m: Record<string, unknown>, i: number) => (
+              {(leaders || []).map((m: any, i: number) => (
                 <div key={m.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
                   <span className="text-lg w-8 text-center">
                     {i < 3 ? medals[i] : `${i + 1}`}
@@ -193,7 +193,7 @@ export function CommunityInfoSheet({ roomId, open, onOpenChange }: Props) {
                 Recent Members
               </div>
               <div className="flex -space-x-2">
-                {(members || []).slice(0, 5).map((m: Record<string, unknown>) => (
+                {(members || []).slice(0, 5).map((m: any) => (
                   <div
                     key={m.id}
                     className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/60 to-primary ring-2 ring-background flex items-center justify-center text-primary-foreground text-xs font-bold"

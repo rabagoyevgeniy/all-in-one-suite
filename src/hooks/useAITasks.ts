@@ -113,7 +113,7 @@ export function useAITasks() {
     const allDone = newSteps.length > 0 && newSteps.every((s) => s.done);
     await updateTask.mutateAsync({
       id: taskId,
-      steps: newSteps as unknown,
+      steps: newSteps as any,
       progress_percent: progress,
       status: allDone ? 'done' : task.status,
       ...(allDone ? { completed_at: new Date().toISOString() } : {}),
