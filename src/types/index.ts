@@ -85,7 +85,7 @@ export interface BookingWithRelations extends Booking {
 
 // ── Lesson types ──────────────────────────────────────────────────────────
 
-export interface LessonWithRelations extends Lesson {
+export interface LessonWithRelations extends Omit<Lesson, 'coach_lesson_rating'> {
   bookings?: BookingWithRelations | null;
   coach_lesson_rating?: number | null;
 }
@@ -104,7 +104,7 @@ export interface CoachWithProfile extends Coach {
 
 // ── Store types ───────────────────────────────────────────────────────────
 
-export interface StoreItemExtended extends StoreItem {
+export interface StoreItemExtended extends Omit<StoreItem, 'category'> {
   category?: string;
 }
 

@@ -49,7 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             const profileWithOnboarding = profileData ? {
               ...profileData,
-              onboarding_completed: (obData as Record<string, unknown>)?.onboarding_completed ?? false,
+              onboarding_completed: Boolean((obData as any)?.onboarding_completed) ?? false,
             } : null;
 
             // If no role yet, check if user signed up with a role in metadata
