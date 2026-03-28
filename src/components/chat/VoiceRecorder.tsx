@@ -138,7 +138,7 @@ export default function VoiceRecorder({ roomId, onSent }: VoiceRecorderProps) {
         media_url: publicUrl,
         media_mime_type: blobRef.current.type,
         media_size: blobRef.current.size,
-      } as Record<string, unknown>);
+      } as any);
       if (msgErr) throw msgErr;
 
       await supabase.from('chat_rooms').update({

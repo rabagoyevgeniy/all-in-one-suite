@@ -191,7 +191,7 @@ export default function ChatRoom() {
       .channel(`room-${roomId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` }, async (payload) => {
         const newMsg = payload.new as Record<string, unknown>;
-        const { data: profile } = await supabase.from('profiles').select('full_name, avatar_url').eq('id', newMsg.sender_id).single();
+        const { data: profile } = await supabase.from('profiles').select('full_name, avatar_url').eq('id', newMsg.sender_id as string).single();
         newMsg.sender = profile;
         setRealtimeMessages(prev => [...prev, newMsg]);
         if (newMsg.sender_id !== user?.id) {

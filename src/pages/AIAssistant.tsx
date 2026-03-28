@@ -362,13 +362,13 @@ export default function AIAssistant() {
       await incrementUsage();
       await sendMessage(text, (sugg) => setSuggestions(sugg));
       refetchConversations();
-    } catch (e: unknown) {
-      if (e.message === 'daily_limit_reached') {
+    } catch (e: any) {
+      if (e?.message === 'daily_limit_reached') {
         toast({ title: t('Daily limit reached', 'Лимит исчерпан'), variant: 'destructive' });
-      } else if (e.message === 'mode_not_allowed') {
+      } else if (e?.message === 'mode_not_allowed') {
         toast({ title: t('Mode not available', 'Режим недоступен'), variant: 'destructive' });
       } else {
-        toast({ title: 'AI Error', description: e.message, variant: 'destructive' });
+        toast({ title: 'AI Error', description: e?.message, variant: 'destructive' });
       }
     }
   }, [input, isLoading, messagesRemaining, dailyLimit, t, incrementUsage, sendMessage, refetchConversations]);
@@ -445,7 +445,7 @@ export default function AIAssistant() {
       toast({ title: t('Not supported', 'Не поддерживается'), variant: 'destructive' });
       return;
     }
-    const recognition = new SpeechRecognition();
+    const recognition = new (SpeechRecognition as any)();
     recognition.lang = language === 'ru' ? 'ru-RU' : 'en-US';
     recognition.interimResults = false;
     recognition.onresult = (e: any) => {

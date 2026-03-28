@@ -75,7 +75,7 @@ export function useAITasks() {
           steps: (task.steps ?? []) as unknown as AITaskStep[],
           ai_plan: task.ai_plan ?? null,
           notify_admin: task.notify_admin ?? false,
-        } as Record<string, unknown>)
+        } as any)
         .select()
         .single();
       if (error) throw error;
@@ -113,7 +113,7 @@ export function useAITasks() {
     const allDone = newSteps.length > 0 && newSteps.every((s) => s.done);
     await updateTask.mutateAsync({
       id: taskId,
-      steps: newSteps as unknown,
+      steps: newSteps as any,
       progress_percent: progress,
       status: allDone ? 'done' : task.status,
       ...(allDone ? { completed_at: new Date().toISOString() } : {}),

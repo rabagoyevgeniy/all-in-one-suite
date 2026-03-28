@@ -93,7 +93,7 @@ function DevQuickLogin({ navigate }: { navigate: NavigateFunction }) {
       }
     } catch (err: unknown) {
       console.error('Dev login error:', err);
-      toast.error(err.message || 'Dev login failed');
+      toast.error((err as any)?.message || 'Dev login failed');
     } finally {
       setBusy(null);
     }
@@ -231,11 +231,11 @@ export default function LoginPage() {
           }
 
           const { data: codeData, error: codeError } = await supabase
-            .from('invite_codes' as string)
+            .from('invite_codes')
             .select('id, target_role')
             .eq('code', form.inviteCode.trim())
             .eq('is_active', true)
-            .eq('target_role', selectedRole)
+            .eq('target_role', selectedRole as any)
             .maybeSingle();
 
           if (codeError) throw codeError;
