@@ -75,7 +75,7 @@ export function useAITasks() {
           steps: (task.steps ?? []) as unknown as AITaskStep[],
           ai_plan: task.ai_plan ?? null,
           notify_admin: task.notify_admin ?? false,
-        } as Record<string, unknown>)
+        } as any)
         .select()
         .single();
       if (error) throw error;
