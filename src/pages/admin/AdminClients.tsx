@@ -36,7 +36,7 @@ function useStudentsList() {
 
       // Get parent profiles for parent_ids
       const parentIds = [...new Set(studentsData.map((s: any) => s.parent_id).filter(Boolean))];
-      let parentMap: Record<string, string> = {};
+      const parentMap: Record<string, string> = {};
       if (parentIds.length > 0) {
         const { data: parentProfiles } = await supabase
           .from('profiles')

@@ -50,9 +50,9 @@ describe("ErrorBoundary", () => {
     expect(screen.getByText("Custom Fallback")).toBeInTheDocument();
   });
 
-  it("calls onReset when Try Again clicked", () => {
+  it("calls onReset and recovers when Try Again clicked", () => {
     const onReset = vi.fn();
-    render(
+    const { rerender } = render(
       <ErrorBoundary onReset={onReset}>
         <ThrowingChild shouldThrow={true} />
       </ErrorBoundary>

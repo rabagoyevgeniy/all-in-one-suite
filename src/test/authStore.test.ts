@@ -7,6 +7,7 @@ describe("authStore", () => {
   });
 
   it("initializes with null user and loading false after reset", () => {
+    // reset sets isLoading to false, so re-create initial state check
     const store = useAuthStore.getState();
     expect(store.user).toBeNull();
     expect(store.session).toBeNull();
