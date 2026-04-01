@@ -89,7 +89,7 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
       console.error('[Chat] Error:', err);
       toast({
         title: t('Failed to start conversation', 'Не удалось начать диалог'),
-        description: err.message ?? '',
+        description: (err as any)?.message ?? '',
         variant: 'destructive',
       });
     } finally {

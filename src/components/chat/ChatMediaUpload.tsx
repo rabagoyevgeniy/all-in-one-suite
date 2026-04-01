@@ -74,7 +74,7 @@ export default function ChatMediaUpload({ roomId, onUploaded }: ChatMediaUploadP
         media_name: file.name,
         media_size: file.size,
         media_mime_type: file.type,
-      } as Record<string, unknown>);
+      } as any);
 
       if (msgError) throw msgError;
       setProgress(100);
@@ -89,7 +89,7 @@ export default function ChatMediaUpload({ roomId, onUploaded }: ChatMediaUploadP
       onUploaded();
     } catch (err: unknown) {
       console.error('[Upload]', err);
-      toast({ title: t('Upload failed', 'Ошибка загрузки'), description: err.message, variant: 'destructive' });
+      toast({ title: t('Upload failed', 'Ошибка загрузки'), description: (err as any)?.message, variant: 'destructive' });
     } finally {
       setUploading(false);
       setProgress(0);

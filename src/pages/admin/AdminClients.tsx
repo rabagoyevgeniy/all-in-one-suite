@@ -81,7 +81,7 @@ export default function AdminClients() {
             <div className="space-y-2">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-14 rounded-xl" />)}</div>
           ) : parents && parents.length > 0 ? (
             parents.map((p) => {
-              const profile = p.profiles as Record<string, unknown>;
+              const profile = p.profiles as any;
               return (
                 <div key={p.id} className="glass-card rounded-xl p-3 flex items-center gap-3">
                   <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground">

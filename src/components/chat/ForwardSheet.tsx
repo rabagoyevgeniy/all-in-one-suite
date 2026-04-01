@@ -68,7 +68,7 @@ export default function ForwardSheet({ open, onOpenChange, message }: ForwardShe
         media_url: message.media_url || null,
         forwarded_from_id: message.id,
         forwarded_from_name: message.senderName,
-      } as Record<string, unknown>);
+      } as any);
       if (msgErr) throw msgErr;
 
       await supabase.from('chat_rooms').update({
