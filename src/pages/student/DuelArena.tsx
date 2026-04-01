@@ -149,7 +149,7 @@ export default function DuelArena() {
       const coachIds = (coaches || []).map((c: any) => c.id);
 
       // Count seconding duels per coach
-      let secondingCounts: Record<string, number> = {};
+      const secondingCounts: Record<string, number> = {};
       if (coachIds.length > 0) {
         const { data: duelCounts } = await supabase
           .from('duels')
