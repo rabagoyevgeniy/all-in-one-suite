@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
-import { Flame, Swords, Loader2, ShoppingBag, Award, BookOpen } from 'lucide-react';
+import { Flame, Swords, Loader2, ShoppingBag, Award, BookOpen, ClipboardList } from 'lucide-react';
+import { EmptyState } from '@/components/EmptyState';
 import { CoinBalance } from '@/components/CoinBalance';
 import { useAuthStore } from '@/stores/authStore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -369,6 +370,20 @@ export default function StudentDashboard() {
       </div>
 
       {/* Pending Challenges */}
+      {pendingChallenges && pendingChallenges.length === 0 && (
+        <div className="px-4">
+          <h3 className="font-semibold text-sm text-foreground flex items-center gap-1 mb-2">
+            <Swords size={14} className="text-primary" /> {t('Open Challenges', 'Открытые вызовы')}
+          </h3>
+          <EmptyState
+            icon={Swords}
+            title={t('No open challenges', 'Нет открытых вызовов')}
+            description={t('Create your own duel or wait for challengers!', 'Создайте свою дуэль или ждите вызов!')}
+            actionLabel={t('Go to Duels', 'К дуэлям')}
+            onAction={() => navigate('/student/duels')}
+          />
+        </div>
+      )}
       {pendingChallenges && pendingChallenges.length > 0 && (
         <div className="space-y-3 px-4">
           <h3 className="font-semibold text-sm text-foreground flex items-center gap-1">
@@ -442,9 +457,11 @@ export default function StudentDashboard() {
             </motion.div>
           );
         }) : (
-          <div className="bg-card rounded-xl p-4 text-center text-muted-foreground text-sm border border-border">
-            {t('No daily tasks available', 'Нет доступных заданий')}
-          </div>
+          <EmptyState
+            icon={ClipboardList}
+            title={t('No daily tasks available', 'Нет доступных заданий')}
+            description={t('Check back tomorrow for new tasks!', 'Загляни завтра за новыми заданиями!')}
+          />
         )}
       </div>
     </div>

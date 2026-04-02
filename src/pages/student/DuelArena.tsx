@@ -608,7 +608,7 @@ export default function DuelArena() {
                 <Button
                   className="w-full rounded-xl"
                   onClick={() => createDuelMutation.mutate()}
-                  disabled={createDuelMutation.isPending || stakeCoins < 10 || stakeCoins > (myBalance || 0)}
+                  disabled={createDuelMutation.isPending || stakeCoins < 10 || stakeCoins > (myBalance || 0) || !selectedPool}
                 >
                   {createDuelMutation.isPending ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
                   {selectedOpponent && selectedOpponent !== 'open' ? 'Send Challenge' : 'Create Open Challenge'} ({stakeCoins} 🪙)

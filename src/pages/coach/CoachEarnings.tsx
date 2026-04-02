@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
-import { Wallet, Loader2 } from 'lucide-react';
+import { Wallet, Loader2, Coins, Receipt } from 'lucide-react';
+import { EmptyState } from '@/components/EmptyState';
 import { CoinBalance } from '@/components/CoinBalance';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -111,7 +112,7 @@ export default function CoachEarnings() {
             </div>
           </motion.div>
         )) : (
-          <div className="glass-card rounded-xl p-4 text-center text-muted-foreground text-sm">No payroll records yet</div>
+          <EmptyState icon={Receipt} title="No payroll records yet" description="Your earnings will appear after completing lessons" />
         )}
       </div>
 
@@ -135,7 +136,7 @@ export default function CoachEarnings() {
             </span>
           </motion.div>
         )) : (
-          <div className="glass-card rounded-xl p-4 text-center text-muted-foreground text-sm">No coin transactions</div>
+          <EmptyState icon={Coins} title="No coin transactions" description="Earn coins by completing lessons and tasks" />
         )}
       </div>
     </div>
