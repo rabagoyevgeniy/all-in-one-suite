@@ -126,7 +126,21 @@ export default function ParentBooking() {
     if (!selectedCoach || !selectedSlot || !selectedPool || !selectedChild) return;
     setSubmitting(true);
     try {
-      await supabase.from('bookings').insert({
+      // 1. Claim the time slot FIRST with race-condition guard
+      const { data: slotUpdate, error: slotErr } = await supabase
+        .from('time_slots')
+        .update({ status: 'booked' })
+        .eq('id', selectedSlot.id)
+        .eq('status', 'available')
+        .select()
+        .single();
+      if (slotErr || !slotUpdate) {
+        toast({ title: t('Slot already booked', 'Слот уже занят'), description: t('Please select another time', 'Выберите другое время'), variant: 'destructive' });
+        return;
+      }
+
+      // 2. Create booking AFTER slot is locked
+      const { error: bookingErr } = await supabase.from('bookings').insert({
         parent_id: user!.id,
         student_id: selectedChild,
         coach_id: selectedCoach.id,
@@ -138,13 +152,20 @@ export default function ParentBooking() {
         currency: 'AED',
         notes: notes.trim() || null,
       });
-      await supabase.from('time_slots').update({ status: 'booked' }).eq('id', selectedSlot.id);
+      if (bookingErr) {
+        // Rollback: release the slot
+        await supabase.from('time_slots').update({ status: 'available' }).eq('id', selectedSlot.id);
+        throw bookingErr;
+      }
+
+      // 3. Notify coach (non-critical)
       await supabase.from('notifications').insert({
         user_id: selectedCoach.id,
         title: '📅 New booking!',
         body: `${profile?.full_name} booked a lesson on ${selectedDate} at ${selectedSlot.start_time?.substring(0, 5)}`,
         type: 'system',
       });
+
       navigate('/parent');
       toast({ title: t('Lesson booked! ✅', 'Урок забронирован! ✅') });
     } catch {

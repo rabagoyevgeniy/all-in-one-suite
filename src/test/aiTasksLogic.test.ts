@@ -181,16 +181,16 @@ describe("AI Tasks — Step ID generation", () => {
     expect(newStepId).toBe("3");
   });
 
-  it("BUG CHECK: step IDs can collide if steps are deleted and re-added", () => {
-    // If step "2" is deleted, steps = [{id:"1"}, {id:"3"}], length = 2
-    // Next step would get id = "3" → collision!
+  it("FIXED: step IDs use max(existing) + 1, no collision after delete", () => {
+    // After fix: id = max(existing IDs) + 1
     const stepsAfterDelete: AITaskStep[] = [
       { id: "1", text: "Step 1", done: false },
       { id: "3", text: "Step 3", done: false },
     ];
-    const newId = String(stepsAfterDelete.length + 1);
+    const maxId = stepsAfterDelete.reduce((max, s) => Math.max(max, Number(s.id) || 0), 0);
+    const newId = String(maxId + 1);
     const existingIds = stepsAfterDelete.map(s => s.id);
-    // This documents the bug — newId "3" collides with existing "3"
-    expect(existingIds.includes(newId)).toBe(true); // BUG: collision detected
+    expect(existingIds.includes(newId)).toBe(false); // No collision
+    expect(newId).toBe("4");
   });
 });

@@ -63,7 +63,7 @@ describe("RoleGuard", () => {
     expect(screen.queryByText("Admin Only")).not.toBeInTheDocument();
   });
 
-  it("BUG CHECK: user exists but role is null — should not show protected content", () => {
+  it("user exists but role is null — redirects away (no access)", () => {
     useAuthStore.setState({
       isLoading: false,
       user: { id: "1" } as any,
@@ -74,11 +74,8 @@ describe("RoleGuard", () => {
         <div>Should Not Show</div>
       </RoleGuard>
     );
-    // role is null → allowedRoles.includes(null) = false → Navigate to /
-    // But the code checks: if (role && !allowedRoles.includes(role))
-    // When role is null, it passes through! THIS IS A BUG.
-    // Document this behavior:
-    expect(screen.getByText("Should Not Show")).toBeInTheDocument();
+    // role is null → !role is true → Navigate to /
+    expect(screen.queryByText("Should Not Show")).not.toBeInTheDocument();
   });
 
   it("allows multiple roles", () => {

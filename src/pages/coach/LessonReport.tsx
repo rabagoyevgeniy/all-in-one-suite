@@ -84,18 +84,20 @@ export default function LessonReport() {
       const effectiveBookingId = bookingId || lesson?.booking_id;
       const studentId = booking?.student_id || lesson?.student_id;
 
-      // 1. Update lesson with report data
-      await supabase.from('lessons').update({
+      // 1. Update lesson with report data (critical — check error)
+      const { error: lessonErr } = await supabase.from('lessons').update({
         main_skills_worked: selectedSkills,
         coach_lesson_rating: rating || null,
         challenges_note: notes.trim() || null,
       } as any).eq('id', lessonId!);
+      if (lessonErr) throw lessonErr;
 
       // 2. Update booking status
       if (effectiveBookingId) {
-        await supabase.from('bookings')
+        const { error: bookingErr } = await supabase.from('bookings')
           .update({ status: 'completed' })
           .eq('id', effectiveBookingId);
+        if (bookingErr) throw bookingErr;
       }
 
       // 3. Increment used lessons

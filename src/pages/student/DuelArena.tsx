@@ -205,12 +205,7 @@ export default function DuelArena() {
       if (stakeCoins > (myBalance || 0)) throw new Error('Insufficient coins');
       if (!selectedPool) throw new Error('Select a pool');
 
-      const result = await spendCoins(
-        user!.id, 'student', stakeCoins,
-        'duel_stake', `Duel stake: ${swimStyle} ${distance}m`
-      );
-      if (!result.success) throw new Error(result.error || 'Insufficient coins');
-
+      // 1. Create duel FIRST (before spending coins — safe rollback)
       const insertData: any = {
         challenger_id: user!.id,
         duel_type: 'student',
@@ -220,7 +215,6 @@ export default function DuelArena() {
         stake_coins: stakeCoins,
         pool_id: selectedPool,
       };
-
       if (selectedOpponent && selectedOpponent !== 'open') {
         insertData.opponent_id = selectedOpponent;
       }
@@ -231,11 +225,28 @@ export default function DuelArena() {
       const { data: duel, error } = await supabase.from('duels').insert(insertData).select().single();
       if (error) throw error;
 
-      await supabase.from('duel_escrow').insert({
+      // 2. Spend coins AFTER duel exists — rollback duel on failure
+      const result = await spendCoins(
+        user!.id, 'student', stakeCoins,
+        'duel_stake', `Duel stake: ${swimStyle} ${distance}m`, duel.id
+      );
+      if (!result.success) {
+        await supabase.from('duels').delete().eq('id', duel.id);
+        throw new Error(result.error || 'Insufficient coins');
+      }
+
+      // 3. Create escrow — refund coins on failure
+      const { error: escrowErr } = await supabase.from('duel_escrow').insert({
         duel_id: duel.id, holder_id: user!.id,
         coins_held: stakeCoins, status: 'held',
       });
+      if (escrowErr) {
+        await awardCoins(user!.id, 'student', stakeCoins, 'duel_refund', 'Duel escrow failed — refund', duel.id);
+        await supabase.from('duels').delete().eq('id', duel.id);
+        throw new Error('Failed to lock coins in escrow');
+      }
 
+      // 4. Notify opponent
       if (selectedOpponent && selectedOpponent !== 'open') {
         await supabase.from('notifications').insert({
           user_id: selectedOpponent,
@@ -266,21 +277,42 @@ export default function DuelArena() {
 
   const acceptDuelMutation = useMutation({
     mutationFn: async (duel: any) => {
+      // 1. Claim the duel FIRST with race-condition guard
+      const { data: updated, error: claimErr } = await supabase.from('duels')
+        .update({ status: 'accepted', opponent_id: user!.id })
+        .eq('id', duel.id)
+        .eq('status', 'pending')
+        .is('opponent_id', null)
+        .select()
+        .single();
+      if (claimErr || !updated) throw new Error('Duel already taken by another player');
+
+      // 2. Spend coins AFTER claim succeeded
       const result = await spendCoins(
         user!.id, 'student', duel.stake_coins,
         'duel_stake', `Accepted duel: ${duel.swim_style} ${duel.distance_meters}m`,
         duel.id
       );
-      if (!result.success) throw new Error(result.error || 'Insufficient coins');
+      if (!result.success) {
+        // Rollback: revert duel to pending
+        await supabase.from('duels')
+          .update({ status: 'pending', opponent_id: null })
+          .eq('id', duel.id);
+        throw new Error(result.error || 'Insufficient coins');
+      }
 
-      await supabase.from('duel_escrow').insert({
+      // 3. Create escrow — refund on failure
+      const { error: escrowErr } = await supabase.from('duel_escrow').insert({
         duel_id: duel.id, holder_id: user!.id,
         coins_held: duel.stake_coins, status: 'held',
       });
-
-      await supabase.from('duels')
-        .update({ status: 'accepted', opponent_id: user!.id })
-        .eq('id', duel.id);
+      if (escrowErr) {
+        await awardCoins(user!.id, 'student', duel.stake_coins, 'duel_refund', 'Escrow failed — refund', duel.id);
+        await supabase.from('duels')
+          .update({ status: 'pending', opponent_id: null })
+          .eq('id', duel.id);
+        throw new Error('Failed to lock coins');
+      }
 
       await supabase.from('notifications').insert({
         user_id: duel.challenger_id,

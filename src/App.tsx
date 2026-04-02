@@ -233,7 +233,7 @@ const App = () => (
             </Suspense>
             <OnboardingGuard />
             <AIAssistantFAB />
-            <DevAccountSwitcher />
+            {import.meta.env.DEV && <DevAccountSwitcher />}
           </AuthProvider>
         </ErrorBoundary>
       </BrowserRouter>

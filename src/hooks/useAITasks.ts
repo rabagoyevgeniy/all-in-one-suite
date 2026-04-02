@@ -123,7 +123,8 @@ export function useAITasks() {
   const addStep = async (taskId: string, text: string) => {
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
-    const newStep: AITaskStep = { id: String(task.steps.length + 1), text, done: false };
+    const maxId = task.steps.reduce((max, s) => Math.max(max, Number(s.id) || 0), 0);
+    const newStep: AITaskStep = { id: String(maxId + 1), text, done: false };
     const newSteps = [...task.steps, newStep];
     const doneCount = newSteps.filter((s) => s.done).length;
     const progress = Math.round((doneCount / newSteps.length) * 100);

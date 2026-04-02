@@ -132,9 +132,10 @@ export default function StudentDashboard() {
     queryFn: async () => {
       const { data: allAch } = await supabase
         .from('achievements')
-        .select('*')
+        .select('*, user_achievements!left(user_id)')
         .or('target_role.eq.student,target_role.is.null')
         .eq('is_active', true)
+        .eq('user_achievements.user_id', user!.id)
         .limit(10);
       return allAch || [];
     },
@@ -220,7 +221,8 @@ export default function StudentDashboard() {
   const displayAchievements = achievements && achievements.length > 0
     ? achievements.map((a: any) => ({
         id: a.id, emoji: a.icon_url || '🏆', name: a.name,
-        desc: a.description || '', earned: false, // would need user_achievements join
+        desc: a.description || '',
+        earned: Array.isArray(a.user_achievements) && a.user_achievements.length > 0,
       }))
     : PLACEHOLDER_ACHIEVEMENTS;
 
