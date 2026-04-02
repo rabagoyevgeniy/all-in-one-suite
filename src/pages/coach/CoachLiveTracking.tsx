@@ -58,7 +58,11 @@ export default function CoachLiveTracking() {
           }).eq('id', user.id);
         }
       },
-      () => {},
+      (error) => {
+        if (error.code === error.PERMISSION_DENIED) {
+          setCoords(null);
+        }
+      },
       { enableHighAccuracy: true, maximumAge: 10000 }
     );
     return () => {
