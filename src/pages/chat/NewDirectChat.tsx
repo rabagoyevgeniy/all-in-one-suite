@@ -43,13 +43,10 @@ export function NewDirectChat({ open, onOpenChange }: { open: boolean; onOpenCha
   const { data: allUsers, isLoading, error } = useQuery({
     queryKey: ['chat-searchable-users'],
     queryFn: async () => {
-      console.log('[NewDirectChat] Fetching users...');
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, avatar_url, city')
         .order('full_name');
-
-      console.log('[NewDirectChat] Result:', { count: data?.length, error });
       if (error) throw error;
 
       // Filter out current user client-side

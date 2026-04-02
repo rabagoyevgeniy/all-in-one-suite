@@ -1,11 +1,14 @@
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { Users, FileText, DollarSign, ChevronRight, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/EmptyState';
 import { useAuthStore } from '@/stores/authStore';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function PMDashboard() {
+  const navigate = useNavigate();
   const { user, profile } = useAuthStore();
 
   const { data: assignments, isLoading } = useQuery({
@@ -133,9 +136,11 @@ export default function PMDashboard() {
             );
           })
         ) : (
-          <div className="glass-card rounded-xl p-6 text-center text-muted-foreground text-sm">
-            No assigned clients yet
-          </div>
+          <EmptyState
+            icon={Users}
+            title="No assigned clients yet"
+            description="Admin will assign clients to you"
+          />
         )}
       </div>
 
@@ -169,7 +174,10 @@ export default function PMDashboard() {
                     Coach: {coach?.profiles?.full_name || '—'} · {new Date(lesson.created_at!).toLocaleDateString()}
                   </p>
                 </div>
-                <button className="text-[10px] font-bold text-primary-foreground bg-primary px-3 py-1.5 rounded-lg">
+                <button
+                  onClick={() => navigate(`/pm/reports?lesson=${lesson.id}`)}
+                  className="text-[10px] font-bold text-primary-foreground bg-primary px-3 py-1.5 rounded-lg"
+                >
                   Write Summary
                 </button>
               </motion.div>

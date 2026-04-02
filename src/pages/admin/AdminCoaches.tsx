@@ -5,7 +5,8 @@ import { COACH_RANKS } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Star, Trophy, AlertTriangle } from 'lucide-react';
+import { Star, Trophy, AlertTriangle, Users } from 'lucide-react';
+import { EmptyState } from '@/components/EmptyState';
 import { motion } from 'framer-motion';
 import { PageHeader } from '@/components/layout/PageHeader';
 
@@ -92,7 +93,11 @@ export default function AdminCoaches() {
           })}
         </div>
       ) : (
-        <div className="text-center py-12 text-muted-foreground">No coaches found</div>
+        <EmptyState
+          icon={Users}
+          title="No coaches found"
+          description="Coaches will appear here after registration"
+        />
       )}
 
       {/* Detail Sheet */}

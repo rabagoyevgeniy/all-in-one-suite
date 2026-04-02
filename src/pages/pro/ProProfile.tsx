@@ -5,8 +5,10 @@ import { useAuthStore } from '@/stores/authStore';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CoinBalance } from '@/components/CoinBalance';
+import { EmptyState } from '@/components/EmptyState';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Loader2, Trophy, Swords, Flame, TrendingUp, Crown } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 const PRO_TIERS = [
   { id: 'bronze', label: 'Bronze', color: '#CD7F32', gradient: 'from-[#CD7F32] to-[#8B5A2B]' },
@@ -121,7 +123,7 @@ export default function ProProfile() {
                     {proData?.subscription_tier === t.id ? (
                       <Badge className="mt-2 text-[10px]">Current Plan</Badge>
                     ) : (
-                      <Button size="sm" className="mt-2 w-full rounded-lg text-xs" onClick={() => {}}>Select</Button>
+                      <Button size="sm" className="mt-2 w-full rounded-lg text-xs" onClick={() => toast({ title: 'Coming soon', description: `${t.name} plan will be available shortly` })}>Select</Button>
                     )}
                   </div>
                 ))}
@@ -157,7 +159,7 @@ export default function ProProfile() {
             </motion.div>
           );
         }) : (
-          <div className="glass-card rounded-xl p-4 text-center text-muted-foreground text-sm">No completed duels yet</div>
+          <EmptyState icon={Swords} title="No completed duels yet" description="Enter the Arena to compete!" />
         )}
       </div>
     </div>
