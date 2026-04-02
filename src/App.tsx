@@ -28,6 +28,7 @@ const AdminFinance = lazy(() => import("./pages/admin/AdminFinance"));
 const AdminEconomy = lazy(() => import("./pages/admin/AdminEconomy"));
 const AdminTasks = lazy(() => import("./pages/admin/AdminTasks"));
 const AdminPricing = lazy(() => import("./pages/admin/AdminPricing"));
+const AdminShop = lazy(() => import("./pages/admin/AdminShop"));
 
 // Coach
 const CoachDashboard = lazy(() => import("./pages/coach/CoachDashboard"));
@@ -141,6 +142,7 @@ const App = () => (
                   <Route path="/admin/economy" element={P("Admin Economy", <AdminEconomy />)} />
                   <Route path="/admin/tasks" element={P("Admin Tasks", <AdminTasks />)} />
                   <Route path="/admin/pricing" element={P("Admin Pricing", <AdminPricing />)} />
+                  <Route path="/admin/shop" element={P("Admin Shop", <AdminShop />)} />
                 </Route>
 
                 {/* Coach routes */}
