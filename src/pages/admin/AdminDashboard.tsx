@@ -120,7 +120,7 @@ export default function AdminDashboard() {
     { icon: PlusCircle, label: 'New Booking', action: () => navigate('/admin/bookings/new'), bgColor: 'bg-success/10', color: 'text-success' },
     { icon: ListChecks, label: 'Approve Subs', action: () => navigate('/admin/subscriptions'), bgColor: 'bg-accent/10', color: 'text-accent' },
     { icon: MessageSquareWarning, label: 'Complaints', action: () => navigate('/admin/complaints'), bgColor: 'bg-warning/10', color: 'text-warning' },
-    { icon: Settings, label: 'Settings', action: () => navigate('/admin/economy'), bgColor: 'bg-muted', color: 'text-muted-foreground' },
+    { icon: Tag, label: 'Shop', action: () => navigate('/admin/shop'), bgColor: 'bg-coin/10', color: 'text-coin' },
   ];
 
   const activityFeed = getActivityFromBookings(bookings);
