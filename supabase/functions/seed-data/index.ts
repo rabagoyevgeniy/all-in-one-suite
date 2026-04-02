@@ -387,6 +387,48 @@ Deno.serve(async (req) => {
       results.push("Inserted manager assignment");
     }
 
+    // ===================== 12. TIME SLOTS (for booking) =====================
+    const coachIds = [coach1Id, coach2Id].filter(Boolean);
+    const poolIds = [pool1Id];
+    if (coachIds.length > 0) {
+      const slots: any[] = [];
+      for (const coachId of coachIds) {
+        // Generate slots for next 14 days
+        for (let dayOffset = 0; dayOffset < 14; dayOffset++) {
+          const date = new Date(now.getTime() + dayOffset * 86400000);
+          const dateStr = date.toISOString().split("T")[0];
+          const dayOfWeek = date.getDay();
+          if (dayOfWeek === 0 || dayOfWeek === 5) continue; // Skip Sun/Fri
+
+          const times = ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"];
+          for (const startTime of times) {
+            const [h, m] = startTime.split(":").map(Number);
+            const endTime = `${String(h + 1).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+            slots.push({
+              coach_id: coachId,
+              date: dateStr,
+              start_time: startTime,
+              end_time: endTime,
+              status: "available",
+            });
+          }
+        }
+      }
+
+      // Delete old slots first, then insert
+      for (const coachId of coachIds) {
+        await supabase.from("time_slots").delete().eq("coach_id", coachId).eq("status", "available");
+      }
+
+      // Insert in batches of 50
+      for (let i = 0; i < slots.length; i += 50) {
+        const batch = slots.slice(i, i + 50);
+        const { error } = await supabase.from("time_slots").insert(batch);
+        if (error) results.push(`time_slots batch error: ${error.message}`);
+      }
+      results.push(`Inserted ${slots.length} time slots for ${coachIds.length} coaches`);
+    }
+
     return new Response(JSON.stringify({ success: true, results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
