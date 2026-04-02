@@ -216,10 +216,10 @@ export function ProFitShop({ storeType, userRole, balanceTable, theme = 'default
       {/* Shop Items */}
       {categories.length > 1 ? (
         <Tabs defaultValue="all" className="w-full">
-          <TabsList className="w-full flex overflow-x-auto gap-1 bg-muted/50 rounded-xl p-1">
-            <TabsTrigger value="all" className="text-xs flex-shrink-0">All</TabsTrigger>
+          <TabsList className="w-full flex overflow-x-auto gap-0.5 bg-muted/50 rounded-xl p-1 no-scrollbar">
+            <TabsTrigger value="all" className="text-[11px] flex-shrink-0 px-2 py-1">All</TabsTrigger>
             {categories.map(cat => (
-              <TabsTrigger key={cat} value={cat} className="text-xs flex-shrink-0 capitalize">
+              <TabsTrigger key={cat} value={cat} className="text-[11px] flex-shrink-0 px-2 py-1 capitalize">
                 {CATEGORY_LABELS[cat] || cat}
               </TabsTrigger>
             ))}

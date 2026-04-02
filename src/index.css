@@ -125,6 +125,13 @@
 }
 
 @layer utilities {
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
   .bg-gradient-operations {
     background: linear-gradient(
       180deg,
