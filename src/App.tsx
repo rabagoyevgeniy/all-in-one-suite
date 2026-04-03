@@ -86,6 +86,12 @@ const ProShop = lazy(() => import("./pages/pro/ProShop"));
 
 // Freelancer
 const FreelancerDashboard = lazy(() => import("./pages/freelancer/FreelancerDashboard"));
+const FreelancerProfile = lazy(() => import("./pages/freelancer/FreelancerProfile"));
+const FreelancerSchedule = lazy(() => import("./pages/freelancer/FreelancerSchedule"));
+const FreelancerRequests = lazy(() => import("./pages/freelancer/FreelancerRequests"));
+const FreelancerEarnings = lazy(() => import("./pages/freelancer/FreelancerEarnings"));
+const FreelancerReviews = lazy(() => import("./pages/freelancer/FreelancerReviews"));
+const FreelancerClients = lazy(() => import("./pages/freelancer/FreelancerClients"));
 
 // PM
 const PMDashboard = lazy(() => import("./pages/pm/PMDashboard"));
@@ -171,6 +177,12 @@ const App = () => (
                 {/* Freelancer routes */}
                 <Route element={<RoleGuard allowedRoles={['freelancer']}><AppLayout /></RoleGuard>}>
                   <Route path="/freelancer" element={P("Freelancer Dashboard", <FreelancerDashboard />)} />
+                  <Route path="/freelancer/profile" element={P("Freelancer Profile", <FreelancerProfile />)} />
+                  <Route path="/freelancer/schedule" element={P("Freelancer Schedule", <FreelancerSchedule />)} />
+                  <Route path="/freelancer/requests" element={P("Freelancer Requests", <FreelancerRequests />)} />
+                  <Route path="/freelancer/earnings" element={P("Freelancer Earnings", <FreelancerEarnings />)} />
+                  <Route path="/freelancer/reviews" element={P("Freelancer Reviews", <FreelancerReviews />)} />
+                  <Route path="/freelancer/clients" element={P("Freelancer Clients", <FreelancerClients />)} />
                 </Route>
 
                 {/* PM routes */}

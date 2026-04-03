@@ -130,7 +130,7 @@ export default function FreelancerDashboard() {
 
   // ── Computed ──
   const profile = (freelancerData as any)?.profiles;
-  const firstName = profile?.full_name?.split(' ')[0] || t('Coach', 'Тренер');
+  const firstName = profile?.full_name?.split(' ')[0] || freelancerData?.profiles?.full_name?.split(' ')[0] || t('Coach', 'Тренер');
   const isLive = freelancerData?.is_live || false;
   const commissionRate = freelancerData?.commission_rate || 15;
 
