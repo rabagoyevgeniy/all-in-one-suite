@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Waves, Eye, EyeOff, Loader2, Users, GraduationCap, Trophy, ArrowLeft, Dumbbell, Briefcase, KeyRound, Star, Shield } from 'lucide-react';
 import { toast } from 'sonner';
-import loginHero from '@/assets/login-hero.jpg';
+import loginHero from '@/assets/login-hero-new.png';
 
 type SignUpRole = 'parent' | 'student' | 'pro_athlete' | 'coach' | 'personal_manager';
 
@@ -216,7 +216,7 @@ function ForgotPasswordModal({ open, onClose }: { open: boolean; onClose: () => 
         </p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="resetEmail" className="text-foreground text-sm font-medium">Email</Label>
+            <Label htmlFor="resetEmail" className="text-gray-300 text-sm font-medium">Email</Label>
             <Input
               id="resetEmail"
               type="email"
@@ -224,7 +224,7 @@ function ForgotPasswordModal({ open, onClose }: { open: boolean; onClose: () => 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="h-12 rounded-xl bg-muted/50 border-border focus:bg-card transition-colors"
+              className="h-12 rounded-xl bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:bg-white/10 focus:border-cyan-500/50 transition-colors"
             />
           </div>
           <div className="flex gap-3">
@@ -339,31 +339,32 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Hero image section with wave */}
-      <div className="relative h-[38vh] min-h-[240px] overflow-hidden">
+    <div className="min-h-screen bg-[#0a0e1a] flex flex-col">
+      {/* Hero image — cinematic ProFit concept art */}
+      <div className="relative h-[45vh] min-h-[280px] overflow-hidden">
         <img
           src={loginHero}
-          alt="Underwater swimming"
-          className="absolute inset-0 w-full h-full object-cover"
+          alt="ProFit Swimming Academy"
+          className="absolute inset-0 w-full h-full object-cover object-top"
         />
-        {/* Darker cinematic gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-background" />
+        {/* Gradient overlay — dark bottom for text readability */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#0a0e1a]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0a0e1a]/40 via-transparent to-transparent" />
 
         {/* Brand + tagline */}
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.6 }}
-          className="absolute bottom-10 left-6 right-6"
+          className="absolute bottom-8 left-6 right-6"
         >
-          <div className="flex items-center gap-2.5 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center">
-              <Waves className="text-white" size={22} />
+          <div className="flex items-center gap-2.5 mb-1">
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/20 backdrop-blur-md flex items-center justify-center border border-cyan-400/30">
+              <Waves className="text-cyan-400" size={22} />
             </div>
             <div>
               <span className="font-display font-bold text-2xl text-white drop-shadow-lg">ProFit</span>
-              <p className="text-xs text-white/70 font-medium -mt-0.5">Premium Swimming Academy</p>
+              <p className="text-xs text-cyan-300/80 font-medium -mt-0.5">Swimming Academy</p>
             </div>
           </div>
         </motion.div>
@@ -375,17 +376,15 @@ export default function LoginPage() {
           transition={{ delay: 0.6, duration: 0.5 }}
           className="absolute top-4 right-4 flex gap-2"
         >
-          <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/30 backdrop-blur-md text-white/90 text-[10px] font-medium">
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-md text-white/90 text-[10px] font-medium">
             <Star size={10} className="fill-amber-400 text-amber-400" />
             4.9
           </div>
-          <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/30 backdrop-blur-md text-white/90 text-[10px] font-medium">
-            <Shield size={10} />
-            Verified
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-md text-white/90 text-[10px] font-medium">
+            <Shield size={10} className="text-cyan-400" />
+            Dubai
           </div>
         </motion.div>
-
-        <WaveDivider />
       </div>
 
       {/* Form / Role selection section */}
@@ -396,11 +395,11 @@ export default function LoginPage() {
             initial={{ opacity: 0, x: 40 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -40 }}
-            className="flex-1 px-6 pt-4 pb-8"
+            className="flex-1 px-6 pt-4 pb-8 bg-[#0a0e1a] text-white"
           >
             <button
               onClick={() => setShowRoleSelect(false)}
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
+              className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white mb-4 transition-colors"
             >
               <ArrowLeft size={16} />
               Back
@@ -449,12 +448,12 @@ export default function LoginPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, x: -40 }}
             transition={{ delay: 0.15 }}
-            className="flex-1 px-6 pt-4 pb-8"
+            className="flex-1 px-6 pt-4 pb-8 bg-[#0a0e1a] text-white"
           >
-            <h2 className="font-display font-bold text-2xl text-foreground mb-1">
+            <h2 className="font-display font-bold text-2xl text-white mb-1">
               {isSignUp ? 'Create Account' : 'Welcome Back'}
             </h2>
-            <p className="text-sm text-muted-foreground mb-6">
+            <p className="text-sm text-gray-400 mb-6">
               {isSignUp ? 'Join the ProFit family today' : 'Sign in to continue your journey'}
             </p>
 
@@ -472,13 +471,13 @@ export default function LoginPage() {
                     value={form.fullName}
                     onChange={(e) => setForm(p => ({ ...p, fullName: e.target.value }))}
                     required
-                    className="h-12 rounded-xl bg-muted/50 border-border focus:bg-card transition-colors"
+                    className="h-12 rounded-xl bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:bg-white/10 focus:border-cyan-500/50 transition-colors"
                   />
                 </motion.div>
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-foreground text-sm font-medium">Email</Label>
+                <Label htmlFor="email" className="text-gray-300 text-sm font-medium">Email</Label>
                 <Input
                   id="email"
                   type="email"
@@ -486,13 +485,13 @@ export default function LoginPage() {
                   value={form.email}
                   onChange={(e) => setForm(p => ({ ...p, email: e.target.value }))}
                   required
-                  className="h-12 rounded-xl bg-muted/50 border-border focus:bg-card transition-colors"
+                  className="h-12 rounded-xl bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:bg-white/10 focus:border-cyan-500/50 transition-colors"
                 />
               </div>
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-foreground text-sm font-medium">Password</Label>
+                  <Label htmlFor="password" className="text-gray-300 text-sm font-medium">Password</Label>
                   {!isSignUp && (
                     <button
                       type="button"
@@ -566,7 +565,7 @@ export default function LoginPage() {
                     value={form.inviteCode}
                     onChange={(e) => setForm(p => ({ ...p, inviteCode: e.target.value }))}
                     required
-                    className="h-12 rounded-xl bg-muted/50 border-border focus:bg-card transition-colors"
+                    className="h-12 rounded-xl bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:bg-white/10 focus:border-cyan-500/50 transition-colors"
                   />
                   <p className="text-[11px] text-muted-foreground">
                     Coach and Personal Manager accounts require an invite code from an admin.
@@ -577,7 +576,7 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full h-12 rounded-xl font-display font-semibold text-base btn-gradient-primary border-0"
+                className="w-full h-12 rounded-xl font-display font-semibold text-base border-0 bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-[0_4px_20px_rgba(6,182,212,0.3)] hover:shadow-[0_6px_28px_rgba(6,182,212,0.5)] hover:-translate-y-0.5 active:translate-y-0 transition-all"
               >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isSignUp
@@ -589,15 +588,15 @@ export default function LoginPage() {
             </form>
 
             {/* Social proof */}
-            <div className="flex items-center justify-center gap-4 mt-5 text-[11px] text-muted-foreground">
+            <div className="flex items-center justify-center gap-4 mt-5 text-[11px] text-gray-500">
               <span className="flex items-center gap-1">
                 <Users size={12} /> 500+ families
               </span>
-              <span className="w-px h-3 bg-border" />
+              <span className="w-px h-3 bg-gray-700" />
               <span className="flex items-center gap-1">
                 <Star size={12} className="text-amber-500" /> 4.9 rating
               </span>
-              <span className="w-px h-3 bg-border" />
+              <span className="w-px h-3 bg-gray-700" />
               <span className="flex items-center gap-1">
                 <Shield size={12} /> Secure
               </span>
@@ -611,10 +610,10 @@ export default function LoginPage() {
                   setShowRoleSelect(false);
                   setForm(p => ({ ...p, inviteCode: '' }));
                 }}
-                className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                className="text-sm text-gray-400 hover:text-cyan-400 transition-colors"
               >
                 {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
-                <span className="font-semibold text-primary">
+                <span className="font-semibold text-cyan-400">
                   {isSignUp ? 'Sign In' : 'Sign Up'}
                 </span>
               </button>
