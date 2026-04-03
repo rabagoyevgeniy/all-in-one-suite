@@ -344,7 +344,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col relative" style={{ backgroundColor: '#060a14' }}>
+    <div className="min-h-screen w-full" style={{ backgroundColor: '#060a14' }}>
+    <div className="flex flex-col relative max-w-md mx-auto min-h-screen">
       {/* Full-bleed hero — negative margin for seamless blend with form */}
       <div className="relative h-[48vh] min-h-[300px] overflow-hidden mb-[-12px]">
         <motion.img
@@ -715,6 +716,7 @@ export default function LoginPage() {
           <ForgotPasswordModal open={showForgotPassword} onClose={() => setShowForgotPassword(false)} />
         )}
       </AnimatePresence>
+    </div>
     </div>
   );
 }
