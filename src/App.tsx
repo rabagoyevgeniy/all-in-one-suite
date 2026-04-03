@@ -84,6 +84,9 @@ const ProRecords = lazy(() => import("./pages/pro/ProRecords"));
 const ProProfile = lazy(() => import("./pages/pro/ProProfile"));
 const ProShop = lazy(() => import("./pages/pro/ProShop"));
 
+// Freelancer
+const FreelancerDashboard = lazy(() => import("./pages/freelancer/FreelancerDashboard"));
+
 // PM
 const PMDashboard = lazy(() => import("./pages/pm/PMDashboard"));
 const PMClients = lazy(() => import("./pages/pm/PMClients"));
@@ -165,6 +168,11 @@ const App = () => (
                   <Route path="/coach/achievements" element={P("Coach Achievements", <CoachAchievements />)} />
                 </Route>
 
+                {/* Freelancer routes */}
+                <Route element={<RoleGuard allowedRoles={['freelancer']}><AppLayout /></RoleGuard>}>
+                  <Route path="/freelancer" element={P("Freelancer Dashboard", <FreelancerDashboard />)} />
+                </Route>
+
                 {/* PM routes */}
                 <Route element={<RoleGuard allowedRoles={['personal_manager']}><AppLayout /></RoleGuard>}>
                   <Route path="/pm" element={P("PM Dashboard", <PMDashboard />)} />
@@ -194,7 +202,7 @@ const App = () => (
                 </Route>
 
                 {/* Chat routes */}
-                <Route element={<RoleGuard allowedRoles={['parent', 'coach', 'student', 'pro_athlete', 'personal_manager', 'admin', 'head_manager']}><AppLayout /></RoleGuard>}>
+                <Route element={<RoleGuard allowedRoles={['parent', 'coach', 'freelancer', 'student', 'pro_athlete', 'personal_manager', 'admin', 'head_manager']}><AppLayout /></RoleGuard>}>
                   <Route path="/chat" element={P("Chat", <ChatList />)} />
                   <Route path="/chat/:roomId" element={P("Chat Room", <ChatRoom />)} />
                 </Route>
@@ -223,10 +231,10 @@ const App = () => (
                 </Route>
 
                 {/* AI Assistant */}
-                <Route path="/ai-assistant" element={<RoleGuard allowedRoles={['parent', 'coach', 'student', 'pro_athlete', 'personal_manager', 'admin', 'head_manager']}>{P("AI Assistant", <AIAssistant />)}</RoleGuard>} />
+                <Route path="/ai-assistant" element={<RoleGuard allowedRoles={['parent', 'coach', 'freelancer', 'student', 'pro_athlete', 'personal_manager', 'admin', 'head_manager']}>{P("AI Assistant", <AIAssistant />)}</RoleGuard>} />
 
                 {/* Notifications & Settings */}
-                <Route element={<RoleGuard allowedRoles={['parent', 'coach', 'student', 'pro_athlete', 'personal_manager', 'admin', 'head_manager']}><AppLayout /></RoleGuard>}>
+                <Route element={<RoleGuard allowedRoles={['parent', 'coach', 'freelancer', 'student', 'pro_athlete', 'personal_manager', 'admin', 'head_manager']}><AppLayout /></RoleGuard>}>
                   <Route path="/notifications" element={P("Notifications", <NotificationsPage />)} />
                   <Route path="/settings" element={P("Settings", <SettingsPage />)} />
                 </Route>

@@ -49,13 +49,14 @@ export const COACH_RANKS = [
   { id: 'profitelite', label: 'ProFit Elite', color: '#FFD700' },
 ] as const;
 
-export type UserRole = 'admin' | 'head_manager' | 'personal_manager' | 'coach' | 'parent' | 'student' | 'pro_athlete';
+export type UserRole = 'admin' | 'head_manager' | 'personal_manager' | 'coach' | 'freelancer' | 'parent' | 'student' | 'pro_athlete';
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Admin',
   head_manager: 'Head Manager',
   personal_manager: 'Personal Manager',
   coach: 'Coach',
+  freelancer: 'Freelancer',
   parent: 'Parent',
   student: 'Student',
   pro_athlete: 'Pro Athlete',
@@ -66,6 +67,7 @@ export const ROLE_ROUTES: Record<UserRole, string> = {
   head_manager: '/admin',
   personal_manager: '/pm',
   coach: '/coach',
+  freelancer: '/freelancer',
   parent: '/parent',
   student: '/student',
   pro_athlete: '/pro',

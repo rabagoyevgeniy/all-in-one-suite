@@ -9,7 +9,7 @@ import { Waves, Eye, EyeOff, Loader2, Users, GraduationCap, Trophy, ArrowLeft, D
 import { toast } from 'sonner';
 import loginHero from '@/assets/login-hero-new.png';
 
-type SignUpRole = 'parent' | 'student' | 'pro_athlete' | 'coach' | 'personal_manager';
+type SignUpRole = 'parent' | 'student' | 'pro_athlete' | 'coach' | 'freelancer' | 'personal_manager';
 
 const INVITE_ONLY_ROLES: SignUpRole[] = ['coach', 'personal_manager'];
 
@@ -27,6 +27,13 @@ const ROLE_OPTIONS: { role: SignUpRole; label: string; description: string; icon
     description: 'Train, earn coins & compete in duels',
     icon: <GraduationCap className="h-6 w-6" />,
     color: 'from-violet-400 to-purple-500',
+  },
+  {
+    role: 'freelancer',
+    label: 'Freelance Coach',
+    description: 'Find clients, set your rates & grow your brand',
+    icon: <Waves className="h-6 w-6" />,
+    color: 'from-cyan-400 to-teal-500',
   },
   {
     role: 'coach',

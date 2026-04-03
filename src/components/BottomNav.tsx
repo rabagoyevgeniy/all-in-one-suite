@@ -24,6 +24,13 @@ const NAV_ITEMS: Record<string, { path: string; label: string; icon: React.Eleme
     { path: '/admin/financial', label: 'Reports', icon: BarChart3 },
     { path: '/settings', label: 'Profile', icon: User },
   ],
+  freelancer: [
+    { path: '/freelancer', label: 'Home', icon: Home },
+    { path: '/freelancer/schedule', label: 'Schedule', icon: Calendar },
+    { path: '/freelancer/clients', label: 'Clients', icon: Users },
+    { path: '/chat', label: 'Chat', icon: MessageSquare },
+    { path: '/freelancer/profile', label: 'Profile', icon: User },
+  ],
   coach: [
     { path: '/coach', label: 'Home', icon: Home },
     { path: '/coach/schedule', label: 'Schedule', icon: Calendar },
