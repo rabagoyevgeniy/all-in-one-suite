@@ -184,58 +184,78 @@ export function useAIConversation(conversationId: string | null, mode: string) {
           throw new Error(err.error || `Error ${resp.status}`);
         }
 
-        if (!resp.body) throw new Error('No response body');
+        const contentType = resp.headers.get('content-type') || '';
+        const isStream = contentType.includes('text/event-stream');
 
-        const reader = resp.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-        const cleanMarker = (text: string) =>
-          text.replace(/\n?<!--SUGGESTIONS:\s*\[.*?\]\s*-->/s, '').trimEnd();
+        if (isStream && resp.body) {
+          // ── SSE STREAMING MODE (local dev) ──
+          const reader = resp.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          const cleanMarker = (text: string) =>
+            text.replace(/\n?<!--SUGGESTIONS:\s*\[.*?\]\s*-->/s, '').trimEnd();
 
-        const upsertAssistant = (chunk: string) => {
-          assistantSoFar += chunk;
-          const cleaned = cleanMarker(assistantSoFar);
-          setMessages((prev) => {
-            const last = prev[prev.length - 1];
-            if (last?.role === 'assistant') {
-              return prev.map((m, i) =>
-                i === prev.length - 1 ? { ...m, content: cleaned } : m
-              );
+          const upsertAssistant = (chunk: string) => {
+            assistantSoFar += chunk;
+            const cleaned = cleanMarker(assistantSoFar);
+            setMessages((prev) => {
+              const last = prev[prev.length - 1];
+              if (last?.role === 'assistant') {
+                return prev.map((m, i) =>
+                  i === prev.length - 1 ? { ...m, content: cleaned } : m
+                );
+              }
+              return [...prev, { role: 'assistant', content: cleaned, mode }];
+            });
+          };
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            let idx: number;
+            while ((idx = buffer.indexOf('\n')) !== -1) {
+              let line = buffer.slice(0, idx);
+              buffer = buffer.slice(idx + 1);
+              if (line.endsWith('\r')) line = line.slice(0, -1);
+              if (!line.startsWith('data: ') || !line.trim()) continue;
+              const jsonStr = line.slice(6).trim();
+              if (jsonStr === '[DONE]') break;
+              try {
+                const parsed = JSON.parse(jsonStr);
+                if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
+                  upsertAssistant(parsed.delta.text);
+                }
+                if (parsed.type === 'suggestions' && Array.isArray(parsed.suggestions)) {
+                  onSuggestions(parsed.suggestions);
+                }
+              } catch { /* partial JSON */ }
             }
-            return [...prev, { role: 'assistant', content: cleaned, mode }];
-          });
-        };
+          }
+          assistantSoFar = cleanMarker(assistantSoFar);
+        } else {
+          // ── JSON MODE (deployed Edge Function v8) ──
+          const data = await resp.json();
+          assistantSoFar = data.content || data.text || 'No response received.';
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          let idx: number;
-          while ((idx = buffer.indexOf('\n')) !== -1) {
-            let line = buffer.slice(0, idx);
-            buffer = buffer.slice(idx + 1);
-            if (line.endsWith('\r')) line = line.slice(0, -1);
-            if (!line.startsWith('data: ') || !line.trim()) continue;
-            const jsonStr = line.slice(6).trim();
-            if (jsonStr === '[DONE]') break;
-            try {
-              const parsed = JSON.parse(jsonStr);
-              if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
-                upsertAssistant(parsed.delta.text);
-              }
-              if (parsed.type === 'suggestions' && Array.isArray(parsed.suggestions)) {
-                onSuggestions(parsed.suggestions);
-              }
-            } catch { /* partial JSON */ }
+          // Set assistant message
+          setMessages((prev) => [
+            ...prev,
+            { role: 'assistant', content: assistantSoFar, mode },
+          ]);
+
+          // Handle suggestions
+          if (data.suggestions && Array.isArray(data.suggestions)) {
+            onSuggestions(data.suggestions);
           }
         }
 
-        const finalContent = cleanMarker(assistantSoFar);
-        if (finalContent) {
+        // Save assistant message to DB
+        if (assistantSoFar) {
           await supabase.from('ai_messages').insert({
             conversation_id: conversationId,
             role: 'assistant',
-            content: finalContent,
+            content: assistantSoFar,
           });
 
           const title =
@@ -248,7 +268,7 @@ export function useAIConversation(conversationId: string | null, mode: string) {
           await supabase
             .from('ai_conversations')
             .update({
-              last_message: finalContent.slice(0, 100),
+              last_message: assistantSoFar.slice(0, 100),
               message_count: messages.length + 2,
               updated_at: new Date().toISOString(),
               ...(title ? { title } : {}),

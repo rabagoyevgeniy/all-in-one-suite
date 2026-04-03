@@ -347,24 +347,26 @@ export default function CoachDashboard() {
         transition={{ delay: 0.1 }}
         className="grid grid-cols-4 gap-2"
       >
-        <button onClick={() => navigate('/coach/lessons-history')} className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm hover:border-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer">
+        <button onClick={() => navigate('/coach/lessons-history')} className="stat-card cursor-pointer">
           <p className="text-[10px] text-muted-foreground font-medium">{t('Lessons', 'Уроки')}</p>
-          <p className="font-bold text-lg text-foreground">{coachData?.total_lessons_completed || 0}</p>
+          <p className="font-bold text-lg text-foreground mt-0.5">{coachData?.total_lessons_completed || 0}</p>
         </button>
-        <button onClick={() => navigate('/coach/ratings')} className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm hover:border-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer">
+        <button onClick={() => navigate('/coach/ratings')} className="stat-card cursor-pointer">
           <p className="text-[10px] text-muted-foreground font-medium">{t('Rating', 'Рейтинг')}</p>
-          <div className="flex items-center justify-center gap-0.5 mt-0.5">
+          <div className="flex items-center justify-center gap-0.5 mt-1">
             <Star size={12} className="text-amber-500 fill-amber-500" />
             <span className="font-bold text-foreground">{Number(coachData?.avg_rating || 0).toFixed(1)}</span>
           </div>
         </button>
-        <button onClick={() => navigate('/coach/coins')} className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm hover:border-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer">
+        <button onClick={() => navigate('/coach/coins')} className="stat-card cursor-pointer">
           <p className="text-[10px] text-muted-foreground font-medium">{t('Coins', 'Монеты')}</p>
-          <CoinBalance amount={coachData?.coin_balance || 0} size="sm" />
+          <div className="mt-0.5">
+            <CoinBalance amount={coachData?.coin_balance || 0} size="sm" />
+          </div>
         </button>
-        <button onClick={() => navigate('/coach/rank')} className="bg-card rounded-2xl p-3 text-center border border-border shadow-sm hover:border-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer">
+        <button onClick={() => navigate('/coach/rank')} className="stat-card cursor-pointer">
           <p className="text-[10px] text-muted-foreground font-medium">{t('Rank', 'Ранг')}</p>
-          <Badge variant="outline" className="text-[10px] mt-1" style={{ borderColor: rankInfo?.color, color: rankInfo?.color }}>
+          <Badge variant="outline" className="text-[10px] mt-1.5" style={{ borderColor: rankInfo?.color, color: rankInfo?.color }}>
             {rankInfo?.label || 'Trainee'}
           </Badge>
         </button>
@@ -413,8 +415,10 @@ export default function CoachDashboard() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.15 + i * 0.08 }}
                   className={cn(
-                    "bg-card rounded-2xl p-4 border shadow-sm",
-                    isLive ? "border-emerald-300 dark:border-emerald-500/40" : "border-border"
+                    "bg-card rounded-2xl p-4 border transition-all",
+                    isLive
+                      ? "border-emerald-300 dark:border-emerald-500/40 shadow-md shadow-emerald-500/5"
+                      : "border-border shadow-sm hover:shadow-md hover:border-primary/20"
                   )}
                 >
                   {/* Time + Status */}
@@ -509,7 +513,7 @@ export default function CoachDashboard() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="bg-card rounded-2xl p-4 shadow-sm border border-border"
+        className="card-elevated p-4"
       >
         <div className="flex items-center justify-between mb-3">
           <span className="font-semibold text-foreground flex items-center gap-2">

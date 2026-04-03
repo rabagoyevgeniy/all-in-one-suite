@@ -4,7 +4,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useAdminStore } from '@/stores/adminStore';
 import { supabase } from '@/integrations/supabase/client';
 import { BottomNav } from './BottomNav';
-import { LogOut, User, Settings } from 'lucide-react';
+import { LogOut, User, Settings, Waves } from 'lucide-react';
 import { CoinBalance } from './CoinBalance';
 import { NotificationBell } from './NotificationBell';
 import { toast } from '@/hooks/use-toast';
@@ -87,59 +87,73 @@ export function AppLayout({ theme = 'operations' }: AppLayoutProps) {
 
   return (
     <div className={`min-h-screen ${isArena ? 'arena bg-gradient-arena' : 'bg-gradient-operations'}`}>
-      {/* Top bar */}
-      <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-lg border-b border-border px-4 py-3">
-        <div className="flex items-center justify-between max-w-lg mx-auto">
-          <div>
-            <h1 className="font-display font-bold text-lg text-primary leading-none">
-              ProFit
-            </h1>
-            <p className="text-[11px] text-muted-foreground">Swimming Academy</p>
-          </div>
-          <div className="flex items-center gap-2">
-            {isAdmin && (
-              <select
-                value={city}
-                onChange={(e) => setCity(e.target.value as 'dubai' | 'baku')}
-                className="text-xs bg-muted border border-border rounded-lg px-2 py-1.5 text-foreground font-medium focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option value="dubai">🇦🇪 Dubai · AED</option>
-                <option value="baku">🇦🇿 Baku · AZN</option>
-              </select>
-            )}
-            {!isAdmin && <CoinBalance amount={coinBalance} size="sm" />}
-            <NotificationBell />
+      {/* Top bar — refined glass header */}
+      <header className="sticky top-0 z-40 border-b border-border/60">
+        <div className={`${isArena ? 'bg-card/70' : 'bg-card/85'} backdrop-blur-xl backdrop-saturate-150`}>
+          <div className="flex items-center justify-between max-w-lg mx-auto px-4 py-2.5">
+            {/* Brand */}
+            <div className="flex items-center gap-2">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isArena ? 'bg-primary/20' : 'bg-primary/10'}`}>
+                <Waves size={17} className="text-primary" />
+              </div>
+              <div>
+                <h1 className="font-display font-bold text-base text-primary leading-none">
+                  ProFit
+                </h1>
+                <p className="text-[10px] text-muted-foreground leading-none mt-0.5">Swimming Academy</p>
+              </div>
+            </div>
 
-            {/* User avatar dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center text-xs font-bold text-primary hover:bg-primary/25 transition-colors">
-                  {initials}
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-40">
-                <DropdownMenuItem className="gap-2 text-sm" onClick={() => {
-                  const profileRoute = role === 'admin' ? '/admin'
-                    : role === 'coach' ? '/coach/profile'
-                    : role === 'parent' ? '/parent'
-                    : role === 'student' ? '/student/profile'
-                    : role === 'pro_athlete' ? '/pro/profile'
-                    : '/';
-                  navigate(profileRoute);
-                }}>
-                  <User size={14} />
-                  Profile
-                </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 text-sm cursor-pointer" onClick={() => navigate('/settings')}>
-                  <Settings size={14} />
-                  Settings
-                </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 text-sm text-destructive" onClick={handleLogout}>
-                  <LogOut size={14} />
-                  Logout
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Right actions */}
+            <div className="flex items-center gap-1.5">
+              {isAdmin && (
+                <select
+                  value={city}
+                  onChange={(e) => setCity(e.target.value as 'dubai' | 'baku')}
+                  className="text-xs bg-muted/60 border border-border rounded-lg px-2 py-1.5 text-foreground font-medium focus:outline-none focus:ring-1 focus:ring-ring"
+                >
+                  <option value="dubai">🇦🇪 Dubai</option>
+                  <option value="baku">🇦🇿 Baku</option>
+                </select>
+              )}
+              {!isAdmin && <CoinBalance amount={coinBalance} size="sm" />}
+              <NotificationBell />
+
+              {/* User avatar dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                    isArena
+                      ? 'bg-primary/20 text-primary hover:bg-primary/30'
+                      : 'bg-primary/10 text-primary hover:bg-primary/20'
+                  }`}>
+                    {initials}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44 rounded-xl">
+                  <DropdownMenuItem className="gap-2.5 text-sm rounded-lg" onClick={() => {
+                    const profileRoute = role === 'admin' ? '/admin'
+                      : role === 'coach' ? '/coach/profile'
+                      : role === 'parent' ? '/parent'
+                      : role === 'student' ? '/student/profile'
+                      : role === 'pro_athlete' ? '/pro/profile'
+                      : '/';
+                    navigate(profileRoute);
+                  }}>
+                    <User size={14} />
+                    Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="gap-2.5 text-sm cursor-pointer rounded-lg" onClick={() => navigate('/settings')}>
+                    <Settings size={14} />
+                    Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="gap-2.5 text-sm text-destructive rounded-lg" onClick={handleLogout}>
+                    <LogOut size={14} />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
       </header>
