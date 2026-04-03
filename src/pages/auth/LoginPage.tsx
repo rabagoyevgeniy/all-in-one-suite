@@ -85,6 +85,7 @@ function WaveDivider() {
 /* ── Dev Quick Login Component ── */
 const DEV_ACCOUNTS = [
   { label: 'Coach Alex', email: 'coach.alex@profit.test', password: 'Test1234!', role: 'coach', route: '/coach', emoji: '🏊' },
+  { label: 'Freelancer Mike', email: 'freelancer.test@profit.test', password: 'Test1234!', role: 'freelancer', route: '/freelancer', emoji: '🌊' },
   { label: 'Parent Sarah', email: 'parent.sarah@profit.test', password: 'Test1234!', role: 'parent', route: '/parent', emoji: '👨‍👩‍👧' },
   { label: 'Student Emma', email: 'student.emma@profit.test', password: 'Test1234!', role: 'student', route: '/student', emoji: '🎓' },
 ];

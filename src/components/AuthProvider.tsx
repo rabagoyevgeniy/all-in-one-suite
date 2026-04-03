@@ -24,14 +24,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     || (session.user.user_metadata?.role as UserRole)
                     || null;
 
-            // Fallback: query user_roles table
+            // Fallback: query user_roles table (column is 'id', not 'user_id')
             if (!role) {
               const { data: roleData } = await supabase
                 .from('user_roles')
                 .select('role')
-                .eq('user_id', session.user.id)
+                .eq('id', session.user.id)
                 .maybeSingle();
               role = (roleData?.role as UserRole) ?? null;
+            }
+
+            // Fallback 2: read from profiles.role
+            if (!role) {
+              const { data: profRole } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', session.user.id)
+                .maybeSingle();
+              role = (profRole?.role as UserRole) ?? null;
             }
 
             const { data: profileData } = await supabase
