@@ -272,6 +272,74 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* Login card — thin static border + inner wave glow */
+.login-card-border {
+  position: relative;
+  isolation: isolate;
+}
+/* Thin static fading border */
+.login-card-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: 1.5rem 1.5rem 0 0;
+  padding: 1px;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.07) 0%, rgba(6,182,212,0.05) 30%, transparent 60%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Inner wave glow — behind all content */
+@keyframes wave-glow-drift {
+  0% { transform: translateX(-30%) translateY(0); }
+  50% { transform: translateX(10%) translateY(-8px); }
+  100% { transform: translateX(-30%) translateY(0); }
+}
+@keyframes wave-glow-drift-2 {
+  0% { transform: translateX(20%) translateY(0); }
+  50% { transform: translateX(-20%) translateY(6px); }
+  100% { transform: translateX(20%) translateY(0); }
+}
+
+.login-card-waves {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: 1.5rem 1.5rem 0 0;
+  pointer-events: none;
+}
+.login-card-waves > .wave-1 {
+  position: absolute;
+  top: -20%;
+  left: -20%;
+  width: 140%;
+  height: 60%;
+  background: radial-gradient(ellipse at center, rgba(6, 182, 212, 0.06) 0%, transparent 70%);
+  animation: wave-glow-drift 8s ease-in-out infinite;
+}
+.login-card-waves > .wave-2 {
+  position: absolute;
+  top: 10%;
+  left: -10%;
+  width: 120%;
+  height: 50%;
+  background: radial-gradient(ellipse at center, rgba(139, 92, 246, 0.04) 0%, transparent 70%);
+  animation: wave-glow-drift-2 10s ease-in-out infinite;
+}
+.login-card-waves > .wave-3 {
+  position: absolute;
+  bottom: 10%;
+  right: -20%;
+  width: 100%;
+  height: 40%;
+  background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.04) 0%, transparent 70%);
+  animation: wave-glow-drift 12s ease-in-out infinite reverse;
+}
+
 /* ═══ GLOW CARD (21st.dev inspired) ═══ */
 
 @property --glow-angle {

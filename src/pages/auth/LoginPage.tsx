@@ -54,19 +54,24 @@ const ROLE_OPTIONS: { role: SignUpRole; label: string; description: string; icon
 /* ── Wave SVG decoration ── */
 function WaveDivider() {
   return (
-    <div className="absolute bottom-0 left-0 right-0 overflow-hidden leading-none">
-      <svg
-        className="relative block w-[200%] animate-wave"
-        viewBox="0 0 1200 120"
-        preserveAspectRatio="none"
-        style={{ height: '48px' }}
-      >
-        <path
-          d="M0,60 C150,100 350,0 600,60 C850,120 1050,20 1200,60 L1200,120 L0,120 Z"
-          className="fill-background"
-        />
-      </svg>
-    </div>
+    <>
+      {/* Solid color strip to eliminate any gap */}
+      <div className="absolute bottom-0 left-0 right-0 h-4 z-20 pointer-events-none" style={{ backgroundColor: '#060a14' }} />
+      {/* Animated wave sitting on top of the strip */}
+      <div className="absolute bottom-3 left-0 right-0 overflow-hidden leading-[0] z-20 pointer-events-none">
+        <svg
+          className="relative block w-[200%] animate-wave"
+          viewBox="0 0 1200 60"
+          preserveAspectRatio="none"
+          style={{ height: '32px' }}
+        >
+          <path
+            d="M0,30 C200,55 400,5 600,30 C800,55 1000,5 1200,30 L1200,60 L0,60 Z"
+            fill="#060a14"
+          />
+        </svg>
+      </div>
+    </>
   );
 }
 
@@ -339,52 +344,74 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0e1a] flex flex-col">
-      {/* Hero image — cinematic ProFit concept art */}
-      <div className="relative h-[45vh] min-h-[280px] overflow-hidden">
-        <img
+    <div className="min-h-screen flex flex-col relative" style={{ backgroundColor: '#060a14' }}>
+      {/* Full-bleed hero — negative margin for seamless blend with form */}
+      <div className="relative h-[48vh] min-h-[300px] overflow-hidden mb-[-12px]">
+        <motion.img
+          initial={{ scale: 1.1 }}
+          animate={{ scale: 1 }}
+          transition={{ duration: 1.5, ease: 'easeOut' }}
           src={loginHero}
           alt="ProFit Swimming Academy"
-          className="absolute inset-0 w-full h-full object-cover object-top"
+          className="absolute inset-0 w-full h-full object-cover object-[center_20%]"
         />
-        {/* Gradient overlay — dark bottom for text readability */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#0a0e1a]" />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0a0e1a]/40 via-transparent to-transparent" />
+        {/* Multi-layer gradient overlays — seamless blend into form */}
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(6,10,20,0.2) 0%, transparent 40%, rgba(6,10,20,0.95) 85%, #060a14 100%)' }} />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_rgba(6,182,212,0.06)_0%,_transparent_60%)]" />
 
-        {/* Brand + tagline */}
+        {/* Animated neon line at bottom */}
+        <div className="absolute bottom-0 left-0 right-0 h-[2px]">
+          <div className="h-full bg-gradient-to-r from-transparent via-cyan-500/60 to-transparent animate-shimmer" style={{ backgroundSize: '200% 100%' }} />
+        </div>
+
+        {/* Brand badge — right side, above wave */}
         <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.6 }}
-          className="absolute bottom-8 left-6 right-6"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.4, duration: 0.6 }}
+          className="absolute bottom-12 right-5 z-30"
         >
-          <div className="flex items-center gap-2.5 mb-1">
-            <div className="w-10 h-10 rounded-xl bg-cyan-500/20 backdrop-blur-md flex items-center justify-center border border-cyan-400/30">
-              <Waves className="text-cyan-400" size={22} />
+          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-[0_0_20px_rgba(6,182,212,0.3)]">
+              <Waves className="text-white" size={18} />
             </div>
             <div>
-              <span className="font-display font-bold text-2xl text-white drop-shadow-lg">ProFit</span>
-              <p className="text-xs text-cyan-300/80 font-medium -mt-0.5">Swimming Academy</p>
+              <span className="font-display font-bold text-lg text-white leading-none">ProFit</span>
+              <p className="text-[10px] text-cyan-400/80 font-medium">Swimming Academy</p>
             </div>
           </div>
         </motion.div>
 
-        {/* Trust badges */}
+        {/* Trust badges — top right */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6, duration: 0.5 }}
-          className="absolute top-4 right-4 flex gap-2"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.7, duration: 0.4 }}
+          className="absolute top-4 right-4 flex gap-1.5"
         >
-          <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-md text-white/90 text-[10px] font-medium">
-            <Star size={10} className="fill-amber-400 text-amber-400" />
+          <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-black/40 backdrop-blur-xl text-white text-[10px] font-medium border border-white/5">
+            <Star size={9} className="fill-amber-400 text-amber-400" />
             4.9
           </div>
-          <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-md text-white/90 text-[10px] font-medium">
-            <Shield size={10} className="text-cyan-400" />
-            Dubai
+          <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-black/40 backdrop-blur-xl text-white text-[10px] font-medium border border-white/5">
+            <Shield size={9} className="text-cyan-400" />
+            Verified
           </div>
         </motion.div>
+
+        {/* Global tag — bottom left */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.5, duration: 0.5 }}
+          className="absolute bottom-12 left-5 z-30"
+        >
+          <p className="text-[10px] text-white/40 font-medium tracking-widest uppercase">Worldwide</p>
+          <p className="text-[9px] text-cyan-500/50 font-mono mt-0.5">Premium Private Coaching</p>
+        </motion.div>
+
+        {/* Animated wave divider */}
+        <WaveDivider />
       </div>
 
       {/* Form / Role selection section */}
@@ -395,19 +422,19 @@ export default function LoginPage() {
             initial={{ opacity: 0, x: 40 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -40 }}
-            className="flex-1 px-6 pt-4 pb-8 bg-[#0a0e1a] text-white"
+            className="flex-1 mx-3 mt-2 rounded-t-3xl px-4 pt-6 pb-8 text-white relative z-30 login-card-border" style={{ backgroundColor: '#060a14' }}
           >
             <button
               onClick={() => setShowRoleSelect(false)}
-              className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white mb-4 transition-colors"
+              className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-white mb-4 transition-colors"
             >
               <ArrowLeft size={16} />
               Back
             </button>
-            <h2 className="font-display font-bold text-2xl text-foreground mb-1">
+            <h2 className="font-display font-bold text-2xl text-white mb-1">
               Choose Your Role
             </h2>
-            <p className="text-sm text-muted-foreground mb-5">
+            <p className="text-sm text-gray-500 mb-5">
               Select how you'll use ProFit
             </p>
             <div className="space-y-2.5">
@@ -419,21 +446,21 @@ export default function LoginPage() {
                   transition={{ delay: i * 0.06 }}
                   whileTap={{ scale: 0.97 }}
                   onClick={() => handleRoleSelect(opt.role)}
-                  className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left ${
+                  className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all text-left ${
                     selectedRole === opt.role
-                      ? 'border-primary bg-primary/5 shadow-md shadow-primary/10'
-                      : 'border-border bg-card hover:border-primary/30 hover:shadow-sm'
+                      ? 'border-cyan-500/50 bg-cyan-500/5 shadow-md shadow-cyan-500/10'
+                      : 'border-white/8 bg-white/3 hover:border-white/15 hover:bg-white/5'
                   }`}
                 >
                   <div className={`flex-shrink-0 h-11 w-11 rounded-xl bg-gradient-to-br ${opt.color} flex items-center justify-center text-white shadow-sm`}>
                     {opt.icon}
                   </div>
                   <div className="flex-1">
-                    <p className="font-display font-semibold text-foreground">{opt.label}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{opt.description}</p>
+                    <p className="font-display font-semibold text-white">{opt.label}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{opt.description}</p>
                   </div>
                   {INVITE_ONLY_ROLES.includes(opt.role) && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium flex items-center gap-1">
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 font-medium flex items-center gap-1 border border-amber-500/20">
                       <KeyRound size={9} /> Invite
                     </span>
                   )}
@@ -448,23 +475,32 @@ export default function LoginPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, x: -40 }}
             transition={{ delay: 0.15 }}
-            className="flex-1 px-6 pt-4 pb-8 bg-[#0a0e1a] text-white"
+            className="flex-1 mx-3 mt-2 rounded-t-3xl px-4 pt-6 pb-8 text-white relative z-30 login-card-border" style={{ backgroundColor: '#060a14' }}
           >
-            <h2 className="font-display font-bold text-2xl text-white mb-1">
-              {isSignUp ? 'Create Account' : 'Welcome Back'}
-            </h2>
-            <p className="text-sm text-gray-400 mb-6">
-              {isSignUp ? 'Join the ProFit family today' : 'Sign in to continue your journey'}
-            </p>
+            {/* Inner wave glow — floating light behind content */}
+            <div className="login-card-waves">
+              <div className="wave-1" />
+              <div className="wave-2" />
+              <div className="wave-3" />
+            </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="relative">
+              <h2 className="font-display font-bold text-2xl text-white mb-1">
+                {isSignUp ? 'Create Account' : 'Welcome Back'}
+              </h2>
+              <p className="text-sm text-gray-500 mb-6">
+                {isSignUp ? 'Join the ProFit family today' : 'Sign in to continue your journey'}
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4 relative">
               {isSignUp && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   className="space-y-2"
                 >
-                  <Label htmlFor="fullName" className="text-foreground text-sm font-medium">Full Name</Label>
+                  <Label htmlFor="fullName" className="text-gray-300 text-sm font-medium">Full Name</Label>
                   <Input
                     id="fullName"
                     placeholder="Enter your full name"
@@ -496,7 +532,7 @@ export default function LoginPage() {
                     <button
                       type="button"
                       onClick={() => setShowForgotPassword(true)}
-                      className="text-xs text-primary hover:underline"
+                      className="text-xs text-cyan-400/70 hover:text-cyan-400 transition-colors"
                     >
                       Forgot password?
                     </button>
@@ -511,12 +547,12 @@ export default function LoginPage() {
                     onChange={(e) => setForm(p => ({ ...p, password: e.target.value }))}
                     required
                     minLength={6}
-                    className="h-12 rounded-xl bg-muted/50 border-border pr-12 focus:bg-card transition-colors"
+                    className="h-12 rounded-xl bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:bg-white/10 focus:border-cyan-500/50 pr-12 transition-colors"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
@@ -528,20 +564,20 @@ export default function LoginPage() {
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="flex items-center gap-2.5 p-3 rounded-xl bg-primary/5 border border-primary/15"
+                  className="flex items-center gap-2.5 p-3 rounded-xl bg-cyan-500/5 border border-cyan-500/15"
                 >
                   <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${ROLE_OPTIONS.find(r => r.role === selectedRole)?.color || ''} flex items-center justify-center text-white`}>
                     {ROLE_OPTIONS.find(r => r.role === selectedRole)?.icon}
                   </div>
                   <div className="flex-1">
-                    <span className="text-sm font-semibold text-foreground capitalize">
+                    <span className="text-sm font-semibold text-white capitalize">
                       {selectedRole === 'pro_athlete' ? 'Pro Athlete' : selectedRole === 'personal_manager' ? 'Personal Manager' : selectedRole}
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={() => setShowRoleSelect(true)}
-                    className="text-xs text-primary font-medium hover:underline"
+                    className="text-xs text-cyan-400 font-medium hover:underline"
                   >
                     Change
                   </button>
@@ -555,8 +591,8 @@ export default function LoginPage() {
                   animate={{ opacity: 1, height: 'auto' }}
                   className="space-y-2"
                 >
-                  <Label htmlFor="inviteCode" className="text-foreground text-sm font-medium flex items-center gap-1.5">
-                    <KeyRound size={14} className="text-primary" />
+                  <Label htmlFor="inviteCode" className="text-gray-300 text-sm font-medium flex items-center gap-1.5">
+                    <KeyRound size={14} className="text-cyan-400" />
                     Invite Code
                   </Label>
                   <Input
@@ -586,6 +622,52 @@ export default function LoginPage() {
                   : 'Sign In'}
               </Button>
             </form>
+
+            {/* Divider */}
+            <div className="flex items-center gap-3 my-5">
+              <div className="flex-1 h-px bg-white/8" />
+              <span className="text-[11px] text-gray-600 font-medium">or continue with</span>
+              <div className="flex-1 h-px bg-white/8" />
+            </div>
+
+            {/* OAuth buttons */}
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={async () => {
+                  const { error } = await supabase.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: { redirectTo: window.location.origin + '/' },
+                  });
+                  if (error) toast.error(error.message);
+                }}
+                className="flex-1 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center gap-2.5 text-sm font-medium text-white hover:bg-white/10 hover:border-white/20 transition-all"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                </svg>
+                Google
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const { error } = await supabase.auth.signInWithOAuth({
+                    provider: 'apple',
+                    options: { redirectTo: window.location.origin + '/' },
+                  });
+                  if (error) toast.error(error.message);
+                }}
+                className="flex-1 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center gap-2.5 text-sm font-medium text-white hover:bg-white/10 hover:border-white/20 transition-all"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+                  <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+                </svg>
+                Apple
+              </button>
+            </div>
 
             {/* Social proof */}
             <div className="flex items-center justify-center gap-4 mt-5 text-[11px] text-gray-500">
