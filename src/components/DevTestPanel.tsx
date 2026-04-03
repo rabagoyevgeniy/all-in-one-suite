@@ -381,6 +381,7 @@ export function DevTestPanel() {
             {[
               { label: 'Student', path: '/student' },
               { label: 'Coach', path: '/coach' },
+              { label: 'Freelancer', path: '/freelancer' },
               { label: 'Parent', path: '/parent' },
               { label: 'Admin', path: '/admin' },
               { label: 'Pro', path: '/pro' },

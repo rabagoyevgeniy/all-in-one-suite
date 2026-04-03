@@ -9,6 +9,7 @@ const TEST_ACCOUNTS = [
   { emoji: '🏊', label: 'Coach', email: 'coach1@profitswimming.ae', password: 'Coach2026!', route: '/coach' },
   { emoji: '👨‍👩‍👧', label: 'Parent', email: 'parent1@test.com', password: 'Parent2026!', route: '/parent' },
   { emoji: '🎮', label: 'Student', email: 'student1@test.com', password: 'Student2026!', route: '/student' },
+  { emoji: '🌊', label: 'Freelancer', email: 'freelancer.test@profit.test', password: 'Test1234!', route: '/freelancer' },
   { emoji: '🏆', label: 'Pro', email: 'proathlete1@test.com', password: 'ProAth2026!', route: '/pro' },
   { emoji: '📋', label: 'PM', email: 'pm1@profitswimming.ae', password: 'Manager2026!', route: '/pm' },
 ];

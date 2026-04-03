@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // If no role yet, check if user signed up with a role in metadata
             if (!role) {
               const metaRole = session.user.user_metadata?.signup_role;
-              if (metaRole && ['parent', 'student', 'pro_athlete'].includes(metaRole)) {
+              if (metaRole && ['parent', 'student', 'pro_athlete', 'freelancer'].includes(metaRole)) {
                 try {
                   await supabase.rpc('assign_initial_role', { _role: metaRole });
                   role = metaRole as UserRole;
