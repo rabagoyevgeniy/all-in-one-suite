@@ -99,6 +99,7 @@ const SettingsPage = lazy(() => import("./pages/Settings"));
 // Non-lazy components
 import { AIAssistantFAB } from "./components/AIAssistantFAB";
 import { OnboardingGuard } from "./components/OnboardingGuard";
+import { DevTestPanel } from "./components/DevTestPanel";
 
 // Loading spinner for Suspense fallback
 const PageLoader = () => (
@@ -236,6 +237,7 @@ const App = () => (
             <OnboardingGuard />
             <AIAssistantFAB />
             {import.meta.env.DEV && <DevAccountSwitcher />}
+            <DevTestPanel />
           </AuthProvider>
         </ErrorBoundary>
       </BrowserRouter>

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Waves, Eye, EyeOff, Loader2, Users, GraduationCap, Trophy, ArrowLeft, Dumbbell, Briefcase, KeyRound } from 'lucide-react';
+import { Waves, Eye, EyeOff, Loader2, Users, GraduationCap, Trophy, ArrowLeft, Dumbbell, Briefcase, KeyRound, Star, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import loginHero from '@/assets/login-hero.jpg';
 
@@ -13,44 +13,68 @@ type SignUpRole = 'parent' | 'student' | 'pro_athlete' | 'coach' | 'personal_man
 
 const INVITE_ONLY_ROLES: SignUpRole[] = ['coach', 'personal_manager'];
 
-const ROLE_OPTIONS: { role: SignUpRole; label: string; description: string; icon: React.ReactNode }[] = [
+const ROLE_OPTIONS: { role: SignUpRole; label: string; description: string; icon: React.ReactNode; color: string }[] = [
   {
     role: 'parent',
     label: 'Parent',
     description: 'Manage lessons & track your child\'s progress',
-    icon: <Users className="h-7 w-7" />,
+    icon: <Users className="h-6 w-6" />,
+    color: 'from-sky-400 to-blue-500',
   },
   {
     role: 'student',
     label: 'Student',
     description: 'Train, earn coins & compete in duels',
-    icon: <GraduationCap className="h-7 w-7" />,
+    icon: <GraduationCap className="h-6 w-6" />,
+    color: 'from-violet-400 to-purple-500',
   },
   {
     role: 'coach',
     label: 'Coach',
     description: 'Manage your schedule, track students & earn',
-    icon: <Dumbbell className="h-7 w-7" />,
+    icon: <Dumbbell className="h-6 w-6" />,
+    color: 'from-emerald-400 to-green-500',
   },
   {
     role: 'personal_manager',
     label: 'Personal Manager',
     description: 'Manage clients & earn commissions',
-    icon: <Briefcase className="h-7 w-7" />,
+    icon: <Briefcase className="h-6 w-6" />,
+    color: 'from-amber-400 to-orange-500',
   },
   {
     role: 'pro_athlete',
     label: 'Pro Athlete',
     description: 'Compete professionally & build your ranking',
-    icon: <Trophy className="h-7 w-7" />,
+    icon: <Trophy className="h-6 w-6" />,
+    color: 'from-rose-400 to-red-500',
   },
 ];
 
+/* ── Wave SVG decoration ── */
+function WaveDivider() {
+  return (
+    <div className="absolute bottom-0 left-0 right-0 overflow-hidden leading-none">
+      <svg
+        className="relative block w-[200%] animate-wave"
+        viewBox="0 0 1200 120"
+        preserveAspectRatio="none"
+        style={{ height: '48px' }}
+      >
+        <path
+          d="M0,60 C150,100 350,0 600,60 C850,120 1050,20 1200,60 L1200,120 L0,120 Z"
+          className="fill-background"
+        />
+      </svg>
+    </div>
+  );
+}
+
 /* ── Dev Quick Login Component ── */
 const DEV_ACCOUNTS = [
-  { label: '🏊 Coach Alex', email: 'coach.alex@profit.test', password: 'Test1234!', role: 'coach', route: '/coach' },
-  { label: '👨‍👩‍👧 Parent Sarah', email: 'parent.sarah@profit.test', password: 'Test1234!', role: 'parent', route: '/parent' },
-  { label: '🎓 Student Emma', email: 'student.emma@profit.test', password: 'Test1234!', role: 'student', route: '/student' },
+  { label: 'Coach Alex', email: 'coach.alex@profit.test', password: 'Test1234!', role: 'coach', route: '/coach', emoji: '🏊' },
+  { label: 'Parent Sarah', email: 'parent.sarah@profit.test', password: 'Test1234!', role: 'parent', route: '/parent', emoji: '👨‍👩‍👧' },
+  { label: 'Student Emma', email: 'student.emma@profit.test', password: 'Test1234!', role: 'student', route: '/student', emoji: '🎓' },
 ];
 
 function DevQuickLogin({ navigate }: { navigate: NavigateFunction }) {
@@ -69,7 +93,7 @@ function DevQuickLogin({ navigate }: { navigate: NavigateFunction }) {
         await supabase.auth.signUp({
           email: acc.email,
           password: acc.password,
-          options: { data: { full_name: acc.label.replace(/^[^\w]*\s*/, '') } },
+          options: { data: { full_name: acc.label } },
         });
 
         const result = await supabase.auth.signInWithPassword({
@@ -100,32 +124,46 @@ function DevQuickLogin({ navigate }: { navigate: NavigateFunction }) {
   }, [navigate]);
 
   return (
-    <div className="mt-6 border border-border/50 rounded-xl overflow-hidden">
+    <div className="mt-6 border border-border/40 rounded-xl overflow-hidden bg-muted/30">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full px-4 py-2 text-xs text-muted-foreground flex items-center justify-between hover:bg-muted/30 transition-colors"
+        className="w-full px-4 py-2.5 text-xs text-muted-foreground flex items-center justify-between hover:bg-muted/50 transition-colors"
       >
-        <span>🛠 Dev Testing</span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          Dev Testing
+        </span>
         <span className="text-[10px]">{expanded ? '▲' : '▼'}</span>
       </button>
-      {expanded && (
-        <div className="px-4 pb-3 pt-1 space-y-2">
-          {DEV_ACCOUNTS.map(acc => (
-            <button
-              key={acc.email}
-              onClick={() => handleDevLogin(acc)}
-              disabled={!!busy}
-              className="w-full text-left px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted/40 transition-colors disabled:opacity-50 flex items-center gap-2"
-            >
-              {busy === acc.email ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : null}
-              <span className="font-medium">{acc.label}</span>
-              <span className="text-[10px] text-muted-foreground ml-auto">{acc.email}</span>
-            </button>
-          ))}
-        </div>
-      )}
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="px-3 pb-3 pt-1 space-y-1.5">
+              {DEV_ACCOUNTS.map(acc => (
+                <button
+                  key={acc.email}
+                  onClick={() => handleDevLogin(acc)}
+                  disabled={!!busy}
+                  className="w-full text-left px-3 py-2.5 text-sm rounded-xl border border-border/50 bg-card hover:bg-primary/5 hover:border-primary/20 transition-all disabled:opacity-50 flex items-center gap-2.5"
+                >
+                  {busy === acc.email ? (
+                    <Loader2 size={14} className="animate-spin text-primary" />
+                  ) : (
+                    <span>{acc.emoji}</span>
+                  )}
+                  <span className="font-medium text-foreground">{acc.label}</span>
+                  <span className="text-[10px] text-muted-foreground ml-auto">{acc.role}</span>
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -159,22 +197,26 @@ function ForgotPasswordModal({ open, onClose }: { open: boolean; onClose: () => 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-6"
       onClick={onClose}
     >
       <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        className="w-full max-w-sm bg-card rounded-2xl p-6 border border-border shadow-xl"
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        className="w-full max-w-sm card-elevated rounded-2xl p-6"
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+          <KeyRound className="w-6 h-6 text-primary" />
+        </div>
         <h3 className="font-display font-bold text-lg text-foreground mb-1">Reset Password</h3>
-        <p className="text-sm text-muted-foreground mb-4">
+        <p className="text-sm text-muted-foreground mb-5">
           Enter your email and we'll send you a reset link
         </p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="resetEmail" className="text-foreground">Email</Label>
+            <Label htmlFor="resetEmail" className="text-foreground text-sm font-medium">Email</Label>
             <Input
               id="resetEmail"
               type="email"
@@ -182,14 +224,14 @@ function ForgotPasswordModal({ open, onClose }: { open: boolean; onClose: () => 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="h-12 rounded-xl bg-background border-border"
+              className="h-12 rounded-xl bg-muted/50 border-border focus:bg-card transition-colors"
             />
           </div>
           <div className="flex gap-3">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1 h-11 rounded-xl">
               Cancel
             </Button>
-            <Button type="submit" disabled={loading} className="flex-1 h-11 rounded-xl font-display font-semibold">
+            <Button type="submit" disabled={loading} className="flex-1 h-11 rounded-xl font-display font-semibold btn-gradient-primary border-0">
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Send Link
             </Button>
@@ -297,29 +339,53 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-operations flex flex-col">
-      {/* Hero image section */}
-      <div className="relative h-[40vh] min-h-[260px] overflow-hidden">
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Hero image section with wave */}
+      <div className="relative h-[38vh] min-h-[240px] overflow-hidden">
         <img
           src={loginHero}
           alt="Underwater swimming"
           className="absolute inset-0 w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
+        {/* Darker cinematic gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-background" />
+
+        {/* Brand + tagline */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="absolute bottom-6 left-6 right-6"
+          transition={{ delay: 0.3, duration: 0.6 }}
+          className="absolute bottom-10 left-6 right-6"
         >
-          <div className="flex items-center gap-2 mb-2">
-            <Waves className="text-primary" size={28} />
-            <span className="font-display font-bold text-2xl text-foreground">ProFit</span>
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center">
+              <Waves className="text-white" size={22} />
+            </div>
+            <div>
+              <span className="font-display font-bold text-2xl text-white drop-shadow-lg">ProFit</span>
+              <p className="text-xs text-white/70 font-medium -mt-0.5">Premium Swimming Academy</p>
+            </div>
           </div>
-          <p className="text-sm text-muted-foreground font-medium">
-            Premium Swimming Academy
-          </p>
         </motion.div>
+
+        {/* Trust badges */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6, duration: 0.5 }}
+          className="absolute top-4 right-4 flex gap-2"
+        >
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/30 backdrop-blur-md text-white/90 text-[10px] font-medium">
+            <Star size={10} className="fill-amber-400 text-amber-400" />
+            4.9
+          </div>
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/30 backdrop-blur-md text-white/90 text-[10px] font-medium">
+            <Shield size={10} />
+            Verified
+          </div>
+        </motion.div>
+
+        <WaveDivider />
       </div>
 
       {/* Form / Role selection section */}
@@ -330,11 +396,11 @@ export default function LoginPage() {
             initial={{ opacity: 0, x: 40 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -40 }}
-            className="flex-1 px-6 pt-6 pb-8"
+            className="flex-1 px-6 pt-4 pb-8"
           >
             <button
               onClick={() => setShowRoleSelect(false)}
-              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
             >
               <ArrowLeft size={16} />
               Back
@@ -342,22 +408,25 @@ export default function LoginPage() {
             <h2 className="font-display font-bold text-2xl text-foreground mb-1">
               Choose Your Role
             </h2>
-            <p className="text-sm text-muted-foreground mb-6">
+            <p className="text-sm text-muted-foreground mb-5">
               Select how you'll use ProFit
             </p>
-            <div className="space-y-3">
-              {ROLE_OPTIONS.map((opt) => (
+            <div className="space-y-2.5">
+              {ROLE_OPTIONS.map((opt, i) => (
                 <motion.button
                   key={opt.role}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.06 }}
                   whileTap={{ scale: 0.97 }}
                   onClick={() => handleRoleSelect(opt.role)}
                   className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left ${
                     selectedRole === opt.role
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border bg-card hover:border-primary/40'
+                      ? 'border-primary bg-primary/5 shadow-md shadow-primary/10'
+                      : 'border-border bg-card hover:border-primary/30 hover:shadow-sm'
                   }`}
                 >
-                  <div className="flex-shrink-0 h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                  <div className={`flex-shrink-0 h-11 w-11 rounded-xl bg-gradient-to-br ${opt.color} flex items-center justify-center text-white shadow-sm`}>
                     {opt.icon}
                   </div>
                   <div className="flex-1">
@@ -365,8 +434,8 @@ export default function LoginPage() {
                     <p className="text-xs text-muted-foreground mt-0.5">{opt.description}</p>
                   </div>
                   {INVITE_ONLY_ROLES.includes(opt.role) && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium flex items-center gap-1">
-                      <KeyRound size={10} /> Invite
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium flex items-center gap-1">
+                      <KeyRound size={9} /> Invite
                     </span>
                   )}
                 </motion.button>
@@ -376,11 +445,11 @@ export default function LoginPage() {
         ) : (
           <motion.div
             key="auth-form"
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, x: -40 }}
-            transition={{ delay: 0.4 }}
-            className="flex-1 px-6 pt-6 pb-8"
+            transition={{ delay: 0.15 }}
+            className="flex-1 px-6 pt-4 pb-8"
           >
             <h2 className="font-display font-bold text-2xl text-foreground mb-1">
               {isSignUp ? 'Create Account' : 'Welcome Back'}
@@ -391,21 +460,25 @@ export default function LoginPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {isSignUp && (
-                <div className="space-y-2">
-                  <Label htmlFor="fullName" className="text-foreground">Full Name</Label>
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="space-y-2"
+                >
+                  <Label htmlFor="fullName" className="text-foreground text-sm font-medium">Full Name</Label>
                   <Input
                     id="fullName"
                     placeholder="Enter your full name"
                     value={form.fullName}
                     onChange={(e) => setForm(p => ({ ...p, fullName: e.target.value }))}
                     required
-                    className="h-12 rounded-xl bg-card border-border"
+                    className="h-12 rounded-xl bg-muted/50 border-border focus:bg-card transition-colors"
                   />
-                </div>
+                </motion.div>
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-foreground">Email</Label>
+                <Label htmlFor="email" className="text-foreground text-sm font-medium">Email</Label>
                 <Input
                   id="email"
                   type="email"
@@ -413,13 +486,13 @@ export default function LoginPage() {
                   value={form.email}
                   onChange={(e) => setForm(p => ({ ...p, email: e.target.value }))}
                   required
-                  className="h-12 rounded-xl bg-card border-border"
+                  className="h-12 rounded-xl bg-muted/50 border-border focus:bg-card transition-colors"
                 />
               </div>
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-foreground">Password</Label>
+                  <Label htmlFor="password" className="text-foreground text-sm font-medium">Password</Label>
                   {!isSignUp && (
                     <button
                       type="button"
@@ -439,12 +512,12 @@ export default function LoginPage() {
                     onChange={(e) => setForm(p => ({ ...p, password: e.target.value }))}
                     required
                     minLength={6}
-                    className="h-12 rounded-xl bg-card border-border pr-12"
+                    className="h-12 rounded-xl bg-muted/50 border-border pr-12 focus:bg-card transition-colors"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
@@ -453,25 +526,37 @@ export default function LoginPage() {
 
               {/* Role badge when selected */}
               {isSignUp && selectedRole && (
-                <div className="flex items-center gap-2 p-3 rounded-xl bg-primary/5 border border-primary/20">
-                  <span className="text-xs text-muted-foreground">Role:</span>
-                  <span className="text-sm font-semibold text-primary capitalize">
-                    {selectedRole === 'pro_athlete' ? 'Pro Athlete' : selectedRole === 'personal_manager' ? 'Personal Manager' : selectedRole}
-                  </span>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex items-center gap-2.5 p-3 rounded-xl bg-primary/5 border border-primary/15"
+                >
+                  <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${ROLE_OPTIONS.find(r => r.role === selectedRole)?.color || ''} flex items-center justify-center text-white`}>
+                    {ROLE_OPTIONS.find(r => r.role === selectedRole)?.icon}
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-sm font-semibold text-foreground capitalize">
+                      {selectedRole === 'pro_athlete' ? 'Pro Athlete' : selectedRole === 'personal_manager' ? 'Personal Manager' : selectedRole}
+                    </span>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setShowRoleSelect(true)}
-                    className="ml-auto text-xs text-primary hover:underline"
+                    className="text-xs text-primary font-medium hover:underline"
                   >
                     Change
                   </button>
-                </div>
+                </motion.div>
               )}
 
               {/* Invite code field for coach/PM */}
               {isSignUp && needsInviteCode && (
-                <div className="space-y-2">
-                  <Label htmlFor="inviteCode" className="text-foreground flex items-center gap-1.5">
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="space-y-2"
+                >
+                  <Label htmlFor="inviteCode" className="text-foreground text-sm font-medium flex items-center gap-1.5">
                     <KeyRound size={14} className="text-primary" />
                     Invite Code
                   </Label>
@@ -481,18 +566,18 @@ export default function LoginPage() {
                     value={form.inviteCode}
                     onChange={(e) => setForm(p => ({ ...p, inviteCode: e.target.value }))}
                     required
-                    className="h-12 rounded-xl bg-card border-border"
+                    className="h-12 rounded-xl bg-muted/50 border-border focus:bg-card transition-colors"
                   />
                   <p className="text-[11px] text-muted-foreground">
                     Coach and Personal Manager accounts require an invite code from an admin.
                   </p>
-                </div>
+                </motion.div>
               )}
 
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full h-12 rounded-xl font-display font-semibold text-base"
+                className="w-full h-12 rounded-xl font-display font-semibold text-base btn-gradient-primary border-0"
               >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isSignUp
@@ -503,7 +588,22 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
+            {/* Social proof */}
+            <div className="flex items-center justify-center gap-4 mt-5 text-[11px] text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Users size={12} /> 500+ families
+              </span>
+              <span className="w-px h-3 bg-border" />
+              <span className="flex items-center gap-1">
+                <Star size={12} className="text-amber-500" /> 4.9 rating
+              </span>
+              <span className="w-px h-3 bg-border" />
+              <span className="flex items-center gap-1">
+                <Shield size={12} /> Secure
+              </span>
+            </div>
+
+            <div className="mt-5 text-center">
               <button
                 onClick={() => {
                   setIsSignUp(!isSignUp);

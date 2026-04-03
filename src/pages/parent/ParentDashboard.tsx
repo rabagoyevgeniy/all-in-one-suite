@@ -281,40 +281,70 @@ export default function ParentDashboard() {
       <SubscriptionWarningBanner />
 
       {/* ───── HERO CARD ───── */}
-      <div className="bg-gradient-to-br from-emerald-500 to-teal-500 px-5 pt-6 pb-5 rounded-b-3xl">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <h2 className="font-bold text-xl text-white">
-            {t('Hello', 'Привет')}, {profile?.full_name?.split(' ')[0] || t('Parent', 'Родитель')}! 👋
-          </h2>
+      <div className="relative bg-gradient-to-br from-primary via-sky-500 to-cyan-500 px-5 pt-6 pb-5 rounded-b-3xl overflow-hidden">
+        {/* Decorative circles */}
+        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/5" />
+        <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-white/5" />
+
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display font-bold text-xl text-white">
+              {t('Hello', 'Привет')}, {profile?.full_name?.split(' ')[0] || t('Parent', 'Родитель')}! 👋
+            </h2>
+            {activeSub && (
+              <span className="text-[10px] font-medium bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-full text-white">
+                {lessonsRemaining} {t('lessons left', 'ост.')}
+              </span>
+            )}
+          </div>
 
           {activeBooking && nextBookingSlot ? (
-            <div className="mt-2 space-y-1">
-              <p className="text-sm text-white/90">
-                {t('Next', 'Далее')}: {nextBookingSlot.date ? new Date(nextBookingSlot.date).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }) : ''}{' '}
-                {nextBookingSlot.start_time?.substring(0, 5)} · {coachName}
-              </p>
-              <p className="text-xs text-white/70">{poolName}{isWithin2Hours ? ` · ${t('In less than 2 hours', 'Менее 2 часов')}` : ''}</p>
-              <div className="flex gap-2 mt-2">
+            <div className="mt-3 bg-white/10 backdrop-blur-sm rounded-2xl p-3.5 space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+                  <Calendar className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white">
+                    {nextBookingSlot.date ? new Date(nextBookingSlot.date).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }) : ''}{' '}
+                    {nextBookingSlot.start_time?.substring(0, 5)}
+                  </p>
+                  <p className="text-xs text-white/70">{coachName} · {poolName}</p>
+                </div>
+              </div>
+              {isWithin2Hours && (
+                <div className="flex items-center gap-1.5 text-xs text-white/90 bg-emerald-500/30 rounded-lg px-2.5 py-1.5">
+                  <div className="w-1.5 h-1.5 bg-emerald-300 rounded-full animate-pulse" />
+                  {t('Coach is on the way!', 'Тренер в пути!')}
+                </div>
+              )}
+              <div className="flex gap-2">
                 {coachLocation && (
                   <button
                     onClick={() => window.open(`https://maps.google.com/maps?q=${coachLocation.lat},${coachLocation.lng}`, '_blank')}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-xl text-xs font-medium text-white transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-2 bg-white/15 hover:bg-white/25 rounded-xl text-xs font-medium text-white transition-colors"
                   >
                     📍 {t('Track Coach', 'Отследить')}
                   </button>
                 )}
                 <button
                   onClick={() => navigate('/chat')}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-xl text-xs font-medium text-white transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-white/15 hover:bg-white/25 rounded-xl text-xs font-medium text-white transition-colors"
                 >
-                  💬 {t('Message Coach', 'Написать')}
+                  💬 {t('Message', 'Написать')}
                 </button>
               </div>
             </div>
           ) : (
-            <p className="text-sm text-white/70 mt-0.5">
-              {t('No upcoming lessons', 'Нет предстоящих занятий')}
-            </p>
+            <div className="mt-2 flex items-center gap-2">
+              <p className="text-sm text-white/70">{t('No upcoming lessons', 'Нет предстоящих занятий')}</p>
+              <button
+                onClick={() => navigate('/parent/booking')}
+                className="text-xs bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg transition-colors font-medium"
+              >
+                + {t('Book', 'Записать')}
+              </button>
+            </div>
           )}
         </motion.div>
       </div>
@@ -371,7 +401,7 @@ export default function ParentDashboard() {
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.1 }}
-                  className="flex-shrink-0 w-56 bg-card rounded-2xl p-4 shadow-sm border border-border"
+                  className="flex-shrink-0 w-56 card-elevated p-4"
                 >
                   <div className={cn("h-1.5 rounded-full mb-3", BELT_COLORS[child.swim_belt || 'white'] || 'bg-muted')} />
                   <div className="w-12 h-12 rounded-full bg-gradient-to-br from-sky-400 to-cyan-500 flex items-center justify-center text-white font-bold text-lg mb-2">
@@ -430,11 +460,11 @@ export default function ParentDashboard() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.1 + i * 0.1 }}
-                className="bg-card rounded-2xl p-4 shadow-sm border border-border"
+                className="card-elevated p-4"
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
                       <Clock className="w-4 h-4 text-primary" />
                     </div>
                     <div>
@@ -528,7 +558,7 @@ export default function ParentDashboard() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.2 + i * 0.05 }}
               onClick={() => navigate(action.path)}
-              className="bg-card rounded-2xl p-4 shadow-sm border border-border flex items-center gap-3 hover:border-primary/30 transition-colors text-left"
+              className="bg-card rounded-2xl p-4 border border-border flex items-center gap-3 hover:border-primary/30 hover:shadow-md active:scale-[0.97] transition-all text-left shadow-sm"
             >
               <span className="text-xl">{action.icon}</span>
               <span className="text-sm font-medium text-foreground">{action.label}</span>
@@ -542,7 +572,7 @@ export default function ParentDashboard() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mx-4 bg-card rounded-2xl p-4 shadow-sm border border-border"
+          className="mx-4 card-elevated p-4"
         >
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
             {t('Active Subscription', 'Активный абонемент')}
@@ -762,9 +792,9 @@ export default function ParentDashboard() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mx-4 bg-card rounded-2xl p-6 text-center space-y-4 shadow-sm border border-border"
+          className="mx-4 card-elevated p-8 text-center space-y-4"
         >
-          <div className="text-4xl">🏊</div>
+          <div className="text-5xl animate-float">🏊</div>
           <p className="text-sm text-muted-foreground">
             {t(
               'No lessons scheduled yet.\nBook your first swimming lesson!',
@@ -772,7 +802,7 @@ export default function ParentDashboard() {
             )}
           </p>
           <Button
-            className="rounded-2xl font-semibold gap-2"
+            className="rounded-2xl font-semibold gap-2 btn-gradient-primary border-0 h-11 px-6"
             onClick={() => navigate('/parent/booking')}
           >
             <Plus size={18} />

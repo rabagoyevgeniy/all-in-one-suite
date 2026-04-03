@@ -1,7 +1,10 @@
-import { motion } from 'framer-motion';
-import { Flame, Swords, Loader2, ShoppingBag, Award, BookOpen, ClipboardList } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Flame, Swords, Loader2, ShoppingBag, Award, BookOpen, ClipboardList, Zap, Trophy, Target, TrendingUp, Waves, ChevronRight, Clock, MessageSquare, Sparkles, Timer, ArrowRight } from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
 import { CoinBalance } from '@/components/CoinBalance';
+import { GlowCard, GlowBadge } from '@/components/ui/glow-card';
+import { NeonProgress } from '@/components/ui/neon-progress';
 import { useAuthStore } from '@/stores/authStore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,14 +16,26 @@ import { calculateXP, getBeltByXP, getBeltIndex, SWIM_BELTS } from '@/lib/consta
 import { useLanguage } from '@/hooks/useLanguage';
 import { cn } from '@/lib/utils';
 
+/* ═══ BELT THEME CONFIGS ═══ */
+
 const BELT_GRADIENTS: Record<string, string> = {
-  white: 'from-slate-400 to-slate-500',
-  sky_blue: 'from-sky-400 to-blue-500',
-  green: 'from-emerald-500 to-green-600',
-  yellow: 'from-yellow-400 to-amber-500',
-  orange: 'from-orange-400 to-red-400',
-  red: 'from-red-500 to-rose-600',
-  black: 'from-slate-800 to-slate-900',
+  white: 'from-slate-400 via-slate-300 to-slate-500',
+  sky_blue: 'from-sky-400 via-blue-400 to-cyan-500',
+  green: 'from-emerald-500 via-green-400 to-teal-500',
+  yellow: 'from-yellow-400 via-amber-400 to-orange-400',
+  orange: 'from-orange-500 via-red-400 to-rose-400',
+  red: 'from-red-600 via-rose-500 to-pink-500',
+  black: 'from-slate-900 via-purple-900 to-slate-800',
+};
+
+const BELT_GLOW: Record<string, string> = {
+  white: 'shadow-[0_0_30px_rgba(148,163,184,0.3)]',
+  sky_blue: 'shadow-[0_0_30px_rgba(56,189,248,0.4)]',
+  green: 'shadow-[0_0_30px_rgba(52,211,153,0.4)]',
+  yellow: 'shadow-[0_0_30px_rgba(251,191,36,0.4)]',
+  orange: 'shadow-[0_0_30px_rgba(251,146,60,0.4)]',
+  red: 'shadow-[0_0_30px_rgba(248,113,113,0.4)]',
+  black: 'shadow-[0_0_30px_rgba(139,92,246,0.5)]',
 };
 
 const BELT_EMOJIS: Record<string, string> = {
@@ -143,6 +158,29 @@ export default function StudentDashboard() {
     enabled: !!user?.id,
   });
 
+  // Next upcoming lesson
+  const { data: nextLesson } = useQuery({
+    queryKey: ['student-next-lesson', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bookings')
+        .select(`
+          id, status, created_at,
+          coaches(id, profiles:coaches_id_fkey(full_name)),
+          pools(name, address),
+          time_slots(date, start_time, end_time)
+        `)
+        .eq('student_id', user!.id)
+        .in('status', ['confirmed', 'in_progress'])
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
   const acceptDuelMutation = useMutation({
     mutationFn: async (duel: any) => {
       const result = await spendCoins(
@@ -218,7 +256,55 @@ export default function StudentDashboard() {
   const currentSkills = BELT_SKILLS[currentBelt.id] || BELT_SKILLS.white;
   const masteredSkills = (studentData as any)?.skills_mastered || [];
 
-  // Use real achievements if available, fallback to placeholders
+  // ── NUDGE BADGE SYSTEM (Mobile Legends style) ──
+  const uncompletedTasksCount = dailyTasks.filter((tk: any) => !completedIds.has(tk.id)).length;
+  const unearnedAchievementsCount = (achievements || []).filter(
+    (a: any) => !(Array.isArray(a.user_achievements) && a.user_achievements.length > 0)
+  ).length;
+  const unmastered = currentSkills.filter(s => !masteredSkills.includes(s)).length;
+
+  // ── XP remaining to next belt ──
+  const xpToNext = nextBelt ? (nextBelt.minXP - totalXP) : 0;
+
+  // ── Recommended Action (dynamic priority) ──
+  const getRecommendedAction = () => {
+    if (pendingChallenges && pendingChallenges.length > 0) {
+      return { type: 'duel' as const, label: t('Accept a Duel Challenge!', 'Прими вызов на дуэль!'), reward: `+${pendingChallenges[0]?.stake_coins || 10} coins`, icon: Swords, path: '/student/duels', color: 'from-red-600 to-orange-500', glowColor: 'rgba(239,68,68,0.3)' };
+    }
+    if (uncompletedTasksCount > 0) {
+      const firstTask = dailyTasks.find((t: any) => !completedIds.has(t.id));
+      return { type: 'task' as const, label: firstTask?.title || t('Complete a Daily Mission', 'Выполни миссию'), reward: `+${firstTask?.coin_reward || 5} coins`, icon: ClipboardList, path: '/student/tasks', color: 'from-cyan-600 to-blue-500', glowColor: 'rgba(6,182,212,0.3)' };
+    }
+    if (unmastered > 0) {
+      return { type: 'learn' as const, label: t('Practice a new skill!', 'Освой новый навык!'), reward: `+15 XP`, icon: BookOpen, path: '/student/education', color: 'from-blue-600 to-indigo-500', glowColor: 'rgba(59,130,246,0.3)' };
+    }
+    return { type: 'shop' as const, label: t('Visit the Store', 'Загляни в магазин'), reward: t('New items!', 'Новинки!'), icon: ShoppingBag, path: '/student/store', color: 'from-emerald-600 to-teal-500', glowColor: 'rgba(16,185,129,0.3)' };
+  };
+  const recommendedAction = getRecommendedAction();
+
+  // ── Mission reset countdown ──
+  const [missionTimeLeft, setMissionTimeLeft] = useState('');
+  useEffect(() => {
+    const calcTime = () => {
+      const now = new Date();
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+      const diff = tomorrow.getTime() - now.getTime();
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      setMissionTimeLeft(`${h}h ${m}m`);
+    };
+    calcTime();
+    const iv = setInterval(calcTime, 60000);
+    return () => clearInterval(iv);
+  }, []);
+
+  // ── Next lesson parsed ──
+  const lessonSlot = (nextLesson as any)?.time_slots;
+  const lessonCoach = (nextLesson as any)?.coaches;
+  const lessonPool = (nextLesson as any)?.pools;
+
   const displayAchievements = achievements && achievements.length > 0
     ? achievements.map((a: any) => ({
         id: a.id, emoji: a.icon_url || '🏆', name: a.name,
@@ -236,144 +322,410 @@ export default function StudentDashboard() {
   }
 
   return (
-    <div className="space-y-5 pb-4">
-      {/* Belt Hero Card */}
-      <div className={cn(
-        "mx-4 rounded-3xl p-5 text-white relative overflow-hidden bg-gradient-to-br",
-        BELT_GRADIENTS[currentBelt.id] || BELT_GRADIENTS.white
-      )}>
-        {/* Belt emoji badge */}
-        <div className="absolute top-4 right-4 w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center text-2xl">
-          {BELT_EMOJIS[currentBelt.id] || '🤍'}
-        </div>
+    <div className="space-y-5 pb-4 arena-hex-bg">
 
-        <div className="text-white/70 text-sm mb-1">{t('Current Level', 'Текущий уровень')}</div>
-        <div className="text-2xl font-bold">{currentBelt.name}</div>
-        <div className="text-xs text-white/60 mt-0.5">Class {currentBelt.classCode} · {totalXP.toLocaleString()} XP</div>
-
-        <div className="mt-4">
-          <div className="flex justify-between text-xs text-white/70 mb-1.5">
-            <span>{t('Progress', 'Прогресс')}</span>
-            <span>{nextBelt ? `${Math.round(progressPct)}% → ${nextBelt.name}` : t('Max Level!', 'Макс. уровень!')}</span>
+      {/* ═══ BLOCK 1: RECOMMENDED ACTION BANNER ═══ */}
+      <motion.button
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        onClick={() => navigate(recommendedAction.path)}
+        className={cn(
+          "mx-4 mt-2 relative overflow-hidden rounded-2xl p-4 text-white text-left",
+          "bg-gradient-to-r", recommendedAction.color,
+        )}
+        style={{ boxShadow: `0 4px 24px ${recommendedAction.glowColor}` }}
+      >
+        <div className="absolute inset-0 animate-shimmer" />
+        <div className="relative flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center border border-white/20 flex-shrink-0">
+            <recommendedAction.icon size={22} className="text-white" />
           </div>
-          <div className="h-2 bg-white/20 rounded-full">
+          <div className="flex-1 min-w-0">
+            <div className="text-[10px] font-bold uppercase tracking-widest text-white/60 flex items-center gap-1">
+              <Sparkles size={9} /> {t('Recommended', 'Рекомендуем')}
+            </div>
+            <p className="text-sm font-bold truncate">{recommendedAction.label}</p>
+            <p className="text-[11px] text-white/70 font-medium">{recommendedAction.reward}</p>
+          </div>
+          <ArrowRight size={18} className="text-white/60 flex-shrink-0" />
+        </div>
+      </motion.button>
+
+      {/* ═══ HERO: PLAYER CARD ═══ */}
+      <div className="mx-4">
+        <div className={cn("arena-hero-border", BELT_GLOW[currentBelt.id])}>
+          <div className={cn(
+            "arena-hero-inner bg-gradient-to-br p-5 text-white arena-scan-line",
+            BELT_GRADIENTS[currentBelt.id] || BELT_GRADIENTS.white
+          )}>
+            <div className="absolute top-0 right-0 w-32 h-32 opacity-10">
+              <Waves className="w-full h-full" />
+            </div>
+
+            {/* Floating belt badge */}
             <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${progressPct}%` }}
-              transition={{ duration: 1, ease: 'easeOut' }}
-              className="h-full rounded-full bg-white"
-            />
+              animate={{ y: [0, -8, 0], rotate: [0, 5, -5, 0] }}
+              transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+              className="absolute top-4 right-4 w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-4xl border border-white/20"
+            >
+              {BELT_EMOJIS[currentBelt.id] || '🤍'}
+            </motion.div>
+
+            <div className="relative z-10">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur-sm text-[10px] font-bold tracking-widest uppercase text-white/80 mb-2 border border-white/10">
+                <Zap size={10} className="text-yellow-300" />
+                {t('Current Level', 'Текущий уровень')}
+              </div>
+
+              <h2 className="text-3xl font-black font-display tracking-tight">{currentBelt.name}</h2>
+              <p className="text-xs text-white/50 mt-0.5 font-mono">
+                CLASS {currentBelt.classCode} // {totalXP.toLocaleString()} XP
+              </p>
+
+              {/* Progress bar + XP remaining */}
+              <div className="mt-4">
+                <div className="flex justify-between text-[11px] text-white/60 mb-1.5 font-medium">
+                  <span className="flex items-center gap-1"><TrendingUp size={10} /> {t('Progress', 'Прогресс')}</span>
+                  <span className="font-mono">
+                    {nextBelt ? (
+                      <>{Math.round(progressPct)}% <span className="text-white/40">·</span> <span className="text-cyan-300">{xpToNext} XP</span> {t('to', 'до')} {nextBelt.name}</>
+                    ) : t('MAX LEVEL', 'МАКС')}
+                  </span>
+                </div>
+                <NeonProgress value={progressPct} variant="cyan" height={14} duration={1.8} />
+              </div>
+
+              {/* Battle stats + animated streak */}
+              <div className="flex items-center gap-2 mt-4">
+                <div className="flex items-center gap-1.5 text-sm text-white/90 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-xl border border-white/10">
+                  <Trophy size={13} className="text-yellow-300" />
+                  <span className="font-bold">{studentData?.wins || 0}</span>
+                  <span className="text-white/50 text-xs">W</span>
+                  <span className="text-white/30">/</span>
+                  <span className="font-bold">{studentData?.losses || 0}</span>
+                  <span className="text-white/50 text-xs">L</span>
+                </div>
+                <motion.div
+                  animate={(studentData?.current_streak || 0) >= 3 ? { scale: [1, 1.1, 1] } : {}}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                  className="flex items-center gap-1.5 text-sm text-white/90 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-xl border border-white/10"
+                >
+                  <Flame size={13} className="text-orange-400" />
+                  <span className="font-bold">{studentData?.current_streak || 0}</span>
+                  <span className="text-white/50 text-xs">{t('streak', 'серия')}</span>
+                </motion.div>
+              </div>
+            </div>
           </div>
         </div>
-
-        <div className="flex items-center gap-3 mt-3 text-sm text-white/80">
-          <span>🏆 {studentData?.wins || 0}W / {studentData?.losses || 0}L</span>
-          <span>🔥 {studentData?.current_streak || 0} {t('streak', 'серия')}</span>
-        </div>
       </div>
 
-      {/* Stats Row */}
-      <div className="grid grid-cols-3 gap-3 px-4">
-        <div className="bg-amber-50 dark:bg-amber-500/10 rounded-2xl p-3 text-center border border-amber-100 dark:border-amber-500/20">
-          <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">🪙 {studentData?.coin_balance || 0}</div>
-          <div className="text-xs text-muted-foreground mt-1">{t('Coins', 'Монеты')}</div>
-        </div>
-        <div className="bg-sky-50 dark:bg-sky-500/10 rounded-2xl p-3 text-center border border-sky-100 dark:border-sky-500/20">
-          <div className="text-2xl font-bold text-sky-600 dark:text-sky-400">⭐ {totalXP}</div>
-          <div className="text-xs text-muted-foreground mt-1">XP</div>
-        </div>
-        <div className="bg-violet-50 dark:bg-violet-500/10 rounded-2xl p-3 text-center border border-violet-100 dark:border-violet-500/20">
-          <div className="text-2xl font-bold text-violet-600 dark:text-violet-400">🏆 {displayAchievements.filter(a => a.earned).length}</div>
-          <div className="text-xs text-muted-foreground mt-1">{t('Awards', 'Награды')}</div>
-        </div>
+      {/* ═══ BLOCK 2: NEXT LESSON COUNTDOWN ═══ */}
+      {nextLesson ? (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mx-4 arena-card p-4"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/30 flex items-center justify-center flex-shrink-0">
+              <Clock size={20} className="text-blue-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-blue-400">{t('Next Lesson', 'Следующий урок')}</div>
+              <p className="text-sm font-bold text-foreground truncate">
+                {lessonSlot?.date ? new Date(lessonSlot.date).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }) : '—'}
+                {lessonSlot?.start_time && ` · ${lessonSlot.start_time.substring(0, 5)}`}
+              </p>
+              <p className="text-[11px] text-muted-foreground truncate">
+                {lessonCoach?.profiles?.full_name || t('Coach', 'Тренер')} · {lessonPool?.name || ''}
+              </p>
+            </div>
+            <button
+              onClick={(e) => { e.stopPropagation(); navigate('/chat'); }}
+              className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center flex-shrink-0 hover:bg-blue-500/20 transition-colors"
+            >
+              <MessageSquare size={16} className="text-blue-400" />
+            </button>
+          </div>
+        </motion.div>
+      ) : (
+        <motion.button
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          onClick={() => navigate('/student/education')}
+          className="mx-4 arena-card p-4 flex items-center gap-3 text-left w-full"
+        >
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/30 flex items-center justify-center flex-shrink-0">
+            <BookOpen size={20} className="text-blue-400" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-bold text-foreground">{t('No upcoming lessons', 'Нет предстоящих уроков')}</p>
+            <p className="text-[11px] text-muted-foreground">{t('Practice skills to earn XP!', 'Тренируй навыки и зарабатывай XP!')}</p>
+          </div>
+          <ArrowRight size={16} className="text-muted-foreground" />
+        </motion.button>
+      )}
+
+      {/* ═══ BLOCK 4: LIVE STATS ═══ */}
+      <div className="grid grid-cols-3 gap-2.5 px-4">
+        {[
+          { value: studentData?.coin_balance || 0, emoji: '🪙', label: t('Coins', 'Монеты'), color: 'from-amber-500/20 to-orange-500/10', border: 'border-amber-500/30', text: 'neon-text-gold' },
+          { value: totalXP, emoji: '⚡', label: 'XP', color: 'from-cyan-500/20 to-blue-500/10', border: 'border-cyan-500/30', text: 'neon-text-cyan' },
+          { value: displayAchievements.filter(a => a.earned).length, emoji: '🏆', label: t('Awards', 'Награды'), color: 'from-purple-500/20 to-violet-500/10', border: 'border-purple-500/30', text: 'neon-text-purple' },
+        ].map((stat, i) => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.15 + i * 0.08, type: 'spring', stiffness: 200 }}
+            className={cn(
+              "rounded-2xl p-3.5 text-center border bg-gradient-to-br backdrop-blur-sm",
+              stat.color, stat.border
+            )}
+          >
+            <div className={cn("text-2xl font-black", stat.text)}>
+              {stat.emoji} <motion.span
+                key={stat.value}
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ type: 'spring' }}
+              >{stat.value.toLocaleString()}</motion.span>
+            </div>
+            <div className="text-[10px] text-muted-foreground mt-1 font-medium tracking-wide uppercase">{stat.label}</div>
+          </motion.div>
+        ))}
       </div>
 
-      {/* Quick Actions */}
+      {/* ═══ QUICK ACTIONS (color-coded) ═══ */}
       <div className="grid grid-cols-4 gap-2 px-4">
         {[
-          { emoji: '⚔️', label: t('Duels', 'Дуэли'), path: '/student/duels', badge: activeDuels?.length },
-          { emoji: '📚', label: t('Learn', 'Учиться'), path: '/student/education' },
-          { emoji: '🛒', label: t('Store', 'Магазин'), path: '/student/store' },
-          { emoji: '🏆', label: t('Awards', 'Награды'), path: '/student/leaderboard' },
+          { icon: Swords, label: t('Duels', 'Дуэли'), path: '/student/duels', badge: activeDuels?.length, iconColor: 'text-amber-400', badgeColor: 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]', glow: 'hover:shadow-[0_0_16px_rgba(245,158,11,0.3)]' },
+          { icon: BookOpen, label: t('Learn', 'Учиться'), path: '/student/education', nudge: true, iconColor: 'text-blue-400', dotColor: 'bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.6)]', glow: 'hover:shadow-[0_0_16px_rgba(59,130,246,0.3)]' },
+          { icon: ShoppingBag, label: t('Store', 'Магазин'), path: '/student/store', nudge: (studentData?.coin_balance || 0) >= 50, iconColor: 'text-emerald-400', dotColor: 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]', glow: 'hover:shadow-[0_0_16px_rgba(16,185,129,0.3)]' },
+          { icon: Award, label: t('Rank', 'Ранг'), path: '/student/leaderboard', nudge: true, iconColor: 'text-violet-400', dotColor: 'bg-violet-500 shadow-[0_0_6px_rgba(139,92,246,0.6)]', glow: 'hover:shadow-[0_0_16px_rgba(139,92,246,0.3)]' },
         ].map((action, i) => (
           <motion.button
             key={action.label}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 + i * 0.1 }}
+            transition={{ delay: 0.25 + i * 0.06, type: 'spring' }}
             onClick={() => navigate(action.path)}
-            className="bg-card rounded-xl p-3 flex flex-col items-center gap-1.5 relative border border-border shadow-sm"
+            className={cn("arena-action-btn rounded-xl p-3 flex flex-col items-center gap-2 relative transition-all", action.glow)}
           >
-            <span className="text-xl">{action.emoji}</span>
-            <span className="text-[10px] font-medium text-foreground leading-tight text-center">{action.label}</span>
-            {action.badge && action.badge > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-5 h-5 bg-destructive text-destructive-foreground rounded-full text-[10px] font-bold flex items-center justify-center">
+            <action.icon size={20} className={action.iconColor} />
+            <span className="text-[10px] font-semibold text-foreground leading-tight text-center tracking-wide">{action.label}</span>
+            {action.badge && action.badge > 0 ? (
+              <span className={cn("absolute -top-1 -right-1 w-5 h-5 text-white rounded-full text-[10px] font-bold flex items-center justify-center animate-pulse", action.badgeColor)}>
                 {action.badge}
               </span>
-            )}
+            ) : action.nudge ? (
+              <span className={cn("absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full animate-pulse", action.dotColor)} />
+            ) : null}
           </motion.button>
         ))}
       </div>
 
-      {/* Achievements Scroll */}
-      <div>
-        <h3 className="font-semibold text-sm text-foreground px-4 mb-3">
-          {t('Achievements', 'Достижения')}
-        </h3>
-        <div className="flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide">
-          {displayAchievements.map((ach) => (
-            <div
-              key={ach.id}
-              className={cn(
-                "flex-shrink-0 w-24 rounded-2xl p-3 text-center border transition-all",
-                ach.earned
-                  ? "bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30"
-                  : "bg-muted/50 border-border opacity-50 grayscale"
-              )}
-            >
-              <div className="text-3xl mb-1">{ach.emoji}</div>
-              <div className="text-xs font-semibold text-foreground leading-tight">{ach.name}</div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">{ach.desc}</div>
+      {/* ═══ BLOCK 3: MISSION CONTROL ═══ */}
+      <div className="space-y-2.5 px-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-display font-bold text-sm text-foreground flex items-center gap-1.5">
+            <ClipboardList size={14} className="text-cyan-400 flex-shrink-0" />
+            {uncompletedTasksCount > 0 && (
+              <span className="w-4 h-4 bg-cyan-500 text-white rounded-full text-[8px] font-bold flex items-center justify-center flex-shrink-0 shadow-[0_0_6px_rgba(6,182,212,0.5)]">
+                {uncompletedTasksCount}
+              </span>
+            )}
+            {t('Daily Missions', 'Ежедневные миссии')}
+          </h3>
+          <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-mono">
+            <Timer size={10} className="text-cyan-400" />
+            {missionTimeLeft}
+          </div>
+        </div>
+
+        {/* Progress ring: X/Y completed + bonus */}
+        {dailyTasks.length > 0 && (
+          <div className="arena-card p-3 flex items-center gap-3">
+            <div className="relative w-10 h-10 flex-shrink-0">
+              <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+                <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(6,182,212,0.15)" strokeWidth="3" />
+                <motion.circle
+                  cx="18" cy="18" r="15" fill="none"
+                  stroke="rgb(6,182,212)"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeDasharray={`${((dailyTasks.length - uncompletedTasksCount) / dailyTasks.length) * 94.2} 94.2`}
+                  initial={{ strokeDasharray: '0 94.2' }}
+                  animate={{ strokeDasharray: `${((dailyTasks.length - uncompletedTasksCount) / dailyTasks.length) * 94.2} 94.2` }}
+                  transition={{ duration: 1.2, ease: 'easeOut' }}
+                  style={{ filter: 'drop-shadow(0 0 4px rgba(6,182,212,0.5))' }}
+                />
+              </svg>
+              <span className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-cyan-400">
+                {dailyTasks.length - uncompletedTasksCount}/{dailyTasks.length}
+              </span>
             </div>
+            <div className="flex-1">
+              <p className="text-xs font-semibold text-foreground">
+                {uncompletedTasksCount === 0
+                  ? t('All missions complete!', 'Все миссии выполнены!')
+                  : `${uncompletedTasksCount} ${t('missions remaining', 'миссий осталось')}`}
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                {uncompletedTasksCount === 0
+                  ? t('Come back tomorrow for new missions', 'Возвращайся завтра за новыми')
+                  : t('Complete all for +20 bonus coins!', 'Выполни все = +20 бонусных монет!')}
+              </p>
+            </div>
+            {uncompletedTasksCount === 0 && (
+              <div className="text-xl animate-float">🎉</div>
+            )}
+          </div>
+        )}
+
+        {dailyTasks.length > 0 ? dailyTasks.map((task: any, i: number) => {
+          const done = completedIds.has(task.id);
+          return (
+            <motion.div
+              key={task.id}
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4 + i * 0.08 }}
+              className={cn("arena-card p-3.5 flex items-center gap-3 transition-all", done && "opacity-60")}
+            >
+              <div className={cn(
+                "w-7 h-7 rounded-lg border-2 flex items-center justify-center text-xs flex-shrink-0 transition-all",
+                done
+                  ? "bg-emerald-500 border-emerald-400 text-white shadow-[0_0_10px_rgba(52,211,153,0.4)]"
+                  : "border-primary/30 bg-primary/5"
+              )}>
+                {done ? '✓' : <span className="w-2 h-2 rounded-full bg-primary/40 animate-pulse" />}
+              </div>
+              <span className={cn("flex-1 text-sm font-medium", done ? "text-muted-foreground line-through" : "text-foreground")}>
+                {task.title}
+              </span>
+              <div className="flex items-center gap-1.5">
+                {!done && <span className="w-2 h-2 bg-cyan-500 rounded-full shadow-[0_0_6px_rgba(6,182,212,0.5)] animate-pulse flex-shrink-0" />}
+                <div className={cn(
+                  "flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold",
+                  done ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
+                )}>
+                  {done ? '✓' : '🪙'} {task.coin_reward}
+                </div>
+              </div>
+            </motion.div>
+          );
+        }) : (
+          <EmptyState
+            icon={ClipboardList}
+            title={t('No daily missions available', 'Нет доступных миссий')}
+            description={t('Check back tomorrow for new missions!', 'Загляни завтра за новыми миссиями!')}
+          />
+        )}
+      </div>
+
+      {/* ═══ ACHIEVEMENTS: TROPHY ROOM ═══ */}
+      <div>
+        <div className="flex items-center justify-between px-4 mb-3">
+          <h3 className="font-display font-bold text-sm text-foreground flex items-center gap-1.5">
+            <Award size={14} className="text-amber-400 flex-shrink-0" />
+              {unearnedAchievementsCount > 0 && (
+                <span className="w-4 h-4 bg-amber-500 text-white rounded-full text-[8px] font-bold flex items-center justify-center flex-shrink-0 shadow-[0_0_6px_rgba(245,158,11,0.5)]">
+                  {unearnedAchievementsCount}
+                </span>
+              )}
+            {t('Achievements', 'Достижения')}
+          </h3>
+          <button onClick={() => navigate('/student/achievements')} className="text-[11px] text-primary font-medium flex items-center gap-0.5">
+            {t('All', 'Все')} <ChevronRight size={12} />
+          </button>
+        </div>
+        <div className="flex gap-2.5 overflow-x-auto px-4 pb-2 no-scrollbar">
+          {displayAchievements.map((ach, i) => (
+            <motion.div
+              key={ach.id}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.3 + i * 0.05 }}
+              className={cn("flex-shrink-0 w-[88px]", !ach.earned && "opacity-40 grayscale")}
+            >
+              <GlowBadge
+                earned={ach.earned}
+                glowColor="rgba(251, 191, 36, 0.5)"
+              >
+                <div className="p-3 text-center">
+                  <div className={cn("text-3xl mb-1.5", ach.earned && "animate-float")}>{ach.emoji}</div>
+                  <div className="text-[10px] font-bold text-foreground leading-tight">{ach.name}</div>
+                  <div className="text-[9px] text-muted-foreground mt-0.5 leading-tight">{ach.desc}</div>
+                </div>
+              </GlowBadge>
+            </motion.div>
           ))}
         </div>
       </div>
 
-      {/* Skills Checklist */}
+      {/* ═══ SKILLS: TECH TREE ═══ */}
       <div className="px-4">
-        <h3 className="font-semibold text-sm text-foreground mb-3">
+        <h3 className="font-display font-bold text-sm text-foreground mb-3 flex items-center gap-1.5">
+          <Target size={14} className="text-teal-400 flex-shrink-0" />
+            {unmastered > 0 && (
+              <span className="w-4 h-4 bg-teal-500 text-white rounded-full text-[8px] font-bold flex items-center justify-center flex-shrink-0 shadow-[0_0_6px_rgba(20,184,166,0.5)]">
+                {unmastered}
+              </span>
+            )}
           {t('Skills for', 'Навыки для')} {currentBelt.name}
         </h3>
-        <div className="bg-card rounded-2xl border border-border p-4 space-y-2.5">
-          {currentSkills.map((skill, i) => {
-            const mastered = masteredSkills.includes(skill);
-            return (
-              <div key={i} className="flex items-center gap-3">
-                <div className={cn(
-                  "w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs flex-shrink-0",
-                  mastered
-                    ? "bg-emerald-500 border-emerald-500 text-white"
-                    : "border-muted-foreground/30"
-                )}>
-                  {mastered && '✓'}
-                </div>
-                <span className={cn(
-                  "text-sm",
-                  mastered ? "text-muted-foreground line-through" : "text-foreground"
-                )}>
-                  {skill}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+        <GlowCard glowColor="rgba(6, 182, 212, 0.4)" active={masteredSkills.length > 0}>
+          <div className="p-4 space-y-3">
+            {/* Skill completion mini-bar */}
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] text-muted-foreground font-mono">{masteredSkills.length}/{currentSkills.length} COMPLETE</span>
+              <NeonProgress
+                value={(masteredSkills.length / currentSkills.length) * 100}
+                variant="emerald"
+                height={6}
+                className="flex-1"
+                duration={2}
+              />
+            </div>
+            {currentSkills.map((skill, i) => {
+              const mastered = masteredSkills.includes(skill);
+              return (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.35 + i * 0.06 }}
+                  className="flex items-center gap-3"
+                >
+                  <div className={cn(
+                    "w-7 h-7 rounded-lg border-2 flex items-center justify-center text-xs flex-shrink-0 transition-all",
+                    mastered
+                      ? "bg-emerald-500 border-emerald-400 text-white shadow-[0_0_10px_rgba(52,211,153,0.4)]"
+                      : "border-muted-foreground/20 bg-muted/10"
+                  )}>
+                    {mastered ? '✓' : <span className="w-2 h-2 rounded-full bg-muted-foreground/20" />}
+                  </div>
+                  <span className={cn(
+                    "text-sm font-medium",
+                    mastered ? "text-muted-foreground line-through" : "text-foreground"
+                  )}>
+                    {skill}
+                  </span>
+                  {mastered && <Zap size={12} className="text-emerald-400 ml-auto" />}
+                </motion.div>
+              );
+            })}
+          </div>
+        </GlowCard>
       </div>
 
-      {/* Pending Challenges */}
+      {/* ═══ OPEN CHALLENGES: DUEL ARENA ═══ */}
       {pendingChallenges && pendingChallenges.length === 0 && (
         <div className="px-4">
-          <h3 className="font-semibold text-sm text-foreground flex items-center gap-1 mb-2">
-            <Swords size={14} className="text-primary" /> {t('Open Challenges', 'Открытые вызовы')}
+          <h3 className="font-display font-bold text-sm text-foreground flex items-center gap-1.5 mb-2">
+            <Swords size={14} className="text-red-400" /> {t('Open Challenges', 'Открытые вызовы')}
           </h3>
           <EmptyState
             icon={Swords}
@@ -385,9 +737,9 @@ export default function StudentDashboard() {
         </div>
       )}
       {pendingChallenges && pendingChallenges.length > 0 && (
-        <div className="space-y-3 px-4">
-          <h3 className="font-semibold text-sm text-foreground flex items-center gap-1">
-            <Swords size={14} className="text-primary" /> {t('Open Challenges', 'Открытые вызовы')}
+        <div className="space-y-2.5 px-4">
+          <h3 className="font-display font-bold text-sm text-foreground flex items-center gap-1.5">
+            <Swords size={14} className="text-red-400" /> {t('Open Challenges', 'Открытые вызовы')}
           </h3>
           {pendingChallenges.map((duel: any, i: number) => {
             const challenger = duel.challenger_profile as any;
@@ -395,72 +747,105 @@ export default function StudentDashboard() {
             return (
               <motion.div
                 key={duel.id}
-                initial={{ opacity: 0, x: -10 }}
+                initial={{ opacity: 0, x: -16 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3 + i * 0.08 }}
-                className="bg-card rounded-xl p-3 border border-border shadow-sm"
               >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center text-sm font-bold text-primary">
-                      {challenger?.full_name?.[0] || '?'}
+                <GlowCard glowColor="rgba(239, 68, 68, 0.5)">
+                  <div className="p-3.5">
+                    <div className="flex items-center justify-between mb-2.5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-red-500/20 to-orange-500/20 border border-red-500/30 flex items-center justify-center text-sm font-black text-red-400">
+                          {challenger?.full_name?.[0] || '?'}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-foreground">{challenger?.full_name || '—'}</p>
+                          <p className="text-[10px] text-muted-foreground capitalize font-mono">
+                            {duel.swim_style} {duel.distance_meters}m
+                          </p>
+                        </div>
+                      </div>
+                      <CoinBalance amount={duel.stake_coins} size="sm" />
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">{challenger?.full_name || '—'}</p>
-                      <p className="text-[10px] text-muted-foreground capitalize">{duel.swim_style} · {duel.distance_meters}m</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                        <Waves size={10} /> {pool?.name || t('Any pool', 'Любой бассейн')}
+                      </span>
+                      <Button
+                        size="sm"
+                        className="h-8 px-5 text-[11px] rounded-xl font-bold bg-gradient-to-r from-red-600 to-orange-500 border-0 shadow-[0_0_12px_rgba(239,68,68,0.3)] hover:shadow-[0_0_20px_rgba(239,68,68,0.5)] transition-all"
+                        onClick={() => acceptDuelMutation.mutate(duel)}
+                        disabled={acceptDuelMutation.isPending}
+                      >
+                        {t('ACCEPT', 'ПРИНЯТЬ')}
+                      </Button>
                     </div>
                   </div>
-                  <CoinBalance amount={duel.stake_coins} size="sm" />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-muted-foreground">{pool?.name || t('Any pool', 'Любой бассейн')}</span>
-                  <Button
-                    size="sm"
-                    className="h-7 px-4 text-[10px] rounded-lg"
-                    onClick={() => acceptDuelMutation.mutate(duel)}
-                    disabled={acceptDuelMutation.isPending}
-                  >
-                    {t('Accept ⚔️', 'Принять ⚔️')}
-                  </Button>
-                </div>
+                </GlowCard>
               </motion.div>
             );
           })}
         </div>
       )}
 
-      {/* Daily Tasks */}
-      <div className="space-y-3 px-4">
-        <h3 className="font-semibold text-sm text-foreground">
-          {t('Daily Tasks', 'Ежедневные задания')}
+      {/* ═══ DAILY TASKS: MISSION LOG ═══ */}
+      <div className="space-y-2.5 px-4">
+        <h3 className="font-display font-bold text-sm text-foreground flex items-center gap-1.5">
+          <div className="relative">
+            <ClipboardList size={14} className="text-cyan-400" />
+            {uncompletedTasksCount > 0 && (
+              <span className="absolute -top-1.5 -right-2 w-4 h-4 bg-cyan-500 text-white rounded-full text-[8px] font-bold flex items-center justify-center shadow-[0_0_6px_rgba(6,182,212,0.5)]">
+                {uncompletedTasksCount}
+              </span>
+            )}
+          </div>
+          {t('Daily Missions', 'Ежедневные миссии')}
         </h3>
         {dailyTasks.length > 0 ? dailyTasks.map((task: any, i: number) => {
           const done = completedIds.has(task.id);
           return (
             <motion.div
               key={task.id}
-              initial={{ opacity: 0, x: -10 }}
+              initial={{ opacity: 0, x: -12 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.4 + i * 0.1 }}
-              className="bg-card rounded-xl p-3 flex items-center gap-3 border border-border shadow-sm"
+              transition={{ delay: 0.4 + i * 0.08 }}
+              className={cn(
+                "arena-card p-3.5 flex items-center gap-3 transition-all",
+                done && "opacity-60"
+              )}
             >
               <div className={cn(
-                "w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs flex-shrink-0",
-                done ? "bg-emerald-500 border-emerald-500 text-white" : "border-muted-foreground/30"
+                "w-7 h-7 rounded-lg border-2 flex items-center justify-center text-xs flex-shrink-0 transition-all",
+                done
+                  ? "bg-emerald-500 border-emerald-400 text-white shadow-[0_0_10px_rgba(52,211,153,0.4)]"
+                  : "border-primary/30 bg-primary/5"
               )}>
-                {done && '✓'}
+                {done ? '✓' : <span className="w-2 h-2 rounded-full bg-primary/40 animate-pulse" />}
               </div>
-              <span className={cn("flex-1 text-sm", done ? "text-muted-foreground line-through" : "text-foreground")}>
+              <span className={cn(
+                "flex-1 text-sm font-medium",
+                done ? "text-muted-foreground line-through" : "text-foreground"
+              )}>
                 {task.title}
               </span>
-              <CoinBalance amount={task.coin_reward} size="sm" />
+              <div className="flex items-center gap-1.5">
+                {!done && (
+                  <span className="w-2 h-2 bg-cyan-500 rounded-full shadow-[0_0_6px_rgba(6,182,212,0.5)] animate-pulse flex-shrink-0" />
+                )}
+                <div className={cn(
+                  "flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold",
+                  done ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
+                )}>
+                  {done ? '✓' : '🪙'} {task.coin_reward}
+                </div>
+              </div>
             </motion.div>
           );
         }) : (
           <EmptyState
             icon={ClipboardList}
-            title={t('No daily tasks available', 'Нет доступных заданий')}
-            description={t('Check back tomorrow for new tasks!', 'Загляни завтра за новыми заданиями!')}
+            title={t('No daily missions available', 'Нет доступных миссий')}
+            description={t('Check back tomorrow for new missions!', 'Загляни завтра за новыми миссиями!')}
           />
         )}
       </div>

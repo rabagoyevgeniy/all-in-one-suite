@@ -170,6 +170,47 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
   }
+  /* Elevated card with premium shadow */
+  .card-elevated {
+    @apply bg-card rounded-2xl border border-border;
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.03),
+      0 4px 12px rgba(0, 0, 0, 0.04),
+      0 8px 32px rgba(0, 0, 0, 0.03);
+  }
+  .arena .card-elevated {
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.2),
+      0 4px 16px rgba(0, 0, 0, 0.3),
+      0 0 0 1px rgba(255, 255, 255, 0.05);
+  }
+  /* Gradient button */
+  .btn-gradient-primary {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(199 80% 42%));
+    color: hsl(var(--primary-foreground));
+    box-shadow: 0 2px 12px hsl(var(--primary) / 0.3);
+    transition: all 0.2s ease;
+  }
+  .btn-gradient-primary:hover {
+    box-shadow: 0 4px 20px hsl(var(--primary) / 0.4);
+    transform: translateY(-1px);
+  }
+  .btn-gradient-primary:active {
+    transform: translateY(0);
+  }
+  /* Stat card hover */
+  .stat-card {
+    @apply bg-card rounded-2xl p-3 text-center border border-border transition-all duration-200;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  }
+  .stat-card:hover {
+    border-color: hsl(var(--primary) / 0.3);
+    box-shadow: 0 4px 12px hsl(var(--primary) / 0.08);
+    transform: translateY(-1px);
+  }
+  .stat-card:active {
+    transform: scale(0.98);
+  }
 }
 
 /* Coin spin animation */
@@ -185,6 +226,23 @@
   0%, 100% { box-shadow: 0 0 10px hsl(var(--coin) / 0.3); }
   50% { box-shadow: 0 0 25px hsl(var(--coin) / 0.6); }
 }
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes wave-move {
+  0% { transform: translateX(0) translateY(0); }
+  50% { transform: translateX(-25%) translateY(-3px); }
+  100% { transform: translateX(-50%) translateY(0); }
+}
 .animate-coin-spin {
   animation: coin-spin 2s ease-in-out infinite;
 }
@@ -193,4 +251,193 @@
 }
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
+}
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2.5s ease-in-out infinite;
+}
+.animate-fade-up {
+  animation: fade-up 0.5s ease-out both;
+}
+.animate-scale-in {
+  animation: scale-in 0.3s ease-out both;
+}
+.animate-wave {
+  animation: wave-move 8s ease-in-out infinite;
+}
+
+/* Safe area for mobile bottom nav */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ═══ GLOW CARD (21st.dev inspired) ═══ */
+
+@property --glow-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes glow-rotate {
+  0% { --glow-angle: 0deg; }
+  100% { --glow-angle: 360deg; }
+}
+
+/* Fallback for browsers without @property */
+@supports not (background: conic-gradient(from 0deg, red, blue)) {
+  .glow-card-gradient {
+    background: linear-gradient(135deg, rgba(139,92,246,0.4), transparent, rgba(59,130,246,0.4)) !important;
+    animation: gradient-shift 3s ease infinite !important;
+  }
+}
+
+.glow-card-wrapper {
+  isolation: isolate;
+}
+
+.glow-card-content {
+  z-index: 1;
+}
+
+/* ═══ ARENA HI-TECH GAMING EFFECTS ═══ */
+
+@keyframes neon-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+@keyframes border-glow {
+  0%, 100% { border-color: rgba(139, 92, 246, 0.3); box-shadow: 0 0 8px rgba(139, 92, 246, 0.1); }
+  50% { border-color: rgba(139, 92, 246, 0.6); box-shadow: 0 0 20px rgba(139, 92, 246, 0.2); }
+}
+@keyframes scan-line {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes ripple {
+  0% { transform: scale(1); opacity: 0.4; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+/* Arena neon card */
+.arena .arena-card {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(59, 130, 246, 0.05));
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 1rem;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+}
+.arena .arena-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.4), transparent, rgba(59, 130, 246, 0.3));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+.arena .arena-card:hover {
+  border-color: rgba(139, 92, 246, 0.4);
+  box-shadow: 0 0 24px rgba(139, 92, 246, 0.12), 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Arena hero card with animated border */
+.arena-hero-border {
+  position: relative;
+  border-radius: 1.5rem;
+  padding: 2px;
+  background: linear-gradient(135deg, #8b5cf6, #3b82f6, #06b6d4, #8b5cf6);
+  background-size: 300% 300%;
+  animation: gradient-shift 4s ease infinite;
+}
+.arena-hero-border > .arena-hero-inner {
+  border-radius: calc(1.5rem - 2px);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Neon text */
+.arena .neon-text-purple {
+  color: #a78bfa;
+  text-shadow: 0 0 10px rgba(167, 139, 250, 0.5), 0 0 30px rgba(167, 139, 250, 0.2);
+}
+.arena .neon-text-cyan {
+  color: #22d3ee;
+  text-shadow: 0 0 10px rgba(34, 211, 238, 0.5), 0 0 30px rgba(34, 211, 238, 0.2);
+}
+.arena .neon-text-gold {
+  color: #fbbf24;
+  text-shadow: 0 0 10px rgba(251, 191, 36, 0.5), 0 0 30px rgba(251, 191, 36, 0.2);
+}
+
+/* Scan line effect for hero */
+.arena-scan-line::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 0%, rgba(139, 92, 246, 0.03) 50%, transparent 100%);
+  height: 50%;
+  animation: scan-line 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Hexagonal pattern background */
+.arena-hex-bg {
+  background-image:
+    radial-gradient(circle at 25% 25%, rgba(139, 92, 246, 0.04) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(59, 130, 246, 0.04) 0%, transparent 50%);
+}
+
+/* Neon progress bar */
+.arena .neon-progress {
+  background: rgba(139, 92, 246, 0.15);
+  border-radius: 9999px;
+  overflow: hidden;
+  position: relative;
+}
+.arena .neon-progress-bar {
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #8b5cf6, #3b82f6, #06b6d4);
+  background-size: 200% 100%;
+  animation: gradient-shift 3s ease infinite;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.6), 0 0 4px rgba(59, 130, 246, 0.4);
+  position: relative;
+}
+.arena .neon-progress-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 20px;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 9999px;
+  filter: blur(4px);
+}
+
+/* Arena action button */
+.arena .arena-action-btn {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(59, 130, 246, 0.05));
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  transition: all 0.25s ease;
+}
+.arena .arena-action-btn:hover {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(59, 130, 246, 0.1));
+  border-color: rgba(139, 92, 246, 0.5);
+  box-shadow: 0 0 16px rgba(139, 92, 246, 0.15);
+  transform: translateY(-2px);
+}
+.arena .arena-action-btn:active {
+  transform: scale(0.96);
 }
