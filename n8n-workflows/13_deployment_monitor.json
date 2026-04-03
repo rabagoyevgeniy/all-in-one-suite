@@ -1,0 +1,95 @@
+{
+  "name": "13_deployment_monitor",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [0, 300],
+      "id": "trigger",
+      "name": "Called by Agent"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://api.vercel.com/v6/deployments?limit=5&projectId=' + $vars.VERCEL_PROJECT_ID }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $vars.VERCEL_TOKEN }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 300],
+      "id": "fetch-deployments",
+      "name": "Fetch Vercel Deployments",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2048, system: 'You are a senior DevOps engineer for ProFit Swimming Academy. Analyze Vercel deployment data. Identify failed builds, error patterns, and suggest fixes. Track deployment frequency and success rates.\\n\\nAlways respond with valid JSON only — no markdown, no backticks.', messages: [{ role: 'user', content: 'Analyze the latest Vercel deployments:\\n\\n' + JSON.stringify($input.first().json, null, 2) + '\\n\\nRespond with this exact JSON structure:\\n{\\n  \\\"summary\\\": \\\"one-line deployment health status\\\",\\n  \\\"total_deployments\\\": 0,\\n  \\\"successful\\\": 0,\\n  \\\"failed\\\": 0,\\n  \\\"in_progress\\\": 0,\\n  \\\"deployments\\\": [{ \\\"id\\\": \\\"...\\\", \\\"state\\\": \\\"...\\\", \\\"created\\\": \\\"...\\\", \\\"url\\\": \\\"...\\\" }],\\n  \\\"failures\\\": [{ \\\"id\\\": \\\"...\\\", \\\"error\\\": \\\"...\\\", \\\"suggested_fix\\\": \\\"...\\\" }],\\n  \\\"trends\\\": [\\\"deployment trend observations\\\"],\\n  \\\"recommendations\\\": [\\\"actionable recommendations\\\"]\\n}' }] }) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 300],
+      "id": "claude-analyze",
+      "name": "Claude → Analyze Deployments"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/ai_agent_logs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ action_type: 'deployment_monitor', summary: 'Deployment health check completed', details: $input.first().json.content?.[0]?.text || 'No analysis', created_at: new Date().toISOString() }) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [780, 300],
+      "id": "log-supabase",
+      "name": "Log → Supabase",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $('Claude → Analyze Deployments').first().json.content?.[0]?.text || '{}';\n\nlet parsed = {};\ntry {\n  const cleaned = raw.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  parsed = JSON.parse(cleaned);\n} catch (e) {\n  parsed = { raw_analysis: raw };\n}\n\nreturn [{ json: {\n  status: 'completed',\n  workflow: '13_deployment_monitor',\n  deployment_count: parsed.total_deployments || 0,\n  failed_count: parsed.failed || 0,\n  successful_count: parsed.successful || 0,\n  summary: parsed.summary || 'Analysis complete',\n  analysis: parsed,\n  completedAt: new Date().toISOString()\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1040, 300],
+      "id": "output",
+      "name": "Final → Output"
+    }
+  ],
+  "connections": {
+    "Called by Agent": { "main": [[{ "node": "Fetch Vercel Deployments", "type": "main", "index": 0 }]] },
+    "Fetch Vercel Deployments": { "main": [[{ "node": "Claude → Analyze Deployments", "type": "main", "index": 0 }]] },
+    "Claude → Analyze Deployments": { "main": [[{ "node": "Log → Supabase", "type": "main", "index": 0 }]] },
+    "Log → Supabase": { "main": [[{ "node": "Final → Output", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

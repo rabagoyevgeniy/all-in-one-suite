@@ -1,0 +1,139 @@
+{
+  "name": "12_pinecone_rag",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 300],
+      "id": "trigger",
+      "name": "Called by Agent",
+      "webhookId": "chat-pinecone-rag"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nlet parsed = {};\ntry { if (input.chatInput && input.chatInput.startsWith('{')) parsed = JSON.parse(input.chatInput); } catch(e) {}\n\nlet rawText = input.chatInput || '';\nlet detectedAction = null;\nlet cleanedText = rawText;\nif (rawText.toLowerCase().startsWith('upsert:')) { detectedAction = 'upsert'; cleanedText = rawText.substring(7).trim(); }\nelse if (rawText.toLowerCase().startsWith('search:')) { detectedAction = 'search'; cleanedText = rawText.substring(7).trim(); }\n\nlet action = detectedAction || parsed.action || (input.action === 'sendMessage' ? 'search' : input.action) || 'search';\nconst query = parsed.query || cleanedText || '';\nconst namespace = parsed.namespace || input.namespace || 'default';\nconst source = parsed.source || input.source || 'manual';\nconst project = parsed.project || input.project || 'profit';\nconst content = parsed.content || cleanedText || query;\n\nreturn [{ json: { action, query, namespace, source, project, content } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [260, 300],
+      "id": "normalize",
+      "name": "Normalize Input"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.action }}",
+              "value2": "upsert"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [520, 300],
+      "id": "route-action",
+      "name": "Is Upsert?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.PINECONE_INDEX_HOST }}/records/namespaces/default/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Api-Key", "value": "={{ $vars.PINECONE_API_KEY }}" },
+            { "name": "content-type", "value": "application/json" },
+            { "name": "X-Pinecone-Api-Version", "value": "2025-10" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ query: { top_k: 5, inputs: { text: $('Normalize Input').first().json.query } }, fields: ['text', 'source', 'project', 'text'] }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [780, 160],
+      "id": "pinecone-search",
+      "name": "Pinecone → Search"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2048, messages: [{ role: 'user', content: 'Answer this question using the retrieved context.\\n\\nQuestion: ' + $('Normalize Input').first().json.query + '\\n\\nContext:\\n' + JSON.stringify(($input.first().json.result?.hits || $input.first().json.matches || []).map(function(m) { return { score: m.score || m._score, text: (m.fields && (m.fields.text || m.fields.text)) || (m.metadata && (m.metadata.content || m.metadata.text)) || '', source: (m.fields && m.fields.source) || (m.metadata && m.metadata.source) || 'unknown' }; })) + '\\n\\nProvide a comprehensive answer. Cite sources.' }] }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1040, 160],
+      "id": "claude-synthesize",
+      "name": "Claude → Synthesize"
+    },
+    {
+      "parameters": {
+        "jsCode": "const query = $('Normalize Input').first().json.query;\nconst namespace = $('Normalize Input').first().json.namespace;\nconst hits = $('Pinecone → Search').first().json.result?.hits || $('Pinecone → Search').first().json.matches || [];\nconst answer = $input.first().json.content?.[0]?.text || 'No answer generated';\n\nreturn [{ json: {\n  status: 'completed',\n  workflow: '12_pinecone_rag',\n  action: 'search',\n  query,\n  namespace,\n  results_count: hits.length,\n  top_sources: hits.slice(0, 3).map(function(m) { return { score: m.score || m._score, source: (m.fields && m.fields.source) || (m.metadata && m.metadata.source) || 'unknown' }; }),\n  answer,\n  completedAt: new Date().toISOString()\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 160],
+      "id": "search-output",
+      "name": "Format → Search Output"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.PINECONE_INDEX_HOST }}/records/namespaces/default/upsert",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Api-Key", "value": "={{ $vars.PINECONE_API_KEY }}" },
+            { "name": "X-Pinecone-Api-Version", "value": "2025-10" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/x-ndjson",
+        "body": "={{ JSON.stringify({ _id: 'rec' + Date.now().toString(36), text: $('Normalize Input').first().json.content, source: $('Normalize Input').first().json.source, project: $('Normalize Input').first().json.project }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [780, 460],
+      "id": "pinecone-upsert",
+      "name": "Pinecone → Upsert"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Normalize Input').first().json;\nconst upsertResult = $input.first().json;\n\nreturn [{ json: {\n  status: 'completed',\n  workflow: '12_pinecone_rag',\n  action: 'upsert',\n  namespace: input.namespace,\n  upserted_count: upsertResult.upsertedCount || 1,\n  source: input.source,\n  project: input.project,\n  completedAt: new Date().toISOString()\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1040, 460],
+      "id": "upsert-output",
+      "name": "Format → Upsert Output"
+    }
+  ],
+  "connections": {
+    "Called by Agent": { "main": [[{ "node": "Normalize Input", "type": "main", "index": 0 }]] },
+    "Normalize Input": { "main": [[{ "node": "Is Upsert?", "type": "main", "index": 0 }]] },
+    "Is Upsert?": { "main": [[{ "node": "Pinecone → Upsert", "type": "main", "index": 0 }], [{ "node": "Pinecone → Search", "type": "main", "index": 0 }]] },
+    "Pinecone → Search": { "main": [[{ "node": "Claude → Synthesize", "type": "main", "index": 0 }]] },
+    "Claude → Synthesize": { "main": [[{ "node": "Format → Search Output", "type": "main", "index": 0 }]] },
+    "Pinecone → Upsert": { "main": [[{ "node": "Format → Upsert Output", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

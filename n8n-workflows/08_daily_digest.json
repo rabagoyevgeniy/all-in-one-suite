@@ -1,0 +1,123 @@
+{
+  "name": "08_daily_digest",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 300],
+      "id": "trigger",
+      "name": "Called by Agent",
+      "webhookId": "chat-daily-digest"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/rpc/get_daily_stats",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 200],
+      "id": "get-stats",
+      "name": "RPC → get_daily_stats",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/bookings?select=id,status,booking_type,coach_id,lesson_fee,transport_fee,currency,created_at&created_at=gte.{{ new Date(Date.now() - 86400000).toISOString().split('T')[0] }}&created_at=lt.{{ new Date().toISOString().split('T')[0] }}&order=created_at.desc",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 440],
+      "id": "get-bookings",
+      "name": "REST → Yesterday Bookings",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [520, 300],
+      "id": "wait-both",
+      "name": "Wait for Both"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst first = items[0]?.json || {};\n\n// After Merge multiplex, first item has both datasets merged\n// But we need to get stats and bookings separately\nconst statsData = $('RPC → get_daily_stats').first().json;\nconst bookingsData = $('REST → Yesterday Bookings').all().map(i => i.json);\n\nconst combined = {\n  aggregated_stats: statsData,\n  yesterday_bookings: Array.isArray(bookingsData) ? bookingsData : [],\n  bookings_count: Array.isArray(bookingsData) ? bookingsData.length : 0,\n  date: new Date().toISOString().split('T')[0]\n};\n\nreturn [{ json: combined }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [740, 300],
+      "id": "merge-data",
+      "name": "Merge Stats + Bookings"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2048, system: 'You are the Chief of Staff for ProFit Swimming Academy (Dubai + Baku). Every morning you prepare a concise executive briefing for the founder. Be data-driven, highlight what matters, flag risks early, and celebrate wins.\\n\\nAlways respond with valid JSON only — no markdown, no backticks.', messages: [{ role: 'user', content: 'Generate the morning digest for ' + $input.first().json.date + '.\\n\\nAggregated stats from database:\\n' + JSON.stringify($input.first().json.aggregated_stats, null, 2) + '\\n\\nYesterday bookings detail (' + $input.first().json.bookings_count + ' total):\\n' + JSON.stringify($input.first().json.yesterday_bookings.slice(0, 50), null, 2) + '\\n\\nRespond with this exact JSON structure:\\n{\\n  \\\"greeting\\\": \\\"good morning greeting with date\\\",\\n  \\\"headline\\\": \\\"one-line summary of yesterday\\\",\\n  \\\"key_metrics\\\": {\\n    \\\"lessons_completed\\\": 0,\\n    \\\"new_bookings\\\": 0,\\n    \\\"revenue\\\": \\\"amount with currency\\\",\\n    \\\"active_coaches\\\": 0,\\n    \\\"new_students\\\": 0,\\n    \\\"agent_tasks\\\": 0,\\n    \\\"agent_errors\\\": 0\\n  },\\n  \\\"wins\\\": [\\\"yesterday wins and achievements\\\"],\\n  \\\"alerts\\\": [\\\"items needing attention\\\"],\\n  \\\"priorities_today\\\": [\\\"top 3 priorities for today\\\"],\\n  \\\"coach_highlights\\\": \\\"notable coach performance or issues\\\",\\n  \\\"forecast\\\": \\\"brief outlook for the rest of the week\\\"\\n}' }] }) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 300],
+      "id": "claude-digest",
+      "name": "Claude → Generate Digest"
+    },
+    {
+      "parameters": {
+        "jsCode": "try {\n  const raw = $input.first().json.content[0].text;\n  const cleaned = raw.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  const digest = JSON.parse(cleaned);\n  return [{ json: {\n    status: 'completed',\n    workflow: '08_daily_digest',\n    date: new Date().toISOString().split('T')[0],\n    yesterday_date: new Date(Date.now() - 86400000).toISOString().split('T')[0],\n    digest,\n    completedAt: new Date().toISOString()\n  } }];\n} catch (e) {\n  const raw = $input.first().json.content?.[0]?.text || 'No content';\n  return [{ json: {\n    status: 'completed',\n    workflow: '08_daily_digest',\n    content_raw: raw,\n    parse_note: 'Response was not valid JSON, returning raw text',\n    completedAt: new Date().toISOString()\n  } }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1260, 300],
+      "id": "output",
+      "name": "Format → Output"
+    }
+  ],
+  "connections": {
+    "Called by Agent": {
+      "main": [[
+        { "node": "RPC → get_daily_stats", "type": "main", "index": 0 },
+        { "node": "REST → Yesterday Bookings", "type": "main", "index": 0 }
+      ]]
+    },
+    "RPC → get_daily_stats": { "main": [[{ "node": "Wait for Both", "type": "main", "index": 0 }]] },
+    "REST → Yesterday Bookings": { "main": [[{ "node": "Wait for Both", "type": "main", "index": 1 }]] },
+    "Wait for Both": { "main": [[{ "node": "Merge Stats + Bookings", "type": "main", "index": 0 }]] },
+    "Merge Stats + Bookings": { "main": [[{ "node": "Claude → Generate Digest", "type": "main", "index": 0 }]] },
+    "Claude → Generate Digest": { "main": [[{ "node": "Format → Output", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

@@ -1,0 +1,51 @@
+{
+  "name": "06_competitor_monitor",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 300],
+      "id": "trigger",
+      "name": "Called by Agent",
+      "webhookId": "chat-competitor-monitor"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 4096, system: 'You are a competitive intelligence analyst specializing in the swimming education market in Dubai (UAE) and Baku (Azerbaijan). You work for ProFit Swimming Academy — a premium mobile swim school where certified coaches travel to clients\\' private pools.\\n\\nAnalyze known swimming schools and aquatic education providers in the requested area. Use your training knowledge to identify competitors, their pricing models, services, strengths, and weaknesses.\\n\\nAlways respond with valid JSON only — no markdown, no backticks.', messages: [{ role: 'user', content: 'Analyze swimming school competitors in: ' + ($json.area || $json.parameters?.area || $json.chatInput || 'Dubai') + ', City: ' + ($json.city || $json.parameters?.city || 'Dubai') + '\\n\\nRespond with this exact JSON structure:\\n{\\n  \\\"market_overview\\\": \\\"2-3 sentence market summary\\\",\\n  \\\"competitors\\\": [\\n    {\\n      \\\"name\\\": \\\"competitor name\\\",\\n      \\\"type\\\": \\\"academy/freelance/hotel-based/club\\\",\\n      \\\"pricing_range\\\": \\\"estimated price range per lesson\\\",\\n      \\\"services\\\": [\\\"list of services\\\"],\\n      \\\"strengths\\\": [\\\"key strengths\\\"],\\n      \\\"weaknesses\\\": [\\\"key weaknesses\\\"],\\n      \\\"threat_level\\\": \\\"high/medium/low\\\"\\n    }\\n  ],\\n  \\\"profit_advantages\\\": [\\\"ProFit\\'s competitive advantages over these competitors\\\"],\\n  \\\"recommendations\\\": [\\\"3-5 strategic recommendations\\\"],\\n  \\\"pricing_position\\\": \\\"how ProFit should position pricing relative to market\\\"\\n}' }] }) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 300],
+      "id": "claude-research",
+      "name": "Claude → Research Competitors"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Called by Agent').first().json;\ntry {\n  const raw = $input.first().json.content[0].text;\n  const cleaned = raw.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  const analysis = JSON.parse(cleaned);\n  return [{ json: {\n    status: 'completed',\n    workflow: '06_competitor_monitor',\n    area: input.area || input.parameters?.area || input.chatInput || 'Dubai',\n    city: input.city || input.parameters?.city || 'Dubai',\n    analysis,\n    competitor_count: analysis.competitors?.length || 0,\n    completedAt: new Date().toISOString()\n  } }];\n} catch (e) {\n  const raw = $input.first().json.content?.[0]?.text || 'No content';\n  return [{ json: {\n    status: 'completed',\n    workflow: '06_competitor_monitor',\n    content_raw: raw,\n    parse_note: 'Response was not valid JSON, returning raw text',\n    completedAt: new Date().toISOString()\n  } }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300],
+      "id": "format",
+      "name": "Format → Output"
+    }
+  ],
+  "connections": {
+    "Called by Agent": { "main": [[{ "node": "Claude → Research Competitors", "type": "main", "index": 0 }]] },
+    "Claude → Research Competitors": { "main": [[{ "node": "Format → Output", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

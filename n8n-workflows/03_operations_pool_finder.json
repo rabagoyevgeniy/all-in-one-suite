@@ -1,0 +1,84 @@
+{
+  "name": "03_operations_pool_finder",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [0, 300],
+      "id": "trigger",
+      "name": "Called by Agent"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://maps.googleapis.com/maps/api/place/textsearch/json",
+        "authentication": "none",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "query", "value": "={{ 'swimming pool ' + ($json.area || $json.parameters?.area || 'JVC Dubai') }}" },
+            { "name": "type", "value": "swimming_pool" },
+            { "name": "region", "value": "ae" },
+            { "name": "key", "value": "={{ $vars.GOOGLE_MAPS_API_KEY }}" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 300],
+      "id": "google",
+      "name": "Google Maps → Search"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst results = data.results || [];\nconst area = $('Called by Agent').first().json.area || $('Called by Agent').first().json.parameters?.area || 'unknown';\n\nif (results.length === 0) {\n  return [{ json: { pools: [], count: 0, area, status: 'no_results' } }];\n}\n\nconst pools = results.slice(0, 15).map(p => ({\n  name: p.name,\n  address: p.formatted_address,\n  rating: p.rating || null,\n  reviews: p.user_ratings_total || 0,\n  lat: p.geometry?.location?.lat,\n  lng: p.geometry?.location?.lng,\n  open_now: p.opening_hours?.open_now ?? null,\n  place_id: p.place_id,\n  price_level: p.price_level || null\n}));\n\nreturn [{ json: { pools, count: pools.length, area } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300],
+      "id": "parse",
+      "name": "Parse Pools"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2048, system: 'You are a business development analyst for ProFit Swimming Academy. Analyze pools for PARTNERSHIP potential. ProFit needs: private/semi-private pools in residential areas, family-friendly, good ratings, accessible for coaches with equipment. Respond with ONLY a raw JSON array — no markdown, no backticks.', messages: [{ role: 'user', content: 'Rank these pools in ' + $json.area + ' for partnership potential.\\n\\nPools:\\n' + JSON.stringify($json.pools, null, 2) + '\\n\\nRespond with JSON array:\\n[{\\\"name\\\": \\\"...\\\", \\\"score\\\": 1-10, \\\"fit\\\": \\\"excellent|good|medium|poor\\\", \\\"reason\\\": \\\"...\\\", \\\"approach\\\": \\\"recommended outreach\\\"}]\\n\\nSort by score descending.' }] }) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [780, 300],
+      "id": "claude-rank",
+      "name": "Claude → Rank Pools"
+    },
+    {
+      "parameters": {
+        "jsCode": "const poolData = $('Parse Pools').first().json;\ntry {\n  const raw = $input.first().json.content[0].text;\n  const cleaned = raw.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  const rankings = JSON.parse(cleaned);\n  return [{ json: {\n    status: 'completed',\n    workflow: '03_operations_pool_finder',\n    area: poolData.area,\n    pools_found: poolData.count,\n    pools: poolData.pools,\n    rankings,\n    top_picks: rankings.filter(r => r.score >= 7),\n    completedAt: new Date().toISOString()\n  } }];\n} catch (e) {\n  return [{ json: {\n    status: 'completed',\n    workflow: '03_operations_pool_finder',\n    area: poolData.area,\n    pools_found: poolData.count,\n    pools: poolData.pools,\n    analysis_raw: $input.first().json.content?.[0]?.text || 'No analysis',\n    completedAt: new Date().toISOString()\n  } }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1040, 300],
+      "id": "output",
+      "name": "Final → Output"
+    }
+  ],
+  "connections": {
+    "Called by Agent": { "main": [[{ "node": "Google Maps → Search", "type": "main", "index": 0 }]] },
+    "Google Maps → Search": { "main": [[{ "node": "Parse Pools", "type": "main", "index": 0 }]] },
+    "Parse Pools": { "main": [[{ "node": "Claude → Rank Pools", "type": "main", "index": 0 }]] },
+    "Claude → Rank Pools": { "main": [[{ "node": "Final → Output", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

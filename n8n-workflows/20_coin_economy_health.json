@@ -1,0 +1,73 @@
+{
+  "name": "20_coin_economy_health",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [0, 300],
+      "id": "trigger",
+      "name": "Called by Agent"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/rpc/get_daily_stats",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 300],
+      "id": "get-coin-stats",
+      "name": "Supabase → Coin Stats"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2048, system: 'You are an economist analyzing the ProFit Swimming Academy coin economy. Analyze: total coins in circulation, earn vs spend ratio, most popular shop items, potential inflation/deflation risks, student engagement with coin system. Recommend balance adjustments if needed.', messages: [{ role: 'user', content: 'Analyze the following coin economy data for ProFit Swimming Academy:\\n\\n' + JSON.stringify($input.first().json, null, 2) + '\\n\\nProvide:\\n1. Economy Health Score (0-100)\\n2. Coins in Circulation (total earned vs total spent)\\n3. Earn/Spend Ratio Analysis\\n4. Inflation/Deflation Risk Assessment\\n5. Student Engagement Metrics\\n6. Most Popular Reward Items\\n7. Balance Adjustment Recommendations (3-5 items)\\n8. Predicted Trends for Next Period' }] }) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 300],
+      "id": "claude-analyze",
+      "name": "Claude → Economy Analysis"
+    },
+    {
+      "parameters": {
+        "jsCode": "const coinData = $('Supabase → Coin Stats').first().json;\nconst report = $input.first().json.content?.[0]?.text || 'No report generated';\n\nreturn [{ json: {\n  status: 'completed',\n  workflow: '20_coin_economy_health',\n  coin_data_summary: {\n    total_earned: coinData.total_earned || 0,\n    total_spent: coinData.total_spent || 0,\n    active_users: coinData.active_users || 0,\n    transactions_today: coinData.transactions_today || 0\n  },\n  report,\n  completedAt: new Date().toISOString()\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [780, 300],
+      "id": "output",
+      "name": "Final → Output"
+    }
+  ],
+  "connections": {
+    "Called by Agent": { "main": [[{ "node": "Supabase → Coin Stats", "type": "main", "index": 0 }]] },
+    "Supabase → Coin Stats": { "main": [[{ "node": "Claude → Economy Analysis", "type": "main", "index": 0 }]] },
+    "Claude → Economy Analysis": { "main": [[{ "node": "Final → Output", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

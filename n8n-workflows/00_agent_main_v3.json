@@ -1,0 +1,295 @@
+{
+  "name": "00_agent_main_v3",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agent-task",
+        "responseMode": "responseNode"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [0, 400],
+      "id": "n-webhook",
+      "name": "POST /agent-task",
+      "webhookId": "agent-task-v3"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normalize input from webhook or Execute Workflow trigger\nconst body = $input.first().json.body || $input.first().json;\nconst task = body.task || body.message || 'No task provided';\nconst priority = body.priority || 'normal';\nconst requestedBy = body.requestedBy || 'mcp';\nconst retryCount = body._retryCount || 0;\nconst parentLogId = body._parentLogId || null;\n\nreturn [{ json: { task, priority, requestedBy, retryCount, parentLogId, startTime: Date.now() } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 400],
+      "id": "n-normalize",
+      "name": "Normalize Input"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pass through — logging will be done after completion\nconst prev = $input.first().json;\nreturn [{ json: { ...prev, logId: null, startTime: Date.now() } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 400],
+      "id": "n-log-start",
+      "name": "Prepare Task"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 256, system: 'You are a strict intent classifier for ProFit Swimming Academy. Your ONLY job is to classify a task into exactly ONE category.\\n\\nRULES:\\n1. You MUST respond with ONLY a raw JSON object. No markdown. No backticks. No explanation.\\n2. The \"category\" field MUST be exactly one of: clients, marketing, operations, content, finance\\n3. No other value is allowed. Never return null, empty, or unknown.\\n4. If the task is ambiguous, default to \"clients\".\\n\\nCATEGORY DEFINITIONS:\\n- \"clients\" = anything about lessons, bookings, reminders, parents, schedules, notifications, attendance\\n- \"marketing\" = anything about social media, posts, captions, Instagram, TikTok, Facebook, ads, promotions\\n- \"operations\" = anything about pools, locations, Google Maps, facilities, areas, Dubai, Baku geography\\n- \"content\" = anything about training plans, exercises, skills, student progress, education, curriculum\\n- \"finance\" = anything about revenue, money, payments, reports, earnings, costs, invoices, financial data\\n\\nEXAMPLES:\\n\"Send reminders for tomorrow\" -> {\"category\":\"clients\",\"confidence\":99,\"reason\":\"lesson reminders\"}\\n\"Create an Instagram post\" -> {\"category\":\"marketing\",\"confidence\":99,\"reason\":\"social media content\"}\\n\"Find pools in JBR\" -> {\"category\":\"operations\",\"confidence\":99,\"reason\":\"pool location search\"}\\n\"Make a training plan for student 123\" -> {\"category\":\"content\",\"confidence\":99,\"reason\":\"training plan generation\"}\\n\"Monthly revenue report\" -> {\"category\":\"finance\",\"confidence\":99,\"reason\":\"financial reporting\"}\\n\"How is the business doing\" -> {\"category\":\"finance\",\"confidence\":85,\"reason\":\"business performance implies financial review\"}\\n\"Prepare for next week\" -> {\"category\":\"clients\",\"confidence\":75,\"reason\":\"ambiguous, defaulting to clients/scheduling\"}', messages: [{ role: 'user', content: 'Classify this task into exactly one category. Task: ' + $json.task }] }) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 400],
+      "id": "n-claude",
+      "name": "Claude → Decide Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const prev = $('Prepare Task').first().json;\nconst VALID = ['clients', 'marketing', 'operations', 'content', 'finance'];\nconst DEFAULT_CATEGORY = 'clients';\n\ntry {\n  const raw = $input.first().json.content[0].text;\n  // Strip markdown fences, whitespace, and any leading text before {\n  let cleaned = raw.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  const braceStart = cleaned.indexOf('{');\n  const braceEnd = cleaned.lastIndexOf('}');\n  if (braceStart >= 0 && braceEnd > braceStart) {\n    cleaned = cleaned.substring(braceStart, braceEnd + 1);\n  }\n  const decision = JSON.parse(cleaned);\n\n  // STRICT VALIDATION: category must be one of the 5 allowed values\n  let category = (decision.category || '').toString().toLowerCase().trim();\n  if (!VALID.includes(category)) {\n    // Try to infer from keywords in the raw response\n    const rawLower = raw.toLowerCase();\n    category = VALID.find(v => rawLower.includes(v)) || DEFAULT_CATEGORY;\n  }\n\n  const confidence = Math.min(100, Math.max(0, parseInt(decision.confidence) || 80));\n  const reason = decision.reason || decision.reasoning || 'classified by AI';\n\n  return [{ json: {\n    ...prev,\n    category,\n    confidence,\n    reason,\n    workflow: category,\n    parameters: decision.parameters || {},\n    next_tasks: decision.next_tasks || [],\n    _parseOk: true\n  } }];\n} catch (e) {\n  // FALLBACK: if Claude response is completely unparseable, default to clients\n  const rawText = ($input.first().json.content?.[0]?.text || '').toLowerCase();\n  const VALID_CHECK = ['clients', 'marketing', 'operations', 'content', 'finance'];\n  const inferred = VALID_CHECK.find(v => rawText.includes(v)) || DEFAULT_CATEGORY;\n\n  return [{ json: {\n    ...prev,\n    category: inferred,\n    confidence: 40,\n    reason: 'PARSE_FALLBACK: ' + e.message + ' — inferred: ' + inferred,\n    workflow: inferred,\n    parameters: {},\n    next_tasks: [],\n    _parseOk: false,\n    _rawResponse: ($input.first().json.content?.[0]?.text || '').substring(0, 500)\n  } }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 400],
+      "id": "n-parse",
+      "name": "Parse Decision"
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.category }}",
+        "rules": {
+          "rules": [
+            { "value2": "clients" },
+            { "value2": "marketing" },
+            { "value2": "operations" },
+            { "value2": "content" },
+            { "value2": "finance" }
+          ]
+        },
+        "fallbackOutput": "extra"
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [1320, 400],
+      "id": "n-switch",
+      "name": "Route → Category"
+    },
+    {
+      "parameters": {
+        "workflowId": "QsPxI40xIjOGqatl",
+        "mode": "each",
+        "waitForSubWorkflow": true
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [1560, 100],
+      "id": "n-exec-clients",
+      "name": "→ Clients Workflow",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": "oE7hWIntllIxdL8P",
+        "mode": "each",
+        "waitForSubWorkflow": true
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [1560, 250],
+      "id": "n-exec-marketing",
+      "name": "→ Marketing Workflow",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": "H0FwVpvZfJAH8Vp4",
+        "mode": "each",
+        "waitForSubWorkflow": true
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [1560, 400],
+      "id": "n-exec-operations",
+      "name": "→ Operations Workflow",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": "9hCUqHVEpLZLfyw8",
+        "mode": "each",
+        "waitForSubWorkflow": true
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [1560, 550],
+      "id": "n-exec-content",
+      "name": "→ Content Workflow",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": "FY6qNJK35if7E68z",
+        "mode": "each",
+        "waitForSubWorkflow": true
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [1560, 700],
+      "id": "n-exec-finance",
+      "name": "→ Finance Workflow",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// === EVALUATE RESULT + AGENT LOOP LOGIC ===\nconst decision = $('Parse Decision').first().json;\nconst execResult = $input.first().json || {};\nconst elapsed = Date.now() - (decision.startTime || Date.now());\n\n// Detect errors: explicit error fields OR n8n continueOnError metadata\nconst hasError = execResult.status === 'error' || execResult.error || execResult.errorMessage || (execResult.$error && true);\nconst errorMsg = execResult.errorMessage || execResult.error || (execResult.$error ? execResult.$error.message : null);\nconst status = hasError ? 'failed' : 'completed';\n\nconst nextTasks = decision.next_tasks || [];\nconst hasNextTask = nextTasks.length > 0 && !hasError;\n\nreturn [{ json: {\n  status,\n  agent_version: '3.1',\n  log_id: decision.logId,\n  task: decision.task,\n  workflow_executed: decision.workflow,\n  category: decision.category,\n  confidence: decision.confidence,\n  reasoning: decision.reason,\n  parameters: decision.parameters,\n  result: hasError ? { error: errorMsg || 'Sub-workflow execution failed', raw: execResult } : execResult,\n  execution_time_ms: elapsed,\n  has_next_task: hasNextTask,\n  next_tasks: nextTasks,\n  retry_count: decision.retryCount || 0,\n  _shouldRetry: false,\n  _nextRetryCount: (decision.retryCount || 0) + 1,\n  completedAt: new Date().toISOString()\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1800, 400],
+      "id": "n-evaluate",
+      "name": "Evaluate Result"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pass through to Agent Loop Decision\nreturn [{ json: $input.first().json }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2020, 400],
+      "id": "n-log-complete",
+      "name": "Log Complete"
+    },
+    {
+      "parameters": {
+        "jsCode": "// === AGENT LOOP: decide next action ===\nconst evaluation = $('Evaluate Result').first().json;\n\nif (evaluation._shouldRetry) {\n  return [{ json: {\n    _action: 'retry',\n    task: evaluation.task,\n    _retryCount: evaluation._nextRetryCount,\n    _parentLogId: evaluation.log_id,\n    message: 'Retrying (attempt ' + evaluation._nextRetryCount + '/3)...'\n  } }];\n}\n\nif (evaluation.has_next_task && evaluation.next_tasks.length > 0) {\n  return [{ json: {\n    _action: 'next_task',\n    task: evaluation.next_tasks[0],\n    remaining_tasks: evaluation.next_tasks.slice(1),\n    _parentLogId: evaluation.log_id,\n    previous_result: evaluation.result\n  } }];\n}\n\nreturn [{ json: {\n  _action: 'done',\n  status: evaluation.status,\n  agent_version: evaluation.agent_version,\n  log_id: evaluation.log_id,\n  task: evaluation.task,\n  workflow_executed: evaluation.workflow_executed,\n  category: evaluation.category,\n  confidence: evaluation.confidence,\n  reasoning: evaluation.reasoning,\n  result: evaluation.result,\n  execution_time_ms: evaluation.execution_time_ms,\n  next_tasks: evaluation.next_tasks,\n  completedAt: evaluation.completedAt\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2240, 400],
+      "id": "n-loop-decide",
+      "name": "Agent Loop Decision"
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json._action }}",
+        "rules": {
+          "rules": [
+            { "value2": "done" },
+            { "value2": "retry" },
+            { "value2": "next_task" }
+          ]
+        },
+        "fallbackOutput": "extra"
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [2460, 400],
+      "id": "n-loop-switch",
+      "name": "Action Router"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2700, 200],
+      "id": "n-respond-done",
+      "name": "Respond Done"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'retrying', attempt: $json._retryCount, task: $json.task, message: $json.message }) }}"
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2700, 400],
+      "id": "n-respond-retry",
+      "name": "Respond Retry"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'chaining', next_task: $json.task, previous_log: $json._parentLogId }) }}"
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2700, 600],
+      "id": "n-respond-chain",
+      "name": "Respond Chain"
+    },
+    {
+      "parameters": {
+        "jsCode": "// This should now RARELY fire — Parse Decision always returns a valid category\nconst decision = $('Parse Decision').first().json;\nreturn [{ json: {\n  status: 'error',\n  agent_version: '3.1',\n  error: 'no_matching_category',\n  message: 'Category \"' + decision.category + '\" did not match any route. This indicates a bug in Parse Decision fallback logic.',\n  task: decision.task,\n  parsed_category: decision.category,\n  confidence: decision.confidence,\n  reason: decision.reason,\n  _parseOk: decision._parseOk,\n  _rawResponse: decision._rawResponse || null\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 900],
+      "id": "n-fallback",
+      "name": "No Match"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1800, 900],
+      "id": "n-respond-fallback",
+      "name": "Respond Error"
+    }
+  ],
+  "connections": {
+    "POST /agent-task": { "main": [[{ "node": "Normalize Input", "type": "main", "index": 0 }]] },
+    "Normalize Input": { "main": [[{ "node": "Prepare Task", "type": "main", "index": 0 }]] },
+    "Prepare Task": { "main": [[{ "node": "Claude → Decide Workflow", "type": "main", "index": 0 }]] },
+    "Claude → Decide Workflow": { "main": [[{ "node": "Parse Decision", "type": "main", "index": 0 }]] },
+    "Parse Decision": { "main": [[{ "node": "Route → Category", "type": "main", "index": 0 }]] },
+    "Route → Category": {
+      "main": [
+        [{ "node": "→ Clients Workflow", "type": "main", "index": 0 }],
+        [{ "node": "→ Marketing Workflow", "type": "main", "index": 0 }],
+        [{ "node": "→ Operations Workflow", "type": "main", "index": 0 }],
+        [{ "node": "→ Content Workflow", "type": "main", "index": 0 }],
+        [{ "node": "→ Finance Workflow", "type": "main", "index": 0 }],
+        [{ "node": "No Match", "type": "main", "index": 0 }]
+      ]
+    },
+    "→ Clients Workflow": { "main": [[{ "node": "Evaluate Result", "type": "main", "index": 0 }]] },
+    "→ Marketing Workflow": { "main": [[{ "node": "Evaluate Result", "type": "main", "index": 0 }]] },
+    "→ Operations Workflow": { "main": [[{ "node": "Evaluate Result", "type": "main", "index": 0 }]] },
+    "→ Content Workflow": { "main": [[{ "node": "Evaluate Result", "type": "main", "index": 0 }]] },
+    "→ Finance Workflow": { "main": [[{ "node": "Evaluate Result", "type": "main", "index": 0 }]] },
+    "Evaluate Result": { "main": [[{ "node": "Log Complete", "type": "main", "index": 0 }]] },
+    "Log Complete": { "main": [[{ "node": "Agent Loop Decision", "type": "main", "index": 0 }]] },
+    "Agent Loop Decision": { "main": [[{ "node": "Action Router", "type": "main", "index": 0 }]] },
+    "Action Router": {
+      "main": [
+        [{ "node": "Respond Done", "type": "main", "index": 0 }],
+        [{ "node": "Respond Retry", "type": "main", "index": 0 }],
+        [{ "node": "Respond Chain", "type": "main", "index": 0 }],
+        [{ "node": "Respond Done", "type": "main", "index": 0 }]
+      ]
+    },
+    "No Match": { "main": [[{ "node": "Respond Error", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": { "instanceId": "profitlab" }
+}

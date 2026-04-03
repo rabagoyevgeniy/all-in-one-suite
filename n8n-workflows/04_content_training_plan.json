@@ -1,0 +1,100 @@
+{
+  "name": "04_content_training_plan",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [0, 300],
+      "id": "trigger",
+      "name": "Called by Agent"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/rpc/get_student_progress",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_student_id: $json.student_id || $json.parameters?.student_id }) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 300],
+      "id": "get-progress",
+      "name": "Supabase → Student Progress"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 3000, system: 'You are the Head Swimming Coach AI for ProFit Swimming Academy. Generate personalized training plans based on student progress data.\\n\\nProFit Belt System (in order):\\nWhite, Yellow, Orange, Green, Sky Blue, Blue, Black\\n\\nEach belt requires specific competencies. Plans should be practical, age-appropriate, and tied to the gamification system (coins, streaks, achievements).', messages: [{ role: 'user', content: 'Generate a 4-week personalized training plan for this student:\\n\\n' + JSON.stringify($input.first().json, null, 2) + '\\n\\nInclude:\\n1. Current Assessment (belt, strengths, areas to improve)\\n2. 4 Weekly Plans with:\\n   - Goal for the week\\n   - 2-3 specific drills (distance, sets, rest)\\n   - Fun challenge tied to coins\\n3. Belt Progression Target\\n4. Recommended lesson frequency\\n5. Parent Communication Summary (2-3 sentences)\\n\\nFormat as structured text with clear sections.' }] }) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 300],
+      "id": "claude-plan",
+      "name": "Claude → Training Plan"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/training_plans",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ student_id: $('Called by Agent').first().json.student_id || $('Called by Agent').first().json.parameters?.student_id, week_start: new Date().toISOString().split('T')[0], week_end: new Date(Date.now() + 28*86400000).toISOString().split('T')[0], goals: ['AI-generated 4-week training plan'], sessions: { ai_plan: $input.first().json.content[0].text }, coach_instructions: $input.first().json.content[0].text.substring(0, 2000), parent_notes: 'AI-generated training plan — review with coach before starting.', status: 'active', completion_percent: 0 }) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [780, 300],
+      "id": "save",
+      "name": "Save → Supabase"
+    },
+    {
+      "parameters": {
+        "jsCode": "const studentData = $('Supabase → Student Progress').first().json;\nconst plan = $('Claude → Training Plan').first().json.content?.[0]?.text || 'No plan generated';\nconst saved = $input.first().json;\nconst studentId = $('Called by Agent').first().json.student_id || $('Called by Agent').first().json.parameters?.student_id;\n\nreturn [{ json: {\n  status: 'completed',\n  workflow: '04_content_training_plan',\n  student_id: studentId,\n  student_name: studentData?.student?.name || 'Unknown',\n  current_belt: studentData?.student?.belt || 'unknown',\n  plan_saved: Array.isArray(saved) ? !!saved[0]?.id : !!saved?.id,\n  plan_preview: plan.substring(0, 800),\n  plan_full: plan,\n  completedAt: new Date().toISOString()\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1040, 300],
+      "id": "output",
+      "name": "Final → Output"
+    }
+  ],
+  "connections": {
+    "Called by Agent": { "main": [[{ "node": "Supabase → Student Progress", "type": "main", "index": 0 }]] },
+    "Supabase → Student Progress": { "main": [[{ "node": "Claude → Training Plan", "type": "main", "index": 0 }]] },
+    "Claude → Training Plan": { "main": [[{ "node": "Save → Supabase", "type": "main", "index": 0 }]] },
+    "Save → Supabase": { "main": [[{ "node": "Final → Output", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

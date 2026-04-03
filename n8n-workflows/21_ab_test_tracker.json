@@ -1,0 +1,70 @@
+{
+  "name": "21_ab_test_tracker",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [0, 300],
+      "id": "trigger",
+      "name": "Called by Agent"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/ab_tests?select=*&order=created_at.desc&limit=10",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 300],
+      "id": "get-tests",
+      "name": "Supabase → Test Data"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2048, system: 'You are a data scientist for ProFit Swimming Academy. Analyze A/B test results: statistical significance, conversion differences, confidence intervals, recommendation (ship variant A or B or keep testing). Be precise with numbers.', messages: [{ role: 'user', content: 'Analyze the following A/B test data for ProFit Swimming Academy:\\n\\n' + JSON.stringify($input.all().map(i => i.json), null, 2) + '\\n\\nFor each test provide:\\n1. Test Name and Variants\\n2. Sample Size per Variant\\n3. Conversion Rate per Variant\\n4. Statistical Significance (p-value estimate)\\n5. Confidence Interval\\n6. Recommendation (Ship A, Ship B, or Keep Testing)\\n7. Estimated Impact if Shipped\\n\\nAlso provide:\\n- Overall Testing Program Health\\n- Tests That Should Be Stopped Early\\n- Suggested Next Tests to Run' }] }) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 300],
+      "id": "claude-analyze",
+      "name": "Claude → Test Analysis"
+    },
+    {
+      "parameters": {
+        "jsCode": "const tests = $('Supabase → Test Data').all().map(i => i.json);\nconst report = $input.first().json.content?.[0]?.text || 'No report generated';\n\nreturn [{ json: {\n  status: 'completed',\n  workflow: '21_ab_test_tracker',\n  total_tests: tests.length,\n  test_names: tests.map(t => t.name || t.test_name || 'unnamed'),\n  report,\n  completedAt: new Date().toISOString()\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [780, 300],
+      "id": "output",
+      "name": "Final → Output"
+    }
+  ],
+  "connections": {
+    "Called by Agent": { "main": [[{ "node": "Supabase → Test Data", "type": "main", "index": 0 }]] },
+    "Supabase → Test Data": { "main": [[{ "node": "Claude → Test Analysis", "type": "main", "index": 0 }]] },
+    "Claude → Test Analysis": { "main": [[{ "node": "Final → Output", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

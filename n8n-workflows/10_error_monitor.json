@@ -1,0 +1,120 @@
+{
+  "name": "10_error_monitor",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 300],
+      "id": "trigger",
+      "name": "Called by Agent",
+      "webhookId": "chat-error-monitor"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/agent_workflow_logs?select=id,workflow_name,workflow_category,status,error_message,task_input,execution_time_ms,created_at,completed_at&status=in.(error,failed)&order=created_at.desc&limit=20",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 200],
+      "id": "get-errors",
+      "name": "Supabase → Error Logs",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/agent_workflow_logs?select=id,workflow_name,status,execution_time_ms,created_at&status=eq.running&order=created_at.desc&limit=10",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 440],
+      "id": "get-stuck",
+      "name": "Supabase → Stuck Tasks",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [520, 300],
+      "id": "wait-both",
+      "name": "Wait for Both"
+    },
+    {
+      "parameters": {
+        "jsCode": "const errors = $('Supabase → Error Logs').all().map(i => i.json);\nconst stuck = $('Supabase → Stuck Tasks').all().map(i => i.json);\nconst project = $('Called by Agent').first().json?.chatInput || 'profit';\n\nreturn [{ json: {\n  project,\n  error_logs: Array.isArray(errors) ? errors : [],\n  error_count: Array.isArray(errors) ? errors.length : 0,\n  stuck_tasks: Array.isArray(stuck) ? stuck : [],\n  stuck_count: Array.isArray(stuck) ? stuck.length : 0,\n  checked_at: new Date().toISOString()\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [740, 300],
+      "id": "merge-data",
+      "name": "Merge Errors + Stuck"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2048, system: 'You are a senior DevOps engineer for ProFit Swimming Academy. Analyze error logs and stuck tasks from the agent_workflow_logs table. Group errors by type, identify recurring patterns, suggest fixes, and assign priority levels (P0=critical/outage, P1=high/data-loss-risk, P2=medium/degraded-experience, P3=low/cosmetic).\\n\\nIf there are no errors, congratulate the team and suggest preventive measures.\\n\\nAlways return valid JSON only — no markdown, no backticks.', messages: [{ role: 'user', content: 'Analyze error monitoring data for project: ' + $input.first().json.project + '\\n\\nError logs (' + $input.first().json.error_count + ' entries):\\n' + JSON.stringify($input.first().json.error_logs, null, 2) + '\\n\\nStuck/running tasks (' + $input.first().json.stuck_count + ' entries):\\n' + JSON.stringify($input.first().json.stuck_tasks, null, 2) + '\\n\\nRespond with this JSON structure:\\n{\\n  \\\"summary\\\": \\\"one-line health status\\\",\\n  \\\"health_score\\\": \\\"0-100\\\",\\n  \\\"errors_grouped\\\": { \\\"<error_type>\\\": [{ \\\"message\\\": \\\"...\\\", \\\"count\\\": 0, \\\"last_seen\\\": \\\"...\\\" }] },\\n  \\\"stuck_tasks\\\": [{ \\\"workflow\\\": \\\"...\\\", \\\"running_since\\\": \\\"...\\\", \\\"action\\\": \\\"...\\\" }],\\n  \\\"patterns\\\": [\\\"pattern description\\\"],\\n  \\\"recommended_fixes\\\": [{ \\\"priority\\\": \\\"P0-P3\\\", \\\"fix\\\": \\\"description\\\", \\\"affected_area\\\": \\\"...\\\" }],\\n  \\\"priority_actions\\\": [{ \\\"priority\\\": \\\"P0-P3\\\", \\\"action\\\": \\\"immediate action\\\", \\\"estimated_effort\\\": \\\"...\\\" }]\\n}' }] }) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 300],
+      "id": "claude-analyze",
+      "name": "Claude → Analyze Errors"
+    },
+    {
+      "parameters": {
+        "jsCode": "const merged = $('Merge Errors + Stuck').first().json;\nconst analysis = $input.first().json.content?.[0]?.text || '{}';\n\nlet parsed = {};\ntry {\n  const cleaned = analysis.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  parsed = JSON.parse(cleaned);\n} catch (e) {\n  parsed = { raw_analysis: analysis };\n}\n\nreturn [{ json: {\n  status: 'completed',\n  workflow: '10_error_monitor',\n  project: merged.project,\n  total_errors: merged.error_count,\n  total_stuck: merged.stuck_count,\n  summary: parsed.summary || 'Analysis complete',\n  health_score: parsed.health_score || 'N/A',\n  errors_grouped: parsed.errors_grouped || {},\n  stuck_tasks: parsed.stuck_tasks || [],\n  patterns: parsed.patterns || [],\n  recommended_fixes: parsed.recommended_fixes || [],\n  priority_actions: parsed.priority_actions || [],\n  completedAt: new Date().toISOString()\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1260, 300],
+      "id": "output",
+      "name": "Format → Output"
+    }
+  ],
+  "connections": {
+    "Called by Agent": {
+      "main": [[
+        { "node": "Supabase → Error Logs", "type": "main", "index": 0 },
+        { "node": "Supabase → Stuck Tasks", "type": "main", "index": 0 }
+      ]]
+    },
+    "Supabase → Error Logs": { "main": [[{ "node": "Wait for Both", "type": "main", "index": 0 }]] },
+    "Supabase → Stuck Tasks": { "main": [[{ "node": "Wait for Both", "type": "main", "index": 1 }]] },
+    "Wait for Both": { "main": [[{ "node": "Merge Errors + Stuck", "type": "main", "index": 0 }]] },
+    "Merge Errors + Stuck": { "main": [[{ "node": "Claude → Analyze Errors", "type": "main", "index": 0 }]] },
+    "Claude → Analyze Errors": { "main": [[{ "node": "Format → Output", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

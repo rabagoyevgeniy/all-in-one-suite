@@ -1,0 +1,74 @@
+{
+  "name": "15_user_analytics_digest",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [0, 300],
+      "id": "trigger",
+      "name": "Called by Agent"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/rpc/get_daily_stats",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 300],
+      "id": "get-user-stats",
+      "name": "Supabase → User Stats",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2048, system: 'You are the Head of Growth Analytics for ProFit Swimming Academy (Dubai + Baku). Generate detailed user analytics digests. Analyze new signups, active sessions, conversion rates by role (admin, coach, parent, student, pro_athlete, personal_manager). Identify engagement trends and provide growth recommendations.\\n\\nThe platform has 7 user roles: admin, head_manager, coach, personal_manager, parent, student, pro_athlete.\\n\\nAlways respond with valid JSON only — no markdown, no backticks.', messages: [{ role: 'user', content: 'Generate a user analytics digest from this data:\\n\\n' + JSON.stringify($input.first().json, null, 2) + '\\n\\nRespond with this exact JSON structure:\\n{\\n  \\\"summary\\\": \\\"one-line analytics headline\\\",\\n  \\\"total_users\\\": 0,\\n  \\\"new_signups\\\": { \\\"total\\\": 0, \\\"by_role\\\": { \\\"parent\\\": 0, \\\"student\\\": 0, \\\"coach\\\": 0, \\\"pro_athlete\\\": 0 } },\\n  \\\"active_users\\\": { \\\"daily\\\": 0, \\\"weekly\\\": 0, \\\"monthly\\\": 0 },\\n  \\\"role_distribution\\\": [{ \\\"role\\\": \\\"...\\\", \\\"count\\\": 0, \\\"percentage\\\": \\\"...\\\" }],\\n  \\\"engagement_metrics\\\": { \\\"avg_sessions_per_user\\\": 0, \\\"avg_session_duration\\\": \\\"...\\\", \\\"most_active_role\\\": \\\"...\\\", \\\"least_active_role\\\": \\\"...\\\" },\\n  \\\"conversion_funnel\\\": { \\\"signup_to_booking\\\": \\\"...\\\", \\\"booking_to_subscription\\\": \\\"...\\\", \\\"trial_to_paid\\\": \\\"...\\\" },\\n  \\\"trends\\\": [\\\"key trend observations\\\"],\\n  \\\"growth_recommendations\\\": [\\\"top 3 actionable growth recommendations\\\"],\\n  \\\"alerts\\\": [\\\"any concerning patterns or drop-offs\\\"]\\n}' }] }) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 300],
+      "id": "claude-analytics",
+      "name": "Claude → Analytics Report"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.content?.[0]?.text || '{}';\n\nlet parsed = {};\ntry {\n  const cleaned = raw.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  parsed = JSON.parse(cleaned);\n} catch (e) {\n  parsed = { raw_analysis: raw };\n}\n\nreturn [{ json: {\n  status: 'completed',\n  workflow: '15_user_analytics_digest',\n  summary: parsed.summary || 'Analytics digest complete',\n  total_users: parsed.total_users || 0,\n  new_signups: parsed.new_signups || {},\n  active_users: parsed.active_users || {},\n  role_distribution: parsed.role_distribution || [],\n  engagement_metrics: parsed.engagement_metrics || {},\n  conversion_funnel: parsed.conversion_funnel || {},\n  trends: parsed.trends || [],\n  growth_recommendations: parsed.growth_recommendations || [],\n  alerts: parsed.alerts || [],\n  report: parsed,\n  completedAt: new Date().toISOString()\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [780, 300],
+      "id": "output",
+      "name": "Final → Output"
+    }
+  ],
+  "connections": {
+    "Called by Agent": { "main": [[{ "node": "Supabase → User Stats", "type": "main", "index": 0 }]] },
+    "Supabase → User Stats": { "main": [[{ "node": "Claude → Analytics Report", "type": "main", "index": 0 }]] },
+    "Claude → Analytics Report": { "main": [[{ "node": "Final → Output", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

@@ -1,0 +1,70 @@
+{
+  "name": "19_coach_performance",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [0, 300],
+      "id": "trigger",
+      "name": "Called by Agent"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/coaches?select=id,full_name,avg_rating,total_lessons,active_students,city&order=avg_rating.desc",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 300],
+      "id": "get-coaches",
+      "name": "Supabase → Coach Data"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2048, system: 'You are the HR director for ProFit Swimming Academy. Analyze coach performance: top performers, underperformers needing support, student retention rates, city-level comparison (Dubai vs Baku). Provide coaching recommendations.', messages: [{ role: 'user', content: 'Analyze the following coach performance data for ProFit Swimming Academy:\\n\\n' + JSON.stringify($input.all().map(i => i.json), null, 2) + '\\n\\nProvide:\\n1. Top Performers (highest rated, most lessons, best retention)\\n2. Underperformers Needing Support (low ratings, declining students)\\n3. Student Retention Analysis (active students vs total lessons ratio)\\n4. City Comparison (Dubai vs Baku coach performance)\\n5. Coaching Recommendations (3-5 actionable items)\\n6. Overall Team Health Score (0-100)' }] }) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 300],
+      "id": "claude-analyze",
+      "name": "Claude → Performance Report"
+    },
+    {
+      "parameters": {
+        "jsCode": "const coaches = $('Supabase → Coach Data').all().map(i => i.json);\nconst report = $input.first().json.content?.[0]?.text || 'No report generated';\n\nconst topCoaches = coaches\n  .filter(c => c.avg_rating >= 4.5)\n  .map(c => ({ name: c.full_name, rating: c.avg_rating, lessons: c.total_lessons, city: c.city }));\n\nconst needsAttention = coaches\n  .filter(c => c.avg_rating < 3.5 || c.active_students < 2)\n  .map(c => ({ name: c.full_name, rating: c.avg_rating, active_students: c.active_students, city: c.city }));\n\nreturn [{ json: {\n  status: 'completed',\n  workflow: '19_coach_performance',\n  total_coaches: coaches.length,\n  top_coaches: topCoaches,\n  needs_attention: needsAttention,\n  report,\n  completedAt: new Date().toISOString()\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [780, 300],
+      "id": "output",
+      "name": "Final → Output"
+    }
+  ],
+  "connections": {
+    "Called by Agent": { "main": [[{ "node": "Supabase → Coach Data", "type": "main", "index": 0 }]] },
+    "Supabase → Coach Data": { "main": [[{ "node": "Claude → Performance Report", "type": "main", "index": 0 }]] },
+    "Claude → Performance Report": { "main": [[{ "node": "Final → Output", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

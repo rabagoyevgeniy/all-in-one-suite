@@ -1,0 +1,70 @@
+{
+  "name": "16_feedback_collector",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [0, 300],
+      "id": "trigger",
+      "name": "Called by Agent"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/feedback?order=created_at.desc&limit=20",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 300],
+      "id": "get-feedback",
+      "name": "Supabase → Recent Feedback"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2048, system: 'You are a product manager for ProFit Swimming Academy. Classify each feedback item as: bug, feature_request, ux_issue, praise, or other. Prioritize as: critical, high, medium, low. Return JSON array.', messages: [{ role: 'user', content: 'Classify and prioritize the following user feedback items:\\n\\n' + JSON.stringify($input.first().json, null, 2) + '\\n\\nReturn a JSON array where each item has:\\n- id: original feedback id\\n- category: bug | feature_request | ux_issue | praise | other\\n- priority: critical | high | medium | low\\n- summary: one-line summary of the feedback\\n- suggested_action: what the team should do\\n\\nReturn valid JSON only — no markdown, no backticks.' }] }) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 300],
+      "id": "claude-classify",
+      "name": "Claude → Classify Feedback"
+    },
+    {
+      "parameters": {
+        "jsCode": "const feedbackRaw = $('Supabase → Recent Feedback').all().map(i => i.json);\nconst classified = $input.first().json.content?.[0]?.text || '[]';\n\nlet parsed = [];\ntry {\n  const cleaned = classified.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  parsed = JSON.parse(cleaned);\n} catch (e) {\n  parsed = [{ raw: classified }];\n}\n\nconst counts = { bug: 0, feature_request: 0, ux_issue: 0, praise: 0, other: 0 };\nif (Array.isArray(parsed)) {\n  parsed.forEach(item => {\n    if (item.category && counts.hasOwnProperty(item.category)) {\n      counts[item.category]++;\n    } else {\n      counts.other++;\n    }\n  });\n}\n\nreturn [{ json: {\n  status: 'completed',\n  workflow: '16_feedback_collector',\n  total_feedback: feedbackRaw.length,\n  classified_feedback: parsed,\n  counts_by_type: counts,\n  completedAt: new Date().toISOString()\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [780, 300],
+      "id": "output",
+      "name": "Final → Output"
+    }
+  ],
+  "connections": {
+    "Called by Agent": { "main": [[{ "node": "Supabase → Recent Feedback", "type": "main", "index": 0 }]] },
+    "Supabase → Recent Feedback": { "main": [[{ "node": "Claude → Classify Feedback", "type": "main", "index": 0 }]] },
+    "Claude → Classify Feedback": { "main": [[{ "node": "Final → Output", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

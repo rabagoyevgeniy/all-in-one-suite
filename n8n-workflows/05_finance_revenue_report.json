@@ -1,0 +1,73 @@
+{
+  "name": "05_finance_revenue_report",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [0, 300],
+      "id": "trigger",
+      "name": "Called by Agent"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/rpc/get_revenue_summary",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ period: $json.period || $json.parameters?.period || 'weekly' }) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 300],
+      "id": "get-revenue",
+      "name": "Supabase → Revenue Data"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2048, system: 'You are the CFO analyst for ProFit Swimming Academy (Dubai AED + Baku AZN). Generate professional executive financial reports. Be specific with numbers. Identify trends and provide actionable recommendations.', messages: [{ role: 'user', content: 'Generate a ' + ($input.first().json.period || 'weekly') + ' revenue report from this data:\\n\\n' + JSON.stringify($input.first().json, null, 2) + '\\n\\nInclude:\\n1. Revenue Headline (total income, expenses, net)\\n2. Breakdown by Type (subscriptions, lessons, coin purchases, etc.)\\n3. City Comparison (Dubai vs Baku performance)\\n4. Key Insights (3 bullet points)\\n5. Concerning Trends (if any)\\n6. Recommendations for Next Period (3 actionable items)\\n7. Coin Economy Health (if data available)\\n\\nFormat as a clean executive summary with sections.' }] }) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 300],
+      "id": "claude-report",
+      "name": "Claude → Financial Analysis"
+    },
+    {
+      "parameters": {
+        "jsCode": "const revenueData = $('Supabase → Revenue Data').first().json;\nconst report = $input.first().json.content?.[0]?.text || 'No report generated';\nconst period = $('Called by Agent').first().json.period || $('Called by Agent').first().json.parameters?.period || 'weekly';\n\nreturn [{ json: {\n  status: 'completed',\n  workflow: '05_finance_revenue_report',\n  period,\n  data_summary: {\n    total_income: revenueData.total_income || 0,\n    total_expense: revenueData.total_expense || 0,\n    net_revenue: revenueData.net_revenue || 0,\n    transaction_count: revenueData.transaction_count || 0,\n    by_type: revenueData.by_type || {},\n    by_city: revenueData.by_city || {},\n    by_currency: revenueData.by_currency || {}\n  },\n  report,\n  completedAt: new Date().toISOString()\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [780, 300],
+      "id": "output",
+      "name": "Final → Output"
+    }
+  ],
+  "connections": {
+    "Called by Agent": { "main": [[{ "node": "Supabase → Revenue Data", "type": "main", "index": 0 }]] },
+    "Supabase → Revenue Data": { "main": [[{ "node": "Claude → Financial Analysis", "type": "main", "index": 0 }]] },
+    "Claude → Financial Analysis": { "main": [[{ "node": "Final → Output", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

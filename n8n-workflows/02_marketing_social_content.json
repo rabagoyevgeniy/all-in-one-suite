@@ -1,0 +1,51 @@
+{
+  "name": "02_marketing_social_content",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [0, 300],
+      "id": "trigger",
+      "name": "Called by Agent"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2048, system: 'You are the senior social media manager for ProFit Swimming Academy — a premium swim school where certified coaches travel to clients\\' private pools in Dubai (AED) and Baku (AZN).\\n\\nBrand voice: Premium yet fun, family-friendly, achievement-focused.\\nKey selling points: Private pool convenience, certified coaches, gamified learning (swim belts from White to Black, coins, duels), Dubai+Baku locations.\\n\\nAlways respond with valid JSON only — no markdown, no backticks.', messages: [{ role: 'user', content: 'Generate social media content for:\\nTopic: ' + ($json.topic || $json.parameters?.topic || 'swimming lessons for kids') + '\\nPlatform: ' + ($json.platform || $json.parameters?.platform || 'instagram') + '\\n\\nRespond with this exact JSON structure:\\n{\\n  \\\"caption\\\": \\\"engaging post caption with emojis, max 300 chars\\\",\\n  \\\"hashtags\\\": [\\\"relevant\\\", \\\"hashtags\\\", \\\"10-15 total\\\"],\\n  \\\"image_prompt\\\": \\\"detailed AI image generation description, 1-2 sentences\\\",\\n  \\\"story_version\\\": \\\"shorter story/reel caption with CTA, max 150 chars\\\",\\n  \\\"cta\\\": \\\"call to action text\\\",\\n  \\\"best_time\\\": \\\"suggested posting time with timezone\\\"\\n}' }] }) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 300],
+      "id": "claude-gen",
+      "name": "Claude → Generate Content"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Called by Agent').first().json;\ntry {\n  const raw = $input.first().json.content[0].text;\n  const cleaned = raw.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  const content = JSON.parse(cleaned);\n  return [{ json: {\n    status: 'completed',\n    workflow: '02_marketing_social_content',\n    platform: input.platform || input.parameters?.platform || 'instagram',\n    topic: input.topic || input.parameters?.topic || 'swimming lessons',\n    content,\n    completedAt: new Date().toISOString()\n  } }];\n} catch (e) {\n  const raw = $input.first().json.content?.[0]?.text || 'No content';\n  return [{ json: {\n    status: 'completed',\n    workflow: '02_marketing_social_content',\n    content_raw: raw,\n    parse_note: 'Response was not valid JSON, returning raw text',\n    completedAt: new Date().toISOString()\n  } }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300],
+      "id": "format",
+      "name": "Format → Output"
+    }
+  ],
+  "connections": {
+    "Called by Agent": { "main": [[{ "node": "Claude → Generate Content", "type": "main", "index": 0 }]] },
+    "Claude → Generate Content": { "main": [[{ "node": "Format → Output", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

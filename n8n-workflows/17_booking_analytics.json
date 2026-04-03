@@ -1,0 +1,73 @@
+{
+  "name": "17_booking_analytics",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [0, 300],
+      "id": "trigger",
+      "name": "Called by Agent"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/rpc/get_daily_stats",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 300],
+      "id": "get-booking-data",
+      "name": "Supabase → Booking Data"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2048, system: 'You are a business analyst for ProFit Swimming Academy (Dubai AED + Baku AZN). Analyze booking data: peak hours, busiest days, coach utilization rates, popular pools, cancellation patterns. Give actionable recommendations.', messages: [{ role: 'user', content: 'Analyze the following booking and operational data:\\n\\n' + JSON.stringify($input.first().json, null, 2) + '\\n\\nProvide a comprehensive booking analytics report including:\\n1. Peak Hours — when are most lessons booked\\n2. Busiest Days — day-of-week trends\\n3. Coach Utilization — which coaches are overbooked or underbooked\\n4. Popular Pools/Locations — top locations by booking volume\\n5. Cancellation Patterns — rate, common reasons, time-of-cancellation trends\\n6. Revenue per Booking — average lesson fee and transport fee\\n7. City Comparison — Dubai vs Baku performance\\n8. Actionable Recommendations — top 5 things to improve\\n\\nReturn valid JSON only — no markdown, no backticks.' }] }) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 300],
+      "id": "claude-analyze",
+      "name": "Claude → Booking Analysis"
+    },
+    {
+      "parameters": {
+        "jsCode": "const bookingData = $('Supabase → Booking Data').first().json;\nconst analysis = $input.first().json.content?.[0]?.text || '{}';\n\nlet parsed = {};\ntry {\n  const cleaned = analysis.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  parsed = JSON.parse(cleaned);\n} catch (e) {\n  parsed = { raw_analysis: analysis };\n}\n\nreturn [{ json: {\n  status: 'completed',\n  workflow: '17_booking_analytics',\n  data_source: 'get_daily_stats',\n  analysis: parsed,\n  completedAt: new Date().toISOString()\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [780, 300],
+      "id": "output",
+      "name": "Final → Output"
+    }
+  ],
+  "connections": {
+    "Called by Agent": { "main": [[{ "node": "Supabase → Booking Data", "type": "main", "index": 0 }]] },
+    "Supabase → Booking Data": { "main": [[{ "node": "Claude → Booking Analysis", "type": "main", "index": 0 }]] },
+    "Claude → Booking Analysis": { "main": [[{ "node": "Final → Output", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

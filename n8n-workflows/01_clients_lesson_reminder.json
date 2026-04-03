@@ -1,0 +1,86 @@
+{
+  "name": "01_clients_lesson_reminder",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [0, 300],
+      "id": "trigger",
+      "name": "Called by Agent"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/rpc/get_tomorrow_bookings",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 300],
+      "id": "get-bookings",
+      "name": "Supabase → Tomorrow Bookings"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst bookings = Array.isArray(data) ? data : (data?.get_tomorrow_bookings || []);\n\nif (!bookings || bookings.length === 0) {\n  return [{ json: {\n    status: 'completed',\n    workflow: '01_clients_lesson_reminder',\n    message: 'No bookings found for tomorrow',\n    reminders: [],\n    count: 0\n  } }];\n}\n\nreturn bookings.map(b => ({ json: {\n  bookingId: b.id,\n  parentName: b.parent_name || 'Parent',\n  parentPhone: b.parent_phone || '',\n  coachName: b.coach_name || 'Coach',\n  studentName: b.student_name || 'Student',\n  poolName: b.pool_name || 'TBD',\n  poolAddress: b.pool_address || '',\n  lessonTime: b.lesson_time || 'TBD',\n  lessonFee: b.lesson_fee,\n  currency: b.currency || 'AED'\n} }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300],
+      "id": "parse-bookings",
+      "name": "Parse Bookings"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 300, messages: [{ role: 'user', content: 'Generate a friendly WhatsApp reminder (under 200 chars) for a parent about their child\\'s swimming lesson tomorrow.\\n\\nParent: ' + $json.parentName + '\\nStudent: ' + $json.studentName + '\\nCoach: ' + $json.coachName + '\\nPool: ' + $json.poolName + '\\nTime: ' + $json.lessonTime + '\\n\\nBrand: ProFit Swimming 🏊\\nTone: warm, professional, encouraging.\\nInclude a swim emoji. Output ONLY the message text.' }] }) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 300],
+      "id": "claude-msg",
+      "name": "Claude → Generate Message"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst bookingData = $('Parse Bookings').all();\n\nconst reminders = items.map((item, i) => {\n  const booking = bookingData[i]?.json || {};\n  const message = item.json?.content?.[0]?.text || 'Reminder: swimming lesson tomorrow!';\n  return {\n    parent: booking.parentName,\n    student: booking.studentName,\n    phone: booking.parentPhone,\n    coach: booking.coachName,\n    pool: booking.poolName,\n    time: booking.lessonTime,\n    message\n  };\n});\n\nreturn [{ json: {\n  status: 'completed',\n  workflow: '01_clients_lesson_reminder',\n  reminders_generated: reminders.length,\n  reminders,\n  completedAt: new Date().toISOString()\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300],
+      "id": "aggregate",
+      "name": "Aggregate → Output"
+    }
+  ],
+  "connections": {
+    "Called by Agent": { "main": [[{ "node": "Supabase → Tomorrow Bookings", "type": "main", "index": 0 }]] },
+    "Supabase → Tomorrow Bookings": { "main": [[{ "node": "Parse Bookings", "type": "main", "index": 0 }]] },
+    "Parse Bookings": { "main": [[{ "node": "Claude → Generate Message", "type": "main", "index": 0 }]] },
+    "Claude → Generate Message": { "main": [[{ "node": "Aggregate → Output", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

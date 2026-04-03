@@ -1,0 +1,74 @@
+{
+  "name": "14_database_health_report",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [0, 300],
+      "id": "trigger",
+      "name": "Called by Agent"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/rpc/get_daily_stats",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 300],
+      "id": "get-table-stats",
+      "name": "Supabase → Table Stats",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2048, system: 'You are a senior Database Administrator for ProFit Swimming Academy (Supabase PostgreSQL, 38+ tables). Generate a weekly database health report. Analyze table sizes, row counts, growth trends, and identify potential issues like missing indexes, bloated tables, or slow-growing tables that may indicate feature adoption problems.\\n\\nAlways respond with valid JSON only — no markdown, no backticks.', messages: [{ role: 'user', content: 'Generate a weekly database health report from these stats:\\n\\n' + JSON.stringify($input.first().json, null, 2) + '\\n\\nRespond with this exact JSON structure:\\n{\\n  \\\"summary\\\": \\\"one-line database health status\\\",\\n  \\\"health_score\\\": \\\"0-100\\\",\\n  \\\"table_analysis\\\": [{ \\\"table\\\": \\\"...\\\", \\\"row_count\\\": 0, \\\"growth_trend\\\": \\\"growing/stable/declining\\\", \\\"notes\\\": \\\"...\\\" }],\\n  \\\"growth_trends\\\": [\\\"overall growth observations\\\"],\\n  \\\"potential_issues\\\": [{ \\\"issue\\\": \\\"...\\\", \\\"severity\\\": \\\"high/medium/low\\\", \\\"affected_table\\\": \\\"...\\\", \\\"recommendation\\\": \\\"...\\\" }],\\n  \\\"optimization_suggestions\\\": [\\\"actionable optimization tips\\\"],\\n  \\\"capacity_forecast\\\": \\\"estimated time until capacity concerns based on growth rate\\\",\\n  \\\"recommendations\\\": [\\\"top 3 database recommendations\\\"]\\n}' }] }) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 300],
+      "id": "claude-health",
+      "name": "Claude → Health Analysis"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.content?.[0]?.text || '{}';\n\nlet parsed = {};\ntry {\n  const cleaned = raw.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  parsed = JSON.parse(cleaned);\n} catch (e) {\n  parsed = { raw_analysis: raw };\n}\n\nreturn [{ json: {\n  status: 'completed',\n  workflow: '14_database_health_report',\n  summary: parsed.summary || 'Health analysis complete',\n  health_score: parsed.health_score || 'N/A',\n  table_analysis: parsed.table_analysis || [],\n  growth_trends: parsed.growth_trends || [],\n  potential_issues: parsed.potential_issues || [],\n  optimization_suggestions: parsed.optimization_suggestions || [],\n  capacity_forecast: parsed.capacity_forecast || 'N/A',\n  recommendations: parsed.recommendations || [],\n  report: parsed,\n  completedAt: new Date().toISOString()\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [780, 300],
+      "id": "output",
+      "name": "Final → Output"
+    }
+  ],
+  "connections": {
+    "Called by Agent": { "main": [[{ "node": "Supabase → Table Stats", "type": "main", "index": 0 }]] },
+    "Supabase → Table Stats": { "main": [[{ "node": "Claude → Health Analysis", "type": "main", "index": 0 }]] },
+    "Claude → Health Analysis": { "main": [[{ "node": "Final → Output", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

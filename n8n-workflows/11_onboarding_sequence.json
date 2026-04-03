@@ -1,0 +1,51 @@
+{
+  "name": "11_onboarding_sequence",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 300],
+      "id": "trigger",
+      "name": "Called by Agent",
+      "webhookId": "chat-onboarding"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1024, system: 'You are ProFit Swimming Academy\\'s client success manager. Generate personalized onboarding messages for WhatsApp (max 300 characters).\\n\\nProFit is a premium swim coaching service where coaches travel to clients\\' private pools in Dubai (AED) and Baku (AZN).\\n\\nTone: warm, premium, encouraging. Use the parent\\'s name and child\\'s name naturally.\\n\\nDay 1 message: Warm welcome, what to expect from the first lesson, prep tips (pool temperature, swimwear, towel).\\nDay 3 message: Check-in after first lesson, encourage the child, ask for feedback, share a fun swim fact.\\nDay 7 message: Highlight early progress, mention the belt system, referral offer (both get 50 bonus coins), subscription upsell.\\n\\nReturn valid JSON:\\n{\\n  \"message\": \"the WhatsApp message (max 300 chars)\",\\n  \"channel\": \"whatsapp\",\\n  \"send_time\": \"suggested send time like 10:00 or 18:00\",\\n  \"follow_up_needed\": true/false,\\n  \"next_day\": next onboarding day number or null if done\\n}', messages: [{ role: 'user', content: 'Generate a Day ' + ($json.day || $json.parameters?.day || 1) + ' onboarding message for:\\n- Parent: ' + ($json.client_name || $json.parameters?.client_name || $json.chatInput || 'Client') + '\\n- Child: ' + ($json.child_name || $json.parameters?.child_name || 'Student') + '\\n- Child age: ' + ($json.child_age || $json.parameters?.child_age || 'unknown') + '\\n- City: ' + ($json.city || $json.parameters?.city || 'Dubai') }] }) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 300],
+      "id": "claude-onboarding",
+      "name": "Claude → Generate Onboarding Message"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Called by Agent').first().json;\nconst response = $input.first().json.content?.[0]?.text || '{}';\nconst day = input.day || input.parameters?.day || 1;\nconst clientName = input.client_name || input.parameters?.client_name || input.chatInput || 'Client';\nconst childName = input.child_name || input.parameters?.child_name || 'Student';\nconst city = input.city || input.parameters?.city || 'Dubai';\n\nlet parsed = {};\ntry {\n  parsed = JSON.parse(response);\n} catch (e) {\n  parsed = { message: response, channel: 'whatsapp', send_time: '10:00', follow_up_needed: true, next_day: day === 1 ? 3 : day === 3 ? 7 : null };\n}\n\nreturn [{ json: {\n  status: 'completed',\n  workflow: '11_onboarding_sequence',\n  client_name: clientName,\n  child_name: childName,\n  city,\n  onboarding_day: day,\n  message: parsed.message || '',\n  channel: parsed.channel || 'whatsapp',\n  send_time: parsed.send_time || '10:00',\n  follow_up_needed: parsed.follow_up_needed !== undefined ? parsed.follow_up_needed : true,\n  next_day: parsed.next_day !== undefined ? parsed.next_day : (day === 1 ? 3 : day === 3 ? 7 : null),\n  completedAt: new Date().toISOString()\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300],
+      "id": "output",
+      "name": "Format → Output"
+    }
+  ],
+  "connections": {
+    "Called by Agent": { "main": [[{ "node": "Claude → Generate Onboarding Message", "type": "main", "index": 0 }]] },
+    "Claude → Generate Onboarding Message": { "main": [[{ "node": "Format → Output", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

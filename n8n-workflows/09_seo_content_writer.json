@@ -1,0 +1,51 @@
+{
+  "name": "09_seo_content_writer",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 300],
+      "id": "trigger",
+      "name": "Called by Agent",
+      "webhookId": "chat-seo-content"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 4096, system: 'You are an expert SEO content writer specializing in EdTech, sports academies, and coding education. You write for two brands:\\n\\n1. ProFit Swimming Academy — premium mobile swim school in Dubai/Baku where coaches travel to private pools. Keywords: private swimming lessons, swim coach Dubai, learn to swim Baku, kids swimming classes.\\n2. VibeCoding — modern coding education platform. Keywords: learn to code, programming courses, vibe coding, coding bootcamp.\\n\\nSEO rules:\\n- Title (H1) must contain primary keyword, under 60 chars\\n- Meta description: 150-160 chars, compelling, includes keyword\\n- Use H2/H3 hierarchy naturally\\n- Keyword density 1-2%, no stuffing\\n- Include internal link suggestions\\n- Write 800+ words, engaging and informative\\n- Use short paragraphs (2-3 sentences)\\n\\nAlways respond with valid JSON only — no markdown, no backticks.', messages: [{ role: 'user', content: 'Write SEO-optimized content for:\\nProject: ' + ($json.project || $json.parameters?.project || 'profit') + '\\nTopic: ' + ($json.topic || $json.parameters?.topic || $json.chatInput || 'private swimming lessons for kids') + '\\nTarget Audience: ' + ($json.target_audience || $json.parameters?.target_audience || 'parents of children aged 4-12') + '\\n\\nRespond with this exact JSON structure:\\n{\\n  \\\"title\\\": \\\"H1 title with primary keyword, under 60 chars\\\",\\n  \\\"meta_description\\\": \\\"150-160 char meta description\\\",\\n  \\\"target_keywords\\\": [\\\"primary keyword\\\", \\\"secondary keywords\\\"],\\n  \\\"article\\\": \\\"Full 800+ word article with ## for H2 and ### for H3 headings\\\",\\n  \\\"internal_links\\\": [\\n    { \\\"anchor_text\\\": \\\"suggested anchor\\\", \\\"suggested_page\\\": \\\"/page-path\\\", \\\"context\\\": \\\"where to place in article\\\" }\\n  ],\\n  \\\"word_count\\\": 800,\\n  \\\"reading_time_minutes\\\": 4,\\n  \\\"seo_score_notes\\\": [\\\"checklist of SEO optimizations applied\\\"]\\n}' }] }) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 300],
+      "id": "claude-seo",
+      "name": "Claude → Generate SEO Content"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Called by Agent').first().json;\ntry {\n  const raw = $input.first().json.content[0].text;\n  const cleaned = raw.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  const content = JSON.parse(cleaned);\n  return [{ json: {\n    status: 'completed',\n    workflow: '09_seo_content_writer',\n    project: input.project || input.parameters?.project || 'profit',\n    topic: input.topic || input.parameters?.topic || input.chatInput || 'private swimming lessons for kids',\n    target_audience: input.target_audience || input.parameters?.target_audience || 'parents of children aged 4-12',\n    title: content.title,\n    meta_description: content.meta_description,\n    target_keywords: content.target_keywords,\n    article: content.article,\n    internal_links: content.internal_links,\n    word_count: content.word_count,\n    reading_time_minutes: content.reading_time_minutes,\n    seo_score_notes: content.seo_score_notes,\n    completedAt: new Date().toISOString()\n  } }];\n} catch (e) {\n  const raw = $input.first().json.content?.[0]?.text || 'No content';\n  return [{ json: {\n    status: 'completed',\n    workflow: '09_seo_content_writer',\n    content_raw: raw,\n    parse_note: 'Response was not valid JSON, returning raw text',\n    completedAt: new Date().toISOString()\n  } }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300],
+      "id": "format",
+      "name": "Format → Output"
+    }
+  ],
+  "connections": {
+    "Called by Agent": { "main": [[{ "node": "Claude → Generate SEO Content", "type": "main", "index": 0 }]] },
+    "Claude → Generate SEO Content": { "main": [[{ "node": "Format → Output", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

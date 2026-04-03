@@ -1,0 +1,70 @@
+{
+  "name": "18_parent_engagement",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [0, 300],
+      "id": "trigger",
+      "name": "Called by Agent"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/profiles?role=eq.parent&select=id,full_name,phone,last_active&order=last_active.asc&limit=20",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 300],
+      "id": "get-inactive-parents",
+      "name": "Supabase → Inactive Parents"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2048, system: 'You are the engagement specialist for ProFit Swimming Academy. For each inactive parent, generate a personalized WhatsApp re-engagement message (under 200 chars). Tone: warm, caring, mention their child\\'s swimming progress. Include swim emoji.', messages: [{ role: 'user', content: 'Here is the list of inactive parents who have not booked recently:\\n\\n' + JSON.stringify($input.first().json, null, 2) + '\\n\\nFor each parent, generate a personalized WhatsApp message to bring them back. Each message must be:\\n- Under 200 characters\\n- Warm and caring tone\\n- Mention swimming progress or benefits\\n- Include a swim-related emoji\\n- Include their name if available\\n\\nReturn a JSON array with objects: { parent_id, parent_name, last_active, message }\\n\\nReturn valid JSON only — no markdown, no backticks.' }] }) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 300],
+      "id": "claude-engage",
+      "name": "Claude → Engagement Messages"
+    },
+    {
+      "parameters": {
+        "jsCode": "const parents = $('Supabase → Inactive Parents').all().map(i => i.json);\nconst messagesRaw = $input.first().json.content?.[0]?.text || '[]';\n\nlet messages = [];\ntry {\n  const cleaned = messagesRaw.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  messages = JSON.parse(cleaned);\n} catch (e) {\n  messages = [{ raw: messagesRaw }];\n}\n\nreturn [{ json: {\n  status: 'completed',\n  workflow: '18_parent_engagement',\n  inactive_count: parents.length,\n  messages: Array.isArray(messages) ? messages : [messages],\n  completedAt: new Date().toISOString()\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [780, 300],
+      "id": "output",
+      "name": "Final → Output"
+    }
+  ],
+  "connections": {
+    "Called by Agent": { "main": [[{ "node": "Supabase → Inactive Parents", "type": "main", "index": 0 }]] },
+    "Supabase → Inactive Parents": { "main": [[{ "node": "Claude → Engagement Messages", "type": "main", "index": 0 }]] },
+    "Claude → Engagement Messages": { "main": [[{ "node": "Final → Output", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}
