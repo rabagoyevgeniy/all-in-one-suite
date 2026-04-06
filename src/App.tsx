@@ -1,8 +1,11 @@
 import { Suspense, lazy } from "react";
+import * as Sentry from "@sentry/react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { PostHogProvider } from "posthog-js/react";
+import posthog from "@/posthog";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/components/AuthProvider";
 import { DevAccountSwitcher } from "@/components/DevAccountSwitcher";
@@ -109,6 +112,7 @@ const SettingsPage = lazy(() => import("./pages/Settings"));
 import { AIAssistantFAB } from "./components/AIAssistantFAB";
 import { OnboardingGuard } from "./components/OnboardingGuard";
 import { DevTestPanel } from "./components/DevTestPanel";
+import { PostHogPageviewTracker } from "./components/PostHogPageviewTracker";
 
 // Loading spinner for Suspense fallback
 const PageLoader = () => (
@@ -128,13 +132,16 @@ const P = (name: string, element: React.ReactNode) => (
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <ErrorBoundary>
-          <AuthProvider>
+  <PostHogProvider client={posthog}>
+  <Sentry.ErrorBoundary fallback={<div className="flex items-center justify-center min-h-screen bg-background text-foreground">Something went wrong. Please refresh the page.</div>}>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <PostHogPageviewTracker />
+          <ErrorBoundary>
+            <AuthProvider>
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 <Route path="/" element={P("Home", <Index />)} />
@@ -259,10 +266,12 @@ const App = () => (
             {import.meta.env.DEV && <DevAccountSwitcher />}
             <DevTestPanel />
           </AuthProvider>
-        </ErrorBoundary>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+          </ErrorBoundary>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </Sentry.ErrorBoundary>
+  </PostHogProvider>
 );
 
 export default App;
