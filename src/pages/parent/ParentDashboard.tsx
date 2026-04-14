@@ -281,11 +281,15 @@ export default function ParentDashboard() {
       <SubscriptionWarningBanner />
 
       {/* ───── PREMIUM HERO ───── */}
-      <div className="relative px-5 pt-7 pb-6 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0c1220 0%, #0a1628 40%, #0d1f3c 100%)' }}>
-        {/* Ambient glow effects */}
-        <div className="absolute top-0 right-0 w-72 h-72 rounded-full opacity-20 pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(6,182,212,0.3) 0%, transparent 70%)' }} />
-        <div className="absolute -bottom-20 -left-20 w-60 h-60 rounded-full opacity-10 pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(245,158,11,0.4) 0%, transparent 70%)' }} />
-        <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.8) 0.5px, transparent 0.5px)', backgroundSize: '24px 24px' }} />
+      <div className="relative px-5 pt-7 pb-8 overflow-hidden" style={{ background: 'linear-gradient(160deg, #080e1a 0%, #0a1628 30%, #0f2440 60%, #0a1628 100%)' }}>
+        {/* Multi-layer ambient glow */}
+        <div className="absolute top-[-40px] right-[-30px] w-80 h-80 rounded-full opacity-25 pointer-events-none blur-xl" style={{ background: 'radial-gradient(circle, rgba(6,182,212,0.4) 0%, transparent 60%)' }} />
+        <div className="absolute bottom-[-60px] left-[-40px] w-72 h-72 rounded-full opacity-15 pointer-events-none blur-2xl" style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.3) 0%, transparent 60%)' }} />
+        <div className="absolute top-[30%] left-[50%] w-40 h-40 rounded-full opacity-10 pointer-events-none blur-3xl" style={{ background: 'radial-gradient(circle, rgba(245,158,11,0.5) 0%, transparent 60%)' }} />
+        {/* Dot grid */}
+        <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.9) 0.5px, transparent 0.5px)', backgroundSize: '20px 20px' }} />
+        {/* Bottom fade */}
+        <div className="absolute bottom-0 left-0 right-0 h-12 pointer-events-none" style={{ background: 'linear-gradient(to top, hsl(var(--background)), transparent)' }} />
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="relative">
           <div className="flex items-center justify-between mb-1">
@@ -352,19 +356,21 @@ export default function ParentDashboard() {
             </motion.div>
           ) : (
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              className="mt-4 rounded-2xl border border-dashed border-white/10 p-5 flex items-center justify-between"
-              style={{ background: 'rgba(255,255,255,0.02)' }}
+              onClick={() => navigate('/parent/booking')}
+              className="mt-5 rounded-2xl p-4 flex items-center gap-4 cursor-pointer group transition-all"
+              style={{ background: 'linear-gradient(135deg, rgba(6,182,212,0.08) 0%, rgba(139,92,246,0.06) 100%)', border: '1px solid rgba(6,182,212,0.12)' }}
             >
-              <p className="text-sm text-white/30">{t('No upcoming lessons', 'Нет предстоящих занятий')}</p>
-              <button
-                onClick={() => navigate('/parent/booking')}
-                className="text-xs font-semibold text-cyan-400 hover:text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/15 px-4 py-2 rounded-xl transition-all border border-cyan-500/20"
-              >
-                + {t('Book', 'Записать')}
-              </button>
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform" style={{ background: 'linear-gradient(135deg, rgba(6,182,212,0.2), rgba(6,182,212,0.08))', border: '1px solid rgba(6,182,212,0.15)' }}>
+                <Plus className="w-5 h-5 text-cyan-400" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-white">{t('Book First Lesson', 'Записаться на урок')}</p>
+                <p className="text-[11px] text-white/35 mt-0.5">{t('Choose a coach and pick a time', 'Выберите тренера и время')}</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-cyan-400 transition-colors" />
             </motion.div>
           )}
         </motion.div>
@@ -426,51 +432,59 @@ export default function ParentDashboard() {
                   {/* Header */}
                   <div className="flex items-center gap-3 mb-4">
                     <div
-                      className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-base shadow-md"
-                      style={{ background: `linear-gradient(135deg, ${belt.color}, ${belt.borderColor})` }}
+                      className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-lg ring-2 ring-white/10"
+                      style={{ background: belt.id === 'white' ? 'linear-gradient(135deg, #64748b, #94a3b8)' : `linear-gradient(135deg, ${belt.borderColor}, ${belt.color})` }}
                     >
                       {(child.profiles?.full_name || 'C')[0]}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm text-foreground truncate">{child.profiles?.full_name || t('Child', 'Ребёнок')}</p>
-                      <p className="text-[11px] text-muted-foreground">{belt.name}</p>
+                      <p className="font-bold text-[15px] text-foreground truncate">{child.profiles?.full_name || t('Child', 'Ребёнок')}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: belt.id === 'white' ? '#94a3b8' : belt.borderColor }} />
+                        <p className="text-[11px] text-muted-foreground">{belt.name}</p>
+                      </div>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
+                    <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
                   </div>
 
-                  {/* XP Progress */}
+                  {/* XP Progress — thicker, more visible */}
                   {nextBelt && (
-                    <div className="mb-3">
-                      <div className="flex items-center justify-between text-[10px] mb-1.5">
-                        <span className="text-muted-foreground font-medium uppercase tracking-wider">{t('Progress', 'Прогресс')}</span>
-                        <span className="font-semibold text-foreground">{Math.round(progressPct)}%</span>
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between text-[10px] mb-2">
+                        <span className="text-muted-foreground/70 font-medium uppercase tracking-wider">{t('Progress', 'Прогресс')}</span>
+                        <span className="font-bold text-foreground text-xs">{Math.round(progressPct)}%</span>
                       </div>
-                      <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <div className="h-2.5 bg-muted/80 rounded-full overflow-hidden">
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{ width: `${progressPct}%` }}
-                          transition={{ duration: 1, delay: 0.3 + i * 0.15, ease: 'easeOut' }}
-                          className="h-full rounded-full"
-                          style={{ background: `linear-gradient(90deg, ${belt.color}, ${belt.borderColor})` }}
+                          transition={{ duration: 1.2, delay: 0.3 + i * 0.15, ease: 'easeOut' }}
+                          className="h-full rounded-full shadow-sm"
+                          style={{
+                            background: belt.id === 'white'
+                              ? 'linear-gradient(90deg, #64748b, #94a3b8)'
+                              : `linear-gradient(90deg, ${belt.borderColor}, ${belt.color})`,
+                            boxShadow: `0 0 8px ${belt.id === 'white' ? 'rgba(148,163,184,0.3)' : belt.borderColor + '40'}`,
+                          }}
                         />
                       </div>
-                      <p className="text-[10px] text-muted-foreground/60 mt-1">{t('Next', 'Далее')}: {nextBelt.name}</p>
+                      <p className="text-[10px] text-muted-foreground/50 mt-1.5">{t('Next', 'Далее')}: <span className="text-muted-foreground/70">{nextBelt.name}</span></p>
                     </div>
                   )}
 
-                  {/* Stats row */}
-                  <div className="grid grid-cols-3 gap-2 pt-3 border-t border-border/40">
-                    <div className="text-center">
-                      <p className="text-sm font-bold text-foreground">{xp}</p>
-                      <p className="text-[9px] text-muted-foreground/60 uppercase">XP</p>
+                  {/* Stats row — bolder */}
+                  <div className="grid grid-cols-3 gap-1 pt-3 border-t border-border/30">
+                    <div className="text-center py-1">
+                      <p className="text-base font-extrabold text-foreground tabular-nums">{xp.toLocaleString()}</p>
+                      <p className="text-[8px] text-muted-foreground/50 uppercase tracking-wider mt-0.5">XP</p>
                     </div>
-                    <div className="text-center border-l border-r border-border/30">
-                      <p className="text-sm font-bold text-foreground">{child.wins || 0}</p>
-                      <p className="text-[9px] text-muted-foreground/60 uppercase">{t('Wins', 'Побед')}</p>
+                    <div className="text-center border-l border-r border-border/20 py-1">
+                      <p className="text-base font-extrabold text-foreground tabular-nums">{child.wins || 0}</p>
+                      <p className="text-[8px] text-muted-foreground/50 uppercase tracking-wider mt-0.5">{t('Wins', 'Побед')}</p>
                     </div>
-                    <div className="text-center">
-                      <p className="text-sm font-bold text-foreground">{child.coin_balance || 0}</p>
-                      <p className="text-[9px] text-muted-foreground/60 uppercase">{t('Coins', 'Монет')}</p>
+                    <div className="text-center py-1">
+                      <p className="text-base font-extrabold text-foreground tabular-nums">{(child.coin_balance || 0).toLocaleString()}</p>
+                      <p className="text-[8px] text-muted-foreground/50 uppercase tracking-wider mt-0.5">{t('Coins', 'Монет')}</p>
                     </div>
                   </div>
 
@@ -544,17 +558,20 @@ export default function ParentDashboard() {
                 </div>
 
                 {pool && (
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground mb-3">
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/60 mb-3">
                     <MapPin className="w-3 h-3" />
                     {pool.name || pool.address}
                   </div>
                 )}
 
-                {/* Today + within 2 hours indicator */}
+                {/* Live tracking indicator */}
                 {isToday && isWithin2Hours && i === 0 && (
-                  <div className="flex items-center gap-1.5 mb-3 text-xs text-emerald-600">
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                    🟢 {t('Coach is on the way', 'Тренер в пути')}
+                  <div className="flex items-center gap-2 mb-3 text-xs text-emerald-500 bg-emerald-500/5 border border-emerald-500/15 rounded-xl px-3 py-2">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                    </span>
+                    {t('Coach is on the way', 'Тренер в пути')}
                   </div>
                 )}
 
@@ -565,15 +582,15 @@ export default function ParentDashboard() {
                       setRescheduleDate(null);
                       setRescheduleSlot(null);
                     }}
-                    className="flex-1 py-2 text-xs bg-muted hover:bg-muted/80 rounded-xl transition-colors text-foreground font-medium"
+                    className="flex-1 py-2.5 text-xs rounded-xl transition-all text-foreground/70 font-medium border border-border/50 hover:border-border hover:bg-muted/50"
                   >
                     {t('Reschedule', 'Перенести')}
                   </button>
                   <button
                     onClick={() => navigate('/chat')}
-                    className="flex-1 py-2 text-xs bg-primary/10 hover:bg-primary/15 rounded-xl transition-colors text-primary font-medium"
+                    className="flex-1 py-2.5 text-xs rounded-xl transition-all font-medium bg-primary/8 hover:bg-primary/12 text-primary border border-primary/15 hover:border-primary/25 flex items-center justify-center gap-1.5"
                   >
-                    💬 {t('Message Coach', 'Написать')}
+                    <MessageSquare className="w-3 h-3" /> {t('Message', 'Написать')}
                   </button>
                 </div>
               </motion.div>
@@ -590,6 +607,41 @@ export default function ParentDashboard() {
         </div>
       )}
 
+      {/* ───── RATE COACH BANNER — gold accent ───── */}
+      {completedUnratedBookings && completedUnratedBookings.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mx-4 rounded-2xl p-4 cursor-pointer group"
+          style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.08) 0%, rgba(217,119,6,0.04) 100%)', border: '1px solid rgba(245,158,11,0.15)' }}
+          onClick={() => {
+            const b = completedUnratedBookings[0] as any;
+            setRatingModal({
+              bookingId: b.id,
+              coachId: b.coaches?.id || '',
+              coachName: b.coaches?.profiles?.full_name || t('Coach', 'Тренер'),
+              date: b.created_at || '',
+            });
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.2), rgba(245,158,11,0.08))', border: '1px solid rgba(245,158,11,0.2)' }}>
+              <Star className="w-5 h-5 text-amber-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-foreground">{t('Rate your lesson', 'Оцените занятие')}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {t('with', 'с')} {(completedUnratedBookings[0] as any)?.coaches?.profiles?.full_name || t('Coach', 'тренером')}
+                {completedUnratedBookings.length > 1 && ` (+${completedUnratedBookings.length - 1})`}
+              </p>
+            </div>
+            <div className="flex gap-0.5">
+              {[1,2,3,4,5].map(s => <Star key={s} className="w-3.5 h-3.5 text-amber-400/30" />)}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* ───── QUICK ACTIONS — premium glass grid ───── */}
       <div className="px-4">
         <h3 className="font-semibold text-[10px] text-muted-foreground/60 uppercase tracking-[0.15em] mb-3">
@@ -597,10 +649,10 @@ export default function ParentDashboard() {
         </h3>
         <div className="grid grid-cols-2 gap-2.5">
           {[
-            { icon: Calendar, label: t('Book Lesson', 'Записаться'), path: '/parent/booking', gradient: 'from-cyan-500/10 to-blue-500/5', accent: 'text-cyan-400' },
-            { icon: MessageSquare, label: t('Message Coach', 'Написать'), path: '/chat', gradient: 'from-violet-500/10 to-purple-500/5', accent: 'text-violet-400' },
-            { icon: CreditCard, label: t('Payments', 'Платежи'), path: '/parent/payments', gradient: 'from-amber-500/10 to-orange-500/5', accent: 'text-amber-400' },
-            { icon: TrendingUp, label: t('Progress', 'Прогресс'), path: '/parent/coins', gradient: 'from-emerald-500/10 to-green-500/5', accent: 'text-emerald-400' },
+            { icon: Calendar, label: t('Book Lesson', 'Записаться'), sub: t('Choose coach & time', 'Тренер и время'), path: '/parent/booking', bg: 'bg-cyan-50 dark:bg-cyan-500/8', iconBg: 'bg-cyan-100 dark:bg-cyan-500/15', accent: 'text-cyan-600 dark:text-cyan-400', border: 'border-cyan-200/60 dark:border-cyan-500/15' },
+            { icon: MessageSquare, label: t('Message Coach', 'Написать'), sub: t('Direct chat', 'Личное сообщение'), path: '/chat', bg: 'bg-violet-50 dark:bg-violet-500/8', iconBg: 'bg-violet-100 dark:bg-violet-500/15', accent: 'text-violet-600 dark:text-violet-400', border: 'border-violet-200/60 dark:border-violet-500/15' },
+            { icon: CreditCard, label: t('Payments', 'Платежи'), sub: t('History & invoices', 'История и счета'), path: '/parent/payments', bg: 'bg-amber-50 dark:bg-amber-500/8', iconBg: 'bg-amber-100 dark:bg-amber-500/15', accent: 'text-amber-600 dark:text-amber-400', border: 'border-amber-200/60 dark:border-amber-500/15' },
+            { icon: TrendingUp, label: t('Progress', 'Прогресс'), sub: t('Coins & achievements', 'Монеты и награды'), path: '/parent/coins', bg: 'bg-emerald-50 dark:bg-emerald-500/8', iconBg: 'bg-emerald-100 dark:bg-emerald-500/15', accent: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200/60 dark:border-emerald-500/15' },
           ].map((action, i) => (
             <motion.button
               key={action.path}
@@ -609,14 +661,16 @@ export default function ParentDashboard() {
               transition={{ delay: 0.1 + i * 0.05 }}
               onClick={() => navigate(action.path)}
               className={cn(
-                "relative overflow-hidden rounded-2xl p-4 flex flex-col gap-3 text-left transition-all active:scale-[0.97]",
-                "bg-card border border-border/50 hover:border-border shadow-sm hover:shadow-md"
+                "rounded-2xl p-4 flex flex-col gap-2.5 text-left transition-all active:scale-[0.97]",
+                action.bg, "border", action.border, "hover:shadow-md"
               )}
             >
-              <div className={cn("absolute inset-0 bg-gradient-to-br opacity-50 pointer-events-none", action.gradient)} />
-              <div className="relative">
-                <action.icon className={cn("w-5 h-5 mb-1", action.accent)} strokeWidth={1.8} />
-                <span className="text-sm font-medium text-foreground">{action.label}</span>
+              <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center", action.iconBg)}>
+                <action.icon className={cn("w-[18px] h-[18px]", action.accent)} strokeWidth={2} />
+              </div>
+              <div>
+                <span className="text-[13px] font-semibold text-foreground block">{action.label}</span>
+                <span className="text-[10px] text-muted-foreground/60 mt-0.5 block">{action.sub}</span>
               </div>
             </motion.button>
           ))}
