@@ -14,13 +14,13 @@ export const MODE_PROMPTS: Record<AIMode, { en: string[]; ru: string[] }> = {
     en: [
       "How is my child progressing?",
       "What should my child practice at home?",
-      "Tell me about ProFit belts system",
-      "How many lessons until next belt test?",
+      "Tell me about ProFit swim caps system",
+      "How many lessons until next swim cap test?",
     ],
     ru: [
       "Как прогрессирует мой ребёнок?",
       "Что практиковать дома?",
-      "Расскажите о системе поясов ProFit",
+      "Расскажите о системе шапочек ProFit",
       "Сколько уроков до следующего теста?",
     ],
   },
@@ -41,13 +41,13 @@ export const MODE_PROMPTS: Record<AIMode, { en: string[]; ru: string[] }> = {
   progress: {
     en: [
       "Show Emma's progress this month",
-      "What skills are left for next belt?",
+      "What skills are left for next swim cap?",
       "Compare this month vs last month",
       "Generate a progress report",
     ],
     ru: [
       "Показать прогресс Эммы за этот месяц",
-      "Какие навыки остались для нового пояса?",
+      "Какие навыки остались для нового шапочки?",
       "Сравнить этот и прошлый месяц",
       "Сгенерировать отчёт о прогрессе",
     ],
@@ -163,7 +163,7 @@ export const ROLE_CONFIG: Record<string, RoleConfig> = {
       en: [
         "How is my child progressing?",
         "Book a lesson for next week",
-        "When is the next belt test?",
+        "When is the next swim cap test?",
         "What should my child practice at home?",
       ],
       ru: [
@@ -182,15 +182,15 @@ export const ROLE_CONFIG: Record<string, RoleConfig> = {
     color: "from-violet-500 to-purple-500",
     suggestions: {
       en: [
-        "What belt level am I?",
+        "What swim cap level am I?",
         "How many coins do I have?",
-        "What skills do I need for next belt?",
+        "What skills do I need for next swim cap?",
         "Give me a practice tip for today!",
       ],
       ru: [
         "Какой у меня пояс?",
         "Сколько у меня монет?",
-        "Что нужно для следующего пояса?",
+        "Что нужно для следующего шапочки?",
         "Дай совет для тренировки!",
       ],
     },

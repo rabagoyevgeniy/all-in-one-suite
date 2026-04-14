@@ -134,7 +134,7 @@ export const DUBAI_PLANS: PricingPlan[] = [
     name: 'Elite Monthly',
     price: 3360,
     currency: 'AED',
-    description: '12 lessons/month + personal manager + belt ceremony',
+    description: '12 lessons/month + personal manager + swim cap ceremony',
     icon: '👑',
     badge: 'Elite',
     pricePerLesson: 280,

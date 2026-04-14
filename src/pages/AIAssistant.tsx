@@ -55,7 +55,7 @@ const ROLE_MODES: Record<string, RoleModeConfig> = {
     greeting: { en: 'Hello, Coach! 🏊', ru: 'Привет, Тренер! 🏊' },
     subtitle: { en: 'Your students, schedule and teaching tools', ru: 'Ваши ученики, расписание и инструменты' },
     modes: [
-      { id: 'students', label: '👦 Students', chips: { en: ['Summarize my students progress', 'Who needs extra attention this week?', 'Which student is closest to next belt?', 'Generate progress report for a student'], ru: ['Прогресс моих учеников', 'Кому нужно больше внимания?', 'Кто ближе всего к новому поясу?', 'Создать отчёт о прогрессе'] } },
+      { id: 'students', label: '👦 Students', chips: { en: ['Summarize my students progress', 'Who needs extra attention this week?', 'Which student is closest to next swim cap?', 'Generate progress report for a student'], ru: ['Прогресс моих учеников', 'Кому нужно больше внимания?', 'Кто ближе всего к новой шапочке?', 'Создать отчёт о прогрессе'] } },
       { id: 'schedule', label: '📅 Schedule', chips: { en: ['Show my lessons for today', 'What is my route tomorrow?', 'Any cancellations this week?', 'Help me reschedule a lesson'], ru: ['Мои уроки на сегодня', 'Какой маршрут завтра?', 'Есть отмены на этой неделе?', 'Помоги перенести урок'] } },
       { id: 'technique', label: '🎯 Technique', chips: { en: ['Drills for teaching freestyle to beginners', 'How to fix breathing technique?', 'Backstroke correction tips', 'Exercises for 5-year-old swimmers'], ru: ['Упражнения для обучения кролю новичков', 'Как исправить технику дыхания?', 'Советы по коррекции на спине', 'Упражнения для 5-летних'] } },
       { id: 'reports', label: '📝 Reports', chips: { en: ['Help write a lesson report', 'Suggest goals for next lesson', 'Write parent feedback message', "Summarize this week's sessions"], ru: ['Помоги написать отчёт об уроке', 'Предложи цели на следующий урок', 'Написать сообщение родителю', 'Итоги за неделю'] } },
@@ -65,7 +65,7 @@ const ROLE_MODES: Record<string, RoleModeConfig> = {
     greeting: { en: 'Hello{name}! 👋', ru: 'Привет{name}! 👋' },
     subtitle: { en: "Track your child's swimming journey", ru: 'Следите за прогрессом вашего ребёнка' },
     modes: [
-      { id: 'progress', label: '📈 Progress', chips: { en: ['How is my child progressing?', 'What belt level is my child at?', 'How many lessons until next belt test?', 'Show recent achievements'], ru: ['Как прогрессирует мой ребёнок?', 'Какой пояс у моего ребёнка?', 'Сколько уроков до следующего теста?', 'Показать последние достижения'] } },
+      { id: 'progress', label: '📈 Progress', chips: { en: ['How is my child progressing?', 'What swim cap level is my child at?', 'How many lessons until next swim cap test?', 'Show recent achievements'], ru: ['Как прогрессирует мой ребёнок?', 'Какая шапочка у моего ребёнка?', 'Сколько уроков до следующего теста?', 'Показать последние достижения'] } },
       { id: 'schedule', label: '📅 Schedule', chips: { en: ['When is the next lesson?', 'How many lessons are left in my pack?', "Can I reschedule tomorrow's lesson?", 'What time does the coach arrive?'], ru: ['Когда следующий урок?', 'Сколько уроков осталось в пакете?', 'Можно перенести завтрашний урок?', 'Во сколько приедет тренер?'] } },
       { id: 'practice', label: '🏠 Practice', chips: { en: ['What should my child practice at home?', 'Water safety tips for kids', 'How to make practice fun?', 'Breathing exercises between lessons'], ru: ['Что практиковать дома?', 'Советы по безопасности на воде', 'Как сделать практику веселее?', 'Дыхательные упражнения'] } },
       { id: 'billing', label: '💳 Billing', chips: { en: ['How many lessons do I have left?', 'What packages are available?', 'How do I pay for more lessons?', 'Show my payment history'], ru: ['Сколько уроков осталось?', 'Какие пакеты доступны?', 'Как оплатить ещё уроки?', 'Показать историю оплат'] } },
@@ -75,10 +75,10 @@ const ROLE_MODES: Record<string, RoleModeConfig> = {
     greeting: { en: 'Hey, Champion! 🏆', ru: 'Привет, Чемпион! 🏆' },
     subtitle: { en: 'Level up your swimming skills!', ru: 'Прокачай свои навыки плавания!' },
     modes: [
-      { id: 'progress', label: '⭐ My Level', chips: { en: ['How many XP to next belt?', 'Show my achievements', "What's my current rank?", 'How do I earn more coins?'], ru: ['Сколько XP до следующего пояса?', 'Покажи мои достижения', 'Какой у меня ранг?', 'Как заработать больше монет?'] } },
+      { id: 'progress', label: '⭐ My Level', chips: { en: ['How many XP until next swim cap?', 'Show my achievements', "What's my current rank?", 'How do I earn more coins?'], ru: ['Сколько XP до следующей шапочки?', 'Покажи мои достижения', 'Какой у меня ранг?', 'Как заработать больше монет?'] } },
       { id: 'duels', label: '⚔️ Duels', chips: { en: ['How do I challenge someone?', 'What are the duel rules?', 'Show my duel history', 'Who can I challenge now?'], ru: ['Как бросить вызов?', 'Какие правила дуэлей?', 'Покажи историю дуэлей', 'Кому можно бросить вызов?'] } },
-      { id: 'tips', label: '💡 Tips', chips: { en: ['Breathing tips for freestyle', 'How to swim faster?', 'Tips for my next belt test', 'Fun swimming challenges'], ru: ['Советы по дыханию для кроля', 'Как плавать быстрее?', 'Советы для теста на пояс', 'Весёлые задания по плаванию'] } },
-      { id: 'goals', label: '🎯 Goals', chips: { en: ['Set a swimming goal for this week', 'What should I focus on?', 'How to prepare for belt test?', 'Motivate me to practice!'], ru: ['Поставить цель на неделю', 'На чём сосредоточиться?', 'Как подготовиться к тесту?', 'Мотивируй меня!'] } },
+      { id: 'tips', label: '💡 Tips', chips: { en: ['Breathing tips for freestyle', 'How to swim faster?', 'Tips for my next swim cap test', 'Fun swimming challenges'], ru: ['Советы по дыханию для кроля', 'Как плавать быстрее?', 'Советы для теста на шапочку', 'Весёлые задания по плаванию'] } },
+      { id: 'goals', label: '🎯 Goals', chips: { en: ['Set a swimming goal for this week', 'What should I focus on?', 'How to prepare for swim cap test?', 'Motivate me to practice!'], ru: ['Поставить цель на неделю', 'На чём сосредоточиться?', 'Как подготовиться к тесту?', 'Мотивируй меня!'] } },
     ],
   },
   pro_athlete: {

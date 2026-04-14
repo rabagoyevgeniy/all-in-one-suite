@@ -84,7 +84,7 @@ export function CoachStudentDetailSheet({ studentId, onClose }: Props) {
                   <h2 className="text-xl font-bold">{profile?.full_name || t('Student', 'Ученик')}</h2>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="bg-primary-foreground/20 text-xs px-2 py-0.5 rounded-full">
-                      {BELT_EMOJI[belt] || '⬜'} {belt.charAt(0).toUpperCase() + belt.slice(1)} Belt
+                      {BELT_EMOJI[belt] || '⬜'} {belt.charAt(0).toUpperCase() + belt.slice(1)} Cap
                     </span>
                     {profile?.city && (
                       <span className="text-primary-foreground/70 text-sm">📍 {profile.city}</span>
