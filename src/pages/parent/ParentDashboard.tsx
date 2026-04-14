@@ -397,10 +397,10 @@ export default function ParentDashboard() {
         </motion.div>
       )}
 
-      {/* ───── CHILD CARDS ───── */}
+      {/* ───── CHILD CARDS — premium progress ───── */}
       {children && children.length > 0 && (
         <div>
-          <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider px-4 mb-3">
+          <h3 className="font-semibold text-[10px] text-muted-foreground/60 uppercase tracking-[0.15em] px-4 mb-3">
             {t('Your Children', 'Ваши дети')}
           </h3>
           <div className="flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide">
@@ -412,8 +412,6 @@ export default function ParentDashboard() {
               const progressPct = nextBelt
                 ? Math.min(100, ((xp - belt.minXP) / (nextBelt.minXP - belt.minXP)) * 100)
                 : 100;
-
-              // Get child's subscription info
               const childSub = activeSub;
 
               return (
@@ -422,38 +420,66 @@ export default function ParentDashboard() {
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.1 }}
-                  className="flex-shrink-0 w-56 card-elevated p-4"
+                  onClick={() => navigate(`/parent/child/${child.id}`)}
+                  className="flex-shrink-0 w-64 rounded-2xl border border-border/50 bg-card p-4 cursor-pointer hover:border-primary/20 hover:shadow-lg transition-all active:scale-[0.98]"
                 >
-                  <div className={cn("h-1.5 rounded-full mb-3", BELT_COLORS[child.swim_belt || 'white'] || 'bg-muted')} />
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-sky-400 to-cyan-500 flex items-center justify-center text-white font-bold text-lg mb-2">
-                    {(child.profiles?.full_name || 'C')[0]}
+                  {/* Header */}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div
+                      className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-base shadow-md"
+                      style={{ background: `linear-gradient(135deg, ${belt.color}, ${belt.borderColor})` }}
+                    >
+                      {(child.profiles?.full_name || 'C')[0]}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm text-foreground truncate">{child.profiles?.full_name || t('Child', 'Ребёнок')}</p>
+                      <p className="text-[11px] text-muted-foreground">{belt.name}</p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
                   </div>
-                  <div className="font-semibold text-foreground text-sm">{child.profiles?.full_name || t('Child', 'Ребёнок')}</div>
-                  <div className="text-xs text-muted-foreground">{belt.name}</div>
 
-                  {/* Progress bar with detailed label */}
+                  {/* XP Progress */}
                   {nextBelt && (
-                    <div className="mt-3">
-                      <div className="h-1.5 bg-muted rounded-full">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-sky-400 to-cyan-500 transition-all"
-                          style={{ width: `${progressPct}%` }}
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between text-[10px] mb-1.5">
+                        <span className="text-muted-foreground font-medium uppercase tracking-wider">{t('Progress', 'Прогресс')}</span>
+                        <span className="font-semibold text-foreground">{Math.round(progressPct)}%</span>
+                      </div>
+                      <div className="h-2 bg-muted rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${progressPct}%` }}
+                          transition={{ duration: 1, delay: 0.3 + i * 0.15, ease: 'easeOut' }}
+                          className="h-full rounded-full"
+                          style={{ background: `linear-gradient(90deg, ${belt.color}, ${belt.borderColor})` }}
                         />
                       </div>
-                      <p className="text-[10px] text-muted-foreground mt-1">
-                        {Math.round(progressPct)}% {t(`to ${nextBelt.name}`, `до ${nextBelt.name}`)}
-                      </p>
+                      <p className="text-[10px] text-muted-foreground/60 mt-1">{t('Next', 'Далее')}: {nextBelt.name}</p>
                     </div>
                   )}
 
-                  {/* Pack info */}
+                  {/* Stats row */}
+                  <div className="grid grid-cols-3 gap-2 pt-3 border-t border-border/40">
+                    <div className="text-center">
+                      <p className="text-sm font-bold text-foreground">{xp}</p>
+                      <p className="text-[9px] text-muted-foreground/60 uppercase">XP</p>
+                    </div>
+                    <div className="text-center border-l border-r border-border/30">
+                      <p className="text-sm font-bold text-foreground">{child.wins || 0}</p>
+                      <p className="text-[9px] text-muted-foreground/60 uppercase">{t('Wins', 'Побед')}</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-bold text-foreground">{child.coin_balance || 0}</p>
+                      <p className="text-[9px] text-muted-foreground/60 uppercase">{t('Coins', 'Монет')}</p>
+                    </div>
+                  </div>
+
+                  {/* Pack badge */}
                   {childSub && (
-                    <p className="text-[10px] text-muted-foreground mt-2">
-                      {t('Pack', 'Пакет')}: {childSub.used_lessons}/{childSub.total_lessons} · {lessonsRemaining} {t('left', 'ост.')}
-                      {childSub.expires_at && (
-                        <> · {t('Exp', 'До')} {new Date(childSub.expires_at).toLocaleDateString()}</>
-                      )}
-                    </p>
+                    <div className="mt-3 flex items-center gap-1.5 text-[10px] text-muted-foreground bg-muted/50 rounded-lg px-2.5 py-1.5">
+                      <Package className="w-3 h-3" />
+                      {childSub.used_lessons}/{childSub.total_lessons} · {lessonsRemaining} {t('left', 'ост.')}
+                    </div>
                   )}
                 </motion.div>
               );
@@ -462,10 +488,10 @@ export default function ParentDashboard() {
         </div>
       )}
 
-      {/* ───── UPCOMING LESSONS (max 2) ───── */}
+      {/* ───── UPCOMING LESSONS — premium ───── */}
       {upcomingBookings && upcomingBookings.length > 0 && (
-        <div className="space-y-3 px-4">
-          <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">
+        <div className="space-y-2.5 px-4">
+          <h3 className="font-semibold text-[10px] text-muted-foreground/60 uppercase tracking-[0.15em]">
             {t('Upcoming Lessons', 'Предстоящие занятия')}
           </h3>
           {upcomingBookings.slice(0, 2).map((booking: any, i: number) => {
@@ -478,37 +504,40 @@ export default function ParentDashboard() {
             return (
               <motion.div
                 key={booking.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.1 + i * 0.1 }}
-                className="card-elevated p-4"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 + i * 0.08 }}
+                className="rounded-2xl border border-border/50 bg-card p-4 hover:shadow-md transition-shadow"
               >
                 <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <Clock className="w-4 h-4 text-primary" />
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "w-10 h-10 rounded-xl flex items-center justify-center",
+                      isToday ? "bg-primary/10 border border-primary/20" : "bg-muted"
+                    )}>
+                      <Clock className={cn("w-4 h-4", isToday ? "text-primary" : "text-muted-foreground")} />
                     </div>
                     <div>
-                      <div className="font-semibold text-sm text-foreground">
+                      <div className="font-semibold text-sm text-foreground tracking-tight">
                         {slot?.date
                           ? new Date(slot.date).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })
                           : new Date(booking.created_at!).toLocaleDateString()
                         }
-                        {slot?.start_time && ` · ${slot.start_time.substring(0, 5)}`}
+                        {slot?.start_time && <span className="text-primary ml-1">{slot.start_time.substring(0, 5)}</span>}
                       </div>
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
                         <span>{coach?.profiles?.full_name || '—'}</span>
                         {rank && (
-                          <Badge variant="outline" className="text-[9px] py-0 h-4" style={{ borderColor: rank.color, color: rank.color }}>
+                          <Badge variant="outline" className="text-[9px] py-0 h-4 border-current/30" style={{ color: rank.color }}>
                             {rank.label}
                           </Badge>
                         )}
                       </div>
                     </div>
                   </div>
-                  <Badge variant="outline" className={cn("text-[10px]",
-                    booking.status === 'in_progress' && 'border-emerald-500 text-emerald-600',
-                    isToday && booking.status === 'confirmed' && 'border-primary text-primary'
+                  <Badge variant="outline" className={cn("text-[10px] rounded-lg",
+                    booking.status === 'in_progress' && 'border-emerald-500/30 text-emerald-500 bg-emerald-500/5',
+                    isToday && booking.status === 'confirmed' && 'border-primary/30 text-primary bg-primary/5'
                   )}>
                     {booking.status === 'in_progress' ? t('In Progress', 'В процессе') : t('Confirmed', 'Подтверждено')}
                   </Badge>
@@ -594,44 +623,59 @@ export default function ParentDashboard() {
         </div>
       </div>
 
-      {/* ───── SUBSCRIPTION CARD ───── */}
+      {/* ───── SUBSCRIPTION — premium glass ───── */}
       {activeSub && (
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mx-4 card-elevated p-4"
+          className="mx-4 relative overflow-hidden rounded-2xl border border-border/50 bg-card p-5"
         >
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            {t('Active Subscription', 'Активный абонемент')}
-          </p>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-bold text-foreground">{activeSub.package_type?.replace('_', ' ').toUpperCase()}</p>
-              <p className="text-sm text-muted-foreground">
-                {activeSub.used_lessons}/{activeSub.total_lessons} {t('lessons used', 'занятий')} · {lessonsRemaining} {t('left', 'ост.')}
-              </p>
+          {/* Subtle gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.03] to-amber-500/[0.02] pointer-events-none" />
+          <div className="relative">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-[0.15em] mb-1">
+                  {t('Active Subscription', 'Активный абонемент')}
+                </p>
+                <p className="font-bold text-lg text-foreground tracking-tight">{activeSub.package_type?.replace('_', ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}</p>
+              </div>
+              <div className="text-right">
+                <p className="font-bold text-lg text-foreground">{Number(activeSub.price).toLocaleString()}</p>
+                <p className="text-[10px] text-muted-foreground/60 uppercase">{activeSub.currency}</p>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="font-bold text-foreground">{Number(activeSub.price).toLocaleString()} {activeSub.currency}</p>
-              <p className="text-xs text-muted-foreground">
-                {t('Expires', 'Истекает')} {new Date(activeSub.expires_at!).toLocaleDateString()}
-              </p>
+
+            {/* Progress with animated fill */}
+            <div className="mb-2">
+              <div className="flex items-center justify-between text-[10px] mb-1.5">
+                <span className="text-muted-foreground">{activeSub.used_lessons}/{activeSub.total_lessons} {t('lessons', 'занятий')}</span>
+                <span className="font-semibold text-primary">{lessonsRemaining} {t('remaining', 'осталось')}</span>
+              </div>
+              <div className="h-2.5 rounded-full bg-muted overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${((activeSub.used_lessons || 0) / (activeSub.total_lessons || 1)) * 100}%` }}
+                  transition={{ duration: 1, ease: 'easeOut' }}
+                  className="h-full rounded-full bg-gradient-to-r from-primary to-cyan-400"
+                />
+              </div>
             </div>
-          </div>
-          <div className="mt-3 h-2 rounded-full bg-muted overflow-hidden">
-            <div
-              className="h-full bg-primary rounded-full transition-all"
-              style={{ width: `${((activeSub.used_lessons || 0) / (activeSub.total_lessons || 1)) * 100}%` }}
-            />
+
+            {activeSub.expires_at && (
+              <p className="text-[10px] text-muted-foreground/50 mt-2">
+                {t('Valid until', 'Действует до')} {new Date(activeSub.expires_at).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}
+              </p>
+            )}
           </div>
         </motion.div>
       )}
 
-      {/* ───── PRICING PLANS ───── */}
+      {/* ───── PRICING PLANS — premium ───── */}
       <div className="px-4 space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">
-            {t('Choose a Plan', 'Выберите пакет')} 🏊
+          <h3 className="font-semibold text-[10px] text-muted-foreground/60 uppercase tracking-[0.15em]">
+            {t('Choose a Plan', 'Выберите пакет')}
           </h3>
           <button
             onClick={() => navigate('/payment')}
