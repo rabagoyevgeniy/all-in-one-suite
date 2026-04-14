@@ -126,7 +126,6 @@ function DevQuickLogin({ navigate }: { navigate: NavigateFunction }) {
           // Role may already exist
         }
         navigate(acc.route, { replace: true });
-        setTimeout(() => window.location.reload(), 100);
       }
     } catch (err: unknown) {
       console.error('Dev login error:', err);
@@ -711,7 +710,7 @@ export default function LoginPage() {
             </div>
 
             {/* Dev Testing Section */}
-            {(window.location.hostname.includes('lovable.app') || window.location.hostname.includes('lovableproject.com') || window.location.hostname === 'localhost') && (
+            {(window.location.hostname.includes('lovable.app') || window.location.hostname.includes('lovableproject.com') || window.location.hostname === 'localhost' || window.location.hostname.includes('vercel.app')) && (
               <DevQuickLogin navigate={navigate} />
             )}
           </motion.div>

@@ -48,7 +48,7 @@ const ONBOARDING_CONFIG: Partial<Record<UserRole, OnboardingConfig>> = {
     greeting: "Let's swim! 🌊",
     subtitle: 'Your swimming adventure begins',
     slides: [
-      { icon: '🥋', title: 'Earn Belts', description: 'Progress through 7 belt levels — from White to ProFit Elite', gradient: 'from-[hsl(199,89%,60%)] to-[hsl(174,72%,45%)]' },
+      { icon: '🏊', title: 'Earn Swim Caps', description: 'Progress through 7 levels — from White Cap to ProFit Legend', gradient: 'from-[hsl(199,89%,60%)] to-[hsl(174,72%,45%)]' },
       { icon: '🏆', title: 'Win Achievements', description: 'Complete challenges, earn coins, unlock special badges', gradient: 'from-[hsl(45,93%,55%)] to-[hsl(30,95%,55%)]' },
       { icon: '⚔️', title: 'Enter the Duel Arena', description: 'Challenge other swimmers and prove your skills', gradient: 'from-[hsl(0,80%,60%)] to-[hsl(270,70%,55%)]' },
     ],

@@ -3267,6 +3267,7 @@ export type Database = {
         | "head_manager"
         | "personal_manager"
         | "coach"
+        | "freelancer"
         | "parent"
         | "student"
         | "pro_athlete"
