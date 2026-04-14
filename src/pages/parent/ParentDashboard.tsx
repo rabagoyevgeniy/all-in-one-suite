@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Clock, MapPin, Plus, Loader2, Star, CreditCard, TrendingUp, AlertTriangle, MessageSquare, Calendar, ChevronRight, Package, Sparkles, ArrowRight } from 'lucide-react';
+import { Clock, MapPin, Plus, Loader2, Star, Wallet, Trophy, AlertTriangle, Send, CalendarCheck, ChevronRight, Package, Sparkles, ArrowRight, Waves, Droplets, Timer, Navigation } from 'lucide-react';
 import { usePricingPlans, type PricingPlan } from '@/hooks/usePricingPlans';
 import { SwimBeltBadge } from '@/components/SwimBeltBadge';
 import { SubscriptionWarningBanner } from '@/components/SubscriptionWarningBanner';
@@ -288,8 +288,14 @@ export default function ParentDashboard() {
         <div className="absolute top-[30%] left-[50%] w-40 h-40 rounded-full opacity-10 pointer-events-none blur-3xl" style={{ background: 'radial-gradient(circle, rgba(245,158,11,0.5) 0%, transparent 60%)' }} />
         {/* Dot grid */}
         <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.9) 0.5px, transparent 0.5px)', backgroundSize: '20px 20px' }} />
+        {/* Animated wave SVG */}
+        <div className="absolute bottom-0 left-0 right-0 overflow-hidden leading-[0] pointer-events-none z-10">
+          <svg className="relative block w-[200%] animate-shimmer" viewBox="0 0 1200 40" preserveAspectRatio="none" style={{ height: '20px' }}>
+            <path d="M0,20 C200,35 400,5 600,20 C800,35 1000,5 1200,20 L1200,40 L0,40 Z" fill="hsl(var(--background))" fillOpacity="0.8" />
+          </svg>
+        </div>
         {/* Bottom fade */}
-        <div className="absolute bottom-0 left-0 right-0 h-12 pointer-events-none" style={{ background: 'linear-gradient(to top, hsl(var(--background)), transparent)' }} />
+        <div className="absolute bottom-0 left-0 right-0 h-8 pointer-events-none z-[11]" style={{ background: 'hsl(var(--background))' }} />
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="relative">
           <div className="flex items-center justify-between mb-1">
@@ -318,7 +324,7 @@ export default function ParentDashboard() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center border border-cyan-500/20" style={{ background: 'linear-gradient(135deg, rgba(6,182,212,0.15) 0%, rgba(6,182,212,0.05) 100%)' }}>
-                    <Calendar className="w-4 h-4 text-cyan-400" />
+                    <Timer className="w-4 h-4 text-cyan-400" />
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-white tracking-tight">
@@ -342,7 +348,7 @@ export default function ParentDashboard() {
                     className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-medium text-white/80 hover:text-white transition-all border border-white/[0.06] hover:border-cyan-500/30"
                     style={{ background: 'rgba(255,255,255,0.03)' }}
                   >
-                    <MapPin className="w-3.5 h-3.5 text-cyan-400" /> {t('Track Coach', 'Отследить')}
+                    <Navigation className="w-3.5 h-3.5 text-cyan-400" /> {t('Track Coach', 'Отследить')}
                   </button>
                 )}
                 <button
@@ -350,7 +356,7 @@ export default function ParentDashboard() {
                   className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-medium text-white/80 hover:text-white transition-all border border-white/[0.06] hover:border-cyan-500/30"
                   style={{ background: 'rgba(255,255,255,0.03)' }}
                 >
-                  <MessageSquare className="w-3.5 h-3.5 text-cyan-400" /> {t('Message', 'Написать')}
+                  <Send className="w-3.5 h-3.5 text-cyan-400" /> {t('Message', 'Написать')}
                 </button>
               </div>
             </motion.div>
@@ -364,7 +370,7 @@ export default function ParentDashboard() {
               style={{ background: 'linear-gradient(135deg, rgba(6,182,212,0.08) 0%, rgba(139,92,246,0.06) 100%)', border: '1px solid rgba(6,182,212,0.12)' }}
             >
               <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform" style={{ background: 'linear-gradient(135deg, rgba(6,182,212,0.2), rgba(6,182,212,0.08))', border: '1px solid rgba(6,182,212,0.15)' }}>
-                <Plus className="w-5 h-5 text-cyan-400" />
+                <Waves className="w-5 h-5 text-cyan-400" />
               </div>
               <div className="flex-1">
                 <p className="text-sm font-semibold text-white">{t('Book First Lesson', 'Записаться на урок')}</p>
@@ -529,7 +535,7 @@ export default function ParentDashboard() {
                       "w-10 h-10 rounded-xl flex items-center justify-center",
                       isToday ? "bg-primary/10 border border-primary/20" : "bg-muted"
                     )}>
-                      <Clock className={cn("w-4 h-4", isToday ? "text-primary" : "text-muted-foreground")} />
+                      <CalendarCheck className={cn("w-4 h-4", isToday ? "text-primary" : "text-muted-foreground")} />
                     </div>
                     <div>
                       <div className="font-semibold text-sm text-foreground tracking-tight">
@@ -590,7 +596,7 @@ export default function ParentDashboard() {
                     onClick={() => navigate('/chat')}
                     className="flex-1 py-2.5 text-xs rounded-xl transition-all font-medium bg-primary/8 hover:bg-primary/12 text-primary border border-primary/15 hover:border-primary/25 flex items-center justify-center gap-1.5"
                   >
-                    <MessageSquare className="w-3 h-3" /> {t('Message', 'Написать')}
+                    <Send className="w-3 h-3" /> {t('Message', 'Написать')}
                   </button>
                 </div>
               </motion.div>
@@ -649,10 +655,10 @@ export default function ParentDashboard() {
         </h3>
         <div className="grid grid-cols-2 gap-2.5">
           {[
-            { icon: Calendar, label: t('Book Lesson', 'Записаться'), sub: t('Choose coach & time', 'Тренер и время'), path: '/parent/booking', bg: 'bg-cyan-50 dark:bg-cyan-500/8', iconBg: 'bg-cyan-100 dark:bg-cyan-500/15', accent: 'text-cyan-600 dark:text-cyan-400', border: 'border-cyan-200/60 dark:border-cyan-500/15' },
-            { icon: MessageSquare, label: t('Message Coach', 'Написать'), sub: t('Direct chat', 'Личное сообщение'), path: '/chat', bg: 'bg-violet-50 dark:bg-violet-500/8', iconBg: 'bg-violet-100 dark:bg-violet-500/15', accent: 'text-violet-600 dark:text-violet-400', border: 'border-violet-200/60 dark:border-violet-500/15' },
-            { icon: CreditCard, label: t('Payments', 'Платежи'), sub: t('History & invoices', 'История и счета'), path: '/parent/payments', bg: 'bg-amber-50 dark:bg-amber-500/8', iconBg: 'bg-amber-100 dark:bg-amber-500/15', accent: 'text-amber-600 dark:text-amber-400', border: 'border-amber-200/60 dark:border-amber-500/15' },
-            { icon: TrendingUp, label: t('Progress', 'Прогресс'), sub: t('Coins & achievements', 'Монеты и награды'), path: '/parent/coins', bg: 'bg-emerald-50 dark:bg-emerald-500/8', iconBg: 'bg-emerald-100 dark:bg-emerald-500/15', accent: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200/60 dark:border-emerald-500/15' },
+            { icon: Waves, label: t('Book Lesson', 'Записаться'), sub: t('Choose coach & time', 'Тренер и время'), path: '/parent/booking', bg: 'bg-cyan-50 dark:bg-cyan-500/8', iconBg: 'bg-cyan-100 dark:bg-cyan-500/15', accent: 'text-cyan-600 dark:text-cyan-400', border: 'border-cyan-200/60 dark:border-cyan-500/15' },
+            { icon: Send, label: t('Message Coach', 'Написать'), sub: t('Direct chat', 'Личное сообщение'), path: '/chat', bg: 'bg-violet-50 dark:bg-violet-500/8', iconBg: 'bg-violet-100 dark:bg-violet-500/15', accent: 'text-violet-600 dark:text-violet-400', border: 'border-violet-200/60 dark:border-violet-500/15' },
+            { icon: Wallet, label: t('Payments', 'Платежи'), sub: t('History & invoices', 'История и счета'), path: '/parent/payments', bg: 'bg-amber-50 dark:bg-amber-500/8', iconBg: 'bg-amber-100 dark:bg-amber-500/15', accent: 'text-amber-600 dark:text-amber-400', border: 'border-amber-200/60 dark:border-amber-500/15' },
+            { icon: Trophy, label: t('Progress', 'Прогресс'), sub: t('Coins & achievements', 'Монеты и награды'), path: '/parent/coins', bg: 'bg-emerald-50 dark:bg-emerald-500/8', iconBg: 'bg-emerald-100 dark:bg-emerald-500/15', accent: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200/60 dark:border-emerald-500/15' },
           ].map((action, i) => (
             <motion.button
               key={action.path}
