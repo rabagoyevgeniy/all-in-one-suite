@@ -44,7 +44,7 @@ src/
   stores/          — authStore.ts (user/session/role), adminStore.ts (city/currency)
   hooks/           — useCoins, useNotifications, useLanguage, usePricingPlans, useAdminDashboardStats, useAIConversation, useAITasks
   integrations/    — Supabase client + auto-generated types (DO NOT EDIT types.ts)
-  lib/             — constants.ts (belts, XP, roles), utils.ts, auth.ts
+  lib/             — constants.ts (swim caps, XP, roles), utils.ts, auth.ts
   assets/          — static images
 ```
 
@@ -85,7 +85,7 @@ Coins are the gamification currency. Tracked per-role via Supabase RPCs.
 EARNING:
   student completes task       → +coins (task_definitions.coin_reward)
   student wins duel            → +coins (from duel escrow)
-  student earns swim belt      → +coins (SWIM_BELTS[].coinsOnEarn: 300-7500)
+  student earns swim cap       → +coins (SWIM_BELTS[].coinsOnEarn: 300-7500)
   parent referral              → +coins
   achievement unlocked         → +coins (achievements.coin_reward)
   coach completes lesson       → +coins (coach reward)
@@ -106,7 +106,7 @@ RPCs:
   spend_coins(user_id, role, amount, type, description)  → returns new balance or error
 ```
 
-### Swim Belts (Student Progression)
+### Swim Caps (Student Progression)
 ```
 White    (0-1500 XP)     — Aqua Starter    — 300 coins on earn
 Sky Blue (1500-4000 XP)  — Water Explorer  — 500 coins
@@ -278,7 +278,7 @@ These strings appear in AdminDashboard, CoachDashboard, ParentDashboard, BottomN
 - `src/components/AppLayout.tsx` — layout for ALL roles
 - `src/components/BottomNav.tsx` — navigation for ALL roles
 - `src/components/AuthProvider.tsx` — auth for ALL roles
-- `src/lib/constants.ts` — belts, ranks, roles, routes for ALL
+- `src/lib/constants.ts` — swim caps, ranks, roles, routes for ALL
 - `src/hooks/useCoins.ts` — economy for student, coach, parent
 
 ### Don't break:

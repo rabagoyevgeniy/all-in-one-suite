@@ -126,7 +126,7 @@ export function DevTestPanel() {
       return;
     }
     await supabase.from('students').update({ swim_belt: belt } as any).eq('id', user.id);
-    toast({ title: `Belt changed to ${BELT_EMOJIS[belt]} ${belt}` });
+    toast({ title: `Swim cap changed to ${BELT_EMOJIS[belt]} ${belt}` });
   });
 
   // ── XP ACTIONS ──
@@ -281,7 +281,7 @@ export function DevTestPanel() {
           <div>
             <button onClick={() => toggleSection('belt')} className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-muted/50 transition-colors">
               <span className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                <ShieldCheck size={12} className="text-cyan-400" /> Swim Belt
+                <ShieldCheck size={12} className="text-cyan-400" /> Swim Cap
               </span>
               {section === 'belt' ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
             </button>

@@ -50,13 +50,13 @@ const SKILL_CATEGORIES: Record<string, { label: string; labelRu: string; icon: s
 };
 
 const BELT_INFO: Record<string, { label: string; labelRu: string; color: string; next: string | null }> = {
-  white: { label: 'White Belt', labelRu: 'Белый пояс', color: 'bg-gray-200 text-gray-800', next: 'sky_blue' },
-  sky_blue: { label: 'Sky Blue Belt', labelRu: 'Голубой пояс', color: 'bg-sky-400 text-white', next: 'green' },
-  green: { label: 'Green Belt', labelRu: 'Зелёный пояс', color: 'bg-emerald-500 text-white', next: 'yellow' },
-  yellow: { label: 'Yellow Belt', labelRu: 'Жёлтый пояс', color: 'bg-yellow-400 text-gray-800', next: 'orange' },
-  orange: { label: 'Orange Belt', labelRu: 'Оранжевый пояс', color: 'bg-orange-500 text-white', next: 'red' },
-  red: { label: 'Red Belt', labelRu: 'Красный пояс', color: 'bg-red-500 text-white', next: 'black' },
-  black: { label: 'Black Belt', labelRu: 'Чёрный пояс', color: 'bg-gray-900 text-white', next: null },
+  white: { label: 'White Cap', labelRu: 'Белая шапочка', color: 'bg-gray-200 text-gray-800', next: 'sky_blue' },
+  sky_blue: { label: 'Sky Blue Cap', labelRu: 'Голубая шапочка', color: 'bg-sky-400 text-white', next: 'green' },
+  green: { label: 'Green Cap', labelRu: 'Зелёная шапочка', color: 'bg-emerald-500 text-white', next: 'yellow' },
+  yellow: { label: 'Yellow Cap', labelRu: 'Жёлтая шапочка', color: 'bg-yellow-400 text-gray-800', next: 'orange' },
+  orange: { label: 'Orange Cap', labelRu: 'Оранжевая шапочка', color: 'bg-orange-500 text-white', next: 'red' },
+  red: { label: 'Red Cap', labelRu: 'Красная шапочка', color: 'bg-red-500 text-white', next: 'black' },
+  black: { label: 'Black Cap', labelRu: 'Чёрная шапочка', color: 'bg-gray-900 text-white', next: null },
 };
 
 const BELT_ORDER = ['white', 'sky_blue', 'green', 'yellow', 'orange', 'red', 'black'];

@@ -30,7 +30,7 @@ const COIN_PACKS = [
 const EARN_WAYS = [
   { icon: '✓', label: 'Complete a lesson', amount: '+10 coins per lesson' },
   { icon: '⭐', label: '5-star coach rating', amount: '+25 coins' },
-  { icon: '🥋', label: 'Child belt level-up', amount: '+100 coins' },
+  { icon: '🏊', label: 'Child swim cap level-up', amount: '+100 coins' },
   { icon: '👥', label: 'Refer a friend', amount: '+300 coins' },
   { icon: '🔥', label: '4-week lesson streak', amount: '+50 coins' },
 ];
