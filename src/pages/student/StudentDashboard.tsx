@@ -58,7 +58,7 @@ const PLACEHOLDER_ACHIEVEMENTS = [
   { id: '2', emoji: '🔥', name: '5 in a Row', desc: '5 consecutive lessons', earned: true },
   { id: '3', emoji: '⭐', name: 'Star Student', desc: 'Perfect rating week', earned: false },
   { id: '4', emoji: '🌊', name: 'Wave Rider', desc: 'Master freestyle', earned: false },
-  { id: '5', emoji: '🥇', name: 'Belt Champion', desc: 'Reach Black Belt', earned: false },
+  { id: '5', emoji: '🥇', name: 'Legend', desc: 'Reach Black Cap', earned: false },
 ];
 
 export default function StudentDashboard() {
@@ -353,20 +353,29 @@ export default function StudentDashboard() {
 
       {/* ═══ HERO: PLAYER CARD ═══ */}
       <div className="mx-4">
-        <div className={cn("arena-hero-border", BELT_GLOW[currentBelt.id])}>
+        <div className={cn("arena-hero-border", BELT_GLOW[currentBelt.id], progressPct >= 80 && nextBelt && "animate-pulse")}>
           <div className={cn(
-            "arena-hero-inner bg-gradient-to-br p-5 text-white arena-scan-line",
+            "arena-hero-inner bg-gradient-to-br p-5 text-white arena-scan-line relative",
             BELT_GRADIENTS[currentBelt.id] || BELT_GRADIENTS.white
           )}>
+            {/* Water wave bg decoration */}
             <div className="absolute top-0 right-0 w-32 h-32 opacity-10">
               <Waves className="w-full h-full" />
             </div>
+            {/* Level-up proximity glow */}
+            {progressPct >= 75 && nextBelt && (
+              <div className="absolute inset-0 rounded-[inherit] pointer-events-none" style={{
+                background: `radial-gradient(ellipse at 50% 100%, ${currentBelt.borderColor}30 0%, transparent 60%)`,
+                animation: 'pulse 2s ease-in-out infinite',
+              }} />
+            )}
 
-            {/* Floating belt badge */}
+            {/* Floating swim cap badge */}
             <motion.div
               animate={{ y: [0, -8, 0], rotate: [0, 5, -5, 0] }}
               transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-              className="absolute top-4 right-4 w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-4xl border border-white/20"
+              className="absolute top-4 right-4 w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-4xl border border-white/20 z-20"
+              style={progressPct >= 80 && nextBelt ? { boxShadow: `0 0 20px ${currentBelt.borderColor}50` } : {}}
             >
               {BELT_EMOJIS[currentBelt.id] || '🤍'}
             </motion.div>
@@ -388,11 +397,15 @@ export default function StudentDashboard() {
                   <span className="flex items-center gap-1"><TrendingUp size={10} /> {t('Progress', 'Прогресс')}</span>
                   <span className="font-mono">
                     {nextBelt ? (
-                      <>{Math.round(progressPct)}% <span className="text-white/40">·</span> <span className="text-cyan-300">{xpToNext} XP</span> {t('to', 'до')} {nextBelt.name}</>
-                    ) : t('MAX LEVEL', 'МАКС')}
+                      progressPct >= 80 ? (
+                        <span className="text-yellow-300 font-bold animate-pulse">{Math.round(progressPct)}% — {t('ALMOST THERE!', 'ПОЧТИ!')}</span>
+                      ) : (
+                        <>{Math.round(progressPct)}% <span className="text-white/40">·</span> <span className="text-cyan-300">{xpToNext.toLocaleString()} XP</span> {t('to', 'до')} {nextBelt.name}</>
+                      )
+                    ) : <span className="text-yellow-300 font-bold">{t('MAX LEVEL', 'МАКС')}</span>}
                   </span>
                 </div>
-                <NeonProgress value={progressPct} variant="cyan" height={14} duration={1.8} />
+                <NeonProgress value={progressPct} variant={progressPct >= 80 ? 'gold' : 'cyan'} height={14} duration={1.8} />
               </div>
 
               {/* Battle stats + animated streak */}
