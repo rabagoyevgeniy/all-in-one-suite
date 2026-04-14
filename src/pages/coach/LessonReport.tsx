@@ -130,7 +130,7 @@ export default function LessonReport() {
           if (booking?.parent_id) {
             await supabase.from('notifications').insert({
               user_id: booking.parent_id,
-              title: `🎉 ${studentName} ${t('earned a new belt!', 'получил новый пояс!')}`,
+              title: `🎉 ${studentName} ${t('earned a new swim cap!', 'получил новую шапочку!')}`,
               body: `${nextBelt.name} (${nextBelt.id.replace('_', ' ')})`,
               type: 'belt_upgrade',
               reference_id: lessonId,
