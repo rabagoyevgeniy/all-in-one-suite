@@ -139,11 +139,36 @@ export default function AdminDashboard() {
   );
 
   return (
-    <div className="px-4 py-6 space-y-6 pb-24">
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <h2 className="font-display font-bold text-xl text-foreground">Command Center</h2>
-        <p className="text-sm text-muted-foreground">Overview · {currency === 'AED' ? 'Dubai' : 'Baku'}</p>
-      </motion.div>
+    <div className="space-y-6 pb-24">
+      {/* ═══ ADMIN HERO ═══ */}
+      <div className="relative px-5 pt-7 pb-6 overflow-hidden" style={{ background: 'linear-gradient(160deg, #0c0a1f 0%, #14103a 30%, #1a1450 60%, #14103a 100%)' }}>
+        <div className="absolute top-[-30px] right-[-20px] w-64 h-64 rounded-full opacity-20 pointer-events-none blur-xl" style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.4) 0%, transparent 60%)' }} />
+        <div className="absolute bottom-[-30px] left-[-20px] w-48 h-48 rounded-full opacity-15 pointer-events-none blur-2xl" style={{ background: 'radial-gradient(circle, rgba(6,182,212,0.3) 0%, transparent 60%)' }} />
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.9) 0.5px, transparent 0.5px)', backgroundSize: '20px 20px' }} />
+        <div className="absolute bottom-0 left-0 right-0 h-8 pointer-events-none" style={{ background: 'linear-gradient(to top, hsl(var(--background)), transparent)' }} />
+
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-violet-400/70 font-medium">Command Center</p>
+          <h2 className="font-display font-bold text-2xl text-white mt-0.5">{currency === 'AED' ? 'Dubai' : 'Baku'}</h2>
+          <div className="flex items-center gap-2 mt-3">
+            {!statsLoading && stats && (
+              <>
+                <span className="text-sm text-white/80 px-3 py-1.5 rounded-xl border border-white/[0.08]" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                  <span className="font-bold text-white">{stats.active_coaches || 0}</span> <span className="text-white/40 text-xs">coaches</span>
+                </span>
+                <span className="text-sm text-white/80 px-3 py-1.5 rounded-xl border border-white/[0.08]" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                  <span className="font-bold text-white">{stats.total_students || 0}</span> <span className="text-white/40 text-xs">students</span>
+                </span>
+                <span className="text-sm text-white/80 px-3 py-1.5 rounded-xl border border-white/[0.08]" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                  <span className="font-bold text-emerald-400">{stats.revenue_today_aed || 0}</span> <span className="text-white/40 text-xs">AED</span>
+                </span>
+              </>
+            )}
+          </div>
+        </motion.div>
+      </div>
+
+      <div className="px-4 space-y-6">
 
       {/* KPI Stats Grid */}
       <div className="grid grid-cols-2 gap-3">
@@ -322,6 +347,7 @@ export default function AdminDashboard() {
         )}
       </motion.div>
 
+    </div>
     </div>
   );
 }

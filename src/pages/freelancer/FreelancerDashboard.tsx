@@ -161,7 +161,35 @@ export default function FreelancerDashboard() {
   }
 
   return (
-    <div className="space-y-5 px-4 py-5 pb-28">
+    <div className="space-y-5 pb-28">
+      {/* ═══ FREELANCER HERO ═══ */}
+      <div className="relative px-5 pt-7 pb-6 overflow-hidden" style={{ background: 'linear-gradient(160deg, #061a1f 0%, #0a2e35 30%, #0d4048 60%, #0a2e35 100%)' }}>
+        <div className="absolute top-[-30px] right-[-20px] w-60 h-60 rounded-full opacity-20 pointer-events-none blur-xl" style={{ background: 'radial-gradient(circle, rgba(6,182,212,0.4) 0%, transparent 60%)' }} />
+        <div className="absolute bottom-[-30px] left-[-20px] w-48 h-48 rounded-full opacity-10 pointer-events-none blur-2xl" style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.3) 0%, transparent 60%)' }} />
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.9) 0.5px, transparent 0.5px)', backgroundSize: '20px 20px' }} />
+        <div className="absolute bottom-0 left-0 right-0 h-8 pointer-events-none" style={{ background: 'linear-gradient(to top, hsl(var(--background)), transparent)' }} />
+
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-cyan-400/70 font-medium">{t('Freelance Coach', 'Фриланс тренер')}</p>
+          <h2 className="font-display font-bold text-2xl text-white mt-0.5">{firstName}</h2>
+          <div className="flex items-center gap-2 mt-3">
+            <span className="text-sm text-white/80 px-3 py-1.5 rounded-xl border border-white/[0.08]" style={{ background: 'rgba(255,255,255,0.04)' }}>
+              ⭐ <span className="font-bold text-white">{Number(freelancerData?.avg_rating || 0).toFixed(1)}</span>
+            </span>
+            <span className="text-sm text-white/80 px-3 py-1.5 rounded-xl border border-white/[0.08]" style={{ background: 'rgba(255,255,255,0.04)' }}>
+              <span className="font-bold text-white">{freelancerData?.total_lessons_completed || 0}</span> <span className="text-white/40 text-xs">{t('lessons', 'уроков')}</span>
+            </span>
+            {isLive && (
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1.5 rounded-full">
+                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+                LIVE
+              </span>
+            )}
+          </div>
+        </motion.div>
+      </div>
+
+      <div className="px-4 space-y-5">
 
       {/* ═══ ONBOARDING PROGRESS (if < 100%) ═══ */}
       {!isProfileComplete && (
@@ -529,6 +557,7 @@ export default function FreelancerDashboard() {
           </motion.button>
         ))}
       </div>
+    </div>
     </div>
   );
 }

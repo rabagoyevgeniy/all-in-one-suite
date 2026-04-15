@@ -70,29 +70,47 @@ export default function PMDashboard() {
   }
 
   return (
-    <div className="px-4 py-6 space-y-6">
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <h2 className="font-display font-bold text-xl text-foreground">
-          Welcome, {profile?.full_name?.split(' ')[0] || 'Manager'}! 📋
-        </h2>
-        <p className="text-sm text-muted-foreground">Personal Manager Dashboard</p>
-      </motion.div>
+    <div className="space-y-6">
+      {/* ═══ PM HERO ═══ */}
+      <div className="relative px-5 pt-7 pb-6 overflow-hidden" style={{ background: 'linear-gradient(160deg, #0f0a20 0%, #1a1040 30%, #251660 60%, #1a1040 100%)' }}>
+        <div className="absolute top-[-30px] right-[-20px] w-60 h-60 rounded-full opacity-20 pointer-events-none blur-xl" style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.4) 0%, transparent 60%)' }} />
+        <div className="absolute bottom-[-30px] left-[-20px] w-48 h-48 rounded-full opacity-15 pointer-events-none blur-2xl" style={{ background: 'radial-gradient(circle, rgba(245,158,11,0.3) 0%, transparent 60%)' }} />
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.9) 0.5px, transparent 0.5px)', backgroundSize: '20px 20px' }} />
+        <div className="absolute bottom-0 left-0 right-0 h-8 pointer-events-none" style={{ background: 'linear-gradient(to top, hsl(var(--background)), transparent)' }} />
+
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-indigo-400/70 font-medium">Personal Manager</p>
+          <h2 className="font-display font-bold text-2xl text-white mt-0.5">
+            {profile?.full_name?.split(' ')[0] || 'Manager'}
+          </h2>
+          <div className="flex items-center gap-2 mt-3">
+            <span className="text-sm text-white/80 px-3 py-1.5 rounded-xl border border-white/[0.08]" style={{ background: 'rgba(255,255,255,0.04)' }}>
+              <span className="font-bold text-emerald-400">{commissions?.manager_earnings ? Number(commissions.manager_earnings).toLocaleString() : '0'}</span> <span className="text-white/40 text-xs">AED</span>
+            </span>
+            <span className="text-sm text-white/80 px-3 py-1.5 rounded-xl border border-white/[0.08]" style={{ background: 'rgba(255,255,255,0.04)' }}>
+              <span className="font-bold text-white">{assignments?.length || 0}</span> <span className="text-white/40 text-xs">clients</span>
+            </span>
+          </div>
+        </motion.div>
+      </div>
+
+      <div className="px-4 space-y-6">
 
       {/* Earnings Card */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="glass-card rounded-2xl p-4 flex items-center justify-between"
+        className="rounded-2xl border border-border/50 bg-card p-4 flex items-center justify-between"
       >
         <div>
-          <p className="text-xs text-muted-foreground font-medium">This Month</p>
+          <p className="text-[10px] text-muted-foreground/60 font-medium uppercase tracking-wider">This Month</p>
           <p className="font-display font-bold text-2xl text-foreground">
             {commissions?.manager_earnings ? `${Number(commissions.manager_earnings).toLocaleString()} AED` : '—'}
           </p>
         </div>
         <div className="text-right">
-          <p className="text-xs text-muted-foreground font-medium">Active Clients</p>
+          <p className="text-[10px] text-muted-foreground/60 font-medium uppercase tracking-wider">Active Clients</p>
           <p className="font-display font-bold text-2xl text-foreground">
             {assignments?.length || commissions?.active_clients || 0}
           </p>
@@ -189,6 +207,7 @@ export default function PMDashboard() {
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 }
