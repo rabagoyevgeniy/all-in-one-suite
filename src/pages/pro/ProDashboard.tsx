@@ -231,10 +231,15 @@ export default function ProDashboard() {
         ))}
       </div>
 
-      {/* ═══ WIN RATE RING + COINS ═══ */}
+      {/* ═══ WIN RATE + COINS — flat cards ═══ */}
       <div className="grid grid-cols-2 gap-3 px-4">
-        {/* Win rate ring */}
-        <GlowCard glowColor={tier.glow} className="p-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.2 }}
+          className="rounded-2xl p-4 border border-white/[0.08]"
+          style={{ background: 'rgba(255,255,255,0.04)' }}
+        >
           <div className="flex items-center gap-3">
             <div className="relative w-14 h-14 flex-shrink-0">
               <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
@@ -259,17 +264,20 @@ export default function ProDashboard() {
               <p className="text-xs text-muted-foreground mt-0.5">{wins + losses} {t('total duels', 'всего дуэлей')}</p>
             </div>
           </div>
-        </GlowCard>
+        </motion.div>
 
-        {/* Coin balance */}
-        <GlowCard glowColor="rgba(234,179,8,0.3)" className="p-4">
-          <div className="flex flex-col items-center justify-center h-full gap-2">
-            <div className="text-2xl font-black text-foreground tabular-nums neon-text-gold">
-              🪙 {(proData?.coin_balance || 0).toLocaleString()}
-            </div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">{t('Pro Coins', 'Монеты')}</p>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.25 }}
+          className="rounded-2xl p-4 border border-amber-500/20 flex flex-col items-center justify-center gap-2"
+          style={{ background: 'rgba(234,179,8,0.06)' }}
+        >
+          <div className="text-2xl font-black text-foreground tabular-nums neon-text-gold">
+            🪙 {(proData?.coin_balance || 0).toLocaleString()}
           </div>
-        </GlowCard>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">{t('Pro Coins', 'Монеты')}</p>
+        </motion.div>
       </div>
 
       {/* ═══ PERSONAL RECORDS ═══ */}
