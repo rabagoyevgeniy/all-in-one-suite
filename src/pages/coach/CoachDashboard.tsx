@@ -310,67 +310,66 @@ export default function CoachDashboard() {
   }
 
   return (
-    <div className="px-4 py-6 space-y-5 pb-28">
-      {/* Header */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <h2 className="font-bold text-xl text-foreground">
-          {t("Today's Lessons", 'Занятия сегодня')}
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          {profile?.city || 'Dubai'}
-        </p>
-      </motion.div>
+    <div className="space-y-5 pb-28">
+      {/* ═══ COACH HERO ═══ */}
+      <div className="relative px-5 pt-7 pb-6 overflow-hidden" style={{ background: 'linear-gradient(160deg, #062218 0%, #0a3328 30%, #0d4535 60%, #0a3328 100%)' }}>
+        <div className="absolute top-[-30px] right-[-30px] w-60 h-60 rounded-full opacity-20 pointer-events-none blur-xl" style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.4) 0%, transparent 60%)' }} />
+        <div className="absolute bottom-[-40px] left-[-20px] w-48 h-48 rounded-full opacity-10 pointer-events-none blur-2xl" style={{ background: 'radial-gradient(circle, rgba(234,179,8,0.4) 0%, transparent 60%)' }} />
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.9) 0.5px, transparent 0.5px)', backgroundSize: '20px 20px' }} />
+        <div className="absolute bottom-0 left-0 right-0 h-8 pointer-events-none" style={{ background: 'linear-gradient(to top, hsl(var(--background)), transparent)' }} />
 
-      {/* GPS Banner — clickable */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative">
+          <div className="flex items-center justify-between mb-1">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-400/70 font-medium">{t("Today's Schedule", 'Расписание')}</p>
+              <h2 className="font-display font-bold text-2xl text-white mt-0.5">
+                {profile?.full_name?.split(' ')[0] || t('Coach', 'Тренер')}
+              </h2>
+            </div>
+            <div className="flex flex-col items-end">
+              <Badge variant="outline" className="text-[10px] border-current/40 mb-1" style={{ color: rankInfo?.color }}>
+                {rankInfo?.label || 'Trainee'}
+              </Badge>
+              <span className="text-[10px] text-white/40">{profile?.city || 'Dubai'}</span>
+            </div>
+          </div>
+
+          {/* Stats row */}
+          <div className="flex items-center gap-2 mt-4">
+            <button onClick={() => navigate('/coach/lessons-history')} className="flex items-center gap-1.5 text-sm text-white/90 px-3 py-1.5 rounded-xl border border-white/[0.08] hover:border-white/20 transition-colors" style={{ background: 'rgba(255,255,255,0.04)' }}>
+              <span className="font-bold">{coachData?.total_lessons_completed || 0}</span>
+              <span className="text-white/40 text-xs">{t('lessons', 'уроков')}</span>
+            </button>
+            <button onClick={() => navigate('/coach/ratings')} className="flex items-center gap-1.5 text-sm text-white/90 px-3 py-1.5 rounded-xl border border-white/[0.08] hover:border-white/20 transition-colors" style={{ background: 'rgba(255,255,255,0.04)' }}>
+              <Star size={12} className="text-amber-400 fill-amber-400" />
+              <span className="font-bold">{Number(coachData?.avg_rating || 0).toFixed(1)}</span>
+            </button>
+            <button onClick={() => navigate('/coach/coins')} className="flex items-center gap-1.5 text-sm text-white/90 px-3 py-1.5 rounded-xl border border-white/[0.08] hover:border-white/20 transition-colors" style={{ background: 'rgba(255,255,255,0.04)' }}>
+              <span className="text-amber-400">🪙</span>
+              <span className="font-bold">{(coachData?.coin_balance || 0).toLocaleString()}</span>
+            </button>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* GPS Banner */}
       {gpsActive && (
         <motion.button
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           onClick={() => navigate('/coach/live-tracking')}
-          className="w-full rounded-xl p-3 flex items-center gap-3 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 text-left cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-500/15 transition-colors"
+          className="mx-4 w-auto rounded-2xl p-3.5 flex items-center gap-3 border text-left cursor-pointer transition-colors bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 hover:bg-emerald-100 dark:hover:bg-emerald-500/15"
         >
-          <span className="relative flex h-3 w-3">
+          <span className="relative flex h-3 w-3 shrink-0">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
             <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
           </span>
-          <span className="text-sm text-emerald-700 dark:text-emerald-300 flex-1">
-            🟢 {t('GPS Active · Parents can see you', 'GPS активен · Родители видят вас')}
+          <span className="text-sm text-emerald-700 dark:text-emerald-300 flex-1 font-medium">
+            {t('GPS Active · Parents can track you', 'GPS активен · Родители видят вас')}
           </span>
           <ChevronRight size={16} className="text-emerald-500" />
         </motion.button>
       )}
-
-      {/* Stats Row */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="grid grid-cols-4 gap-2"
-      >
-        <button onClick={() => navigate('/coach/lessons-history')} className="stat-card cursor-pointer">
-          <p className="text-[10px] text-muted-foreground font-medium">{t('Lessons', 'Уроки')}</p>
-          <p className="font-bold text-lg text-foreground mt-0.5">{coachData?.total_lessons_completed || 0}</p>
-        </button>
-        <button onClick={() => navigate('/coach/ratings')} className="stat-card cursor-pointer">
-          <p className="text-[10px] text-muted-foreground font-medium">{t('Rating', 'Рейтинг')}</p>
-          <div className="flex items-center justify-center gap-0.5 mt-1">
-            <Star size={12} className="text-amber-500 fill-amber-500" />
-            <span className="font-bold text-foreground">{Number(coachData?.avg_rating || 0).toFixed(1)}</span>
-          </div>
-        </button>
-        <button onClick={() => navigate('/coach/coins')} className="stat-card cursor-pointer">
-          <p className="text-[10px] text-muted-foreground font-medium">{t('Coins', 'Монеты')}</p>
-          <div className="mt-0.5">
-            <CoinBalance amount={coachData?.coin_balance || 0} size="sm" />
-          </div>
-        </button>
-        <button onClick={() => navigate('/coach/rank')} className="stat-card cursor-pointer">
-          <p className="text-[10px] text-muted-foreground font-medium">{t('Rank', 'Ранг')}</p>
-          <Badge variant="outline" className="text-[10px] mt-1.5" style={{ borderColor: rankInfo?.color, color: rankInfo?.color }}>
-            {rankInfo?.label || 'Trainee'}
-          </Badge>
-        </button>
-      </motion.div>
 
       {/* Today's Route */}
       <div className="space-y-3">
