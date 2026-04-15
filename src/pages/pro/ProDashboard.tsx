@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Trophy, Swords, Timer, TrendingUp, Loader2, ChevronRight, Flame, Target, Waves, Crown, Shield, Zap, Medal, ArrowRight } from 'lucide-react';
+import { Trophy, Swords, Timer, TrendingUp, Loader2, ChevronRight, Flame, Target, Waves, Crown, Shield, Zap, Medal, ArrowRight, ShoppingBag } from 'lucide-react';
 import { CoinBalance } from '@/components/CoinBalance';
 import { NeonProgress } from '@/components/ui/neon-progress';
 import { GlowCard } from '@/components/ui/glow-card';
@@ -209,7 +209,7 @@ export default function ProDashboard() {
         {[
           { icon: Swords, label: t('Ranked', 'Ранг'), path: '/pro/arena', badge: activeDuels?.length, iconColor: 'text-red-400', badgeColor: 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]', glow: 'hover:shadow-[0_0_16px_rgba(239,68,68,0.3)]' },
           { icon: Timer, label: t('Records', 'Рекорды'), path: '/pro/records', iconColor: 'text-cyan-400', glow: 'hover:shadow-[0_0_16px_rgba(6,182,212,0.3)]' },
-          { icon: Trophy, label: t('Shop', 'Магазин'), path: '/pro/shop', iconColor: 'text-amber-400', glow: 'hover:shadow-[0_0_16px_rgba(245,158,11,0.3)]' },
+          { icon: ShoppingBag, label: t('Shop', 'Магазин'), path: '/pro/shop', iconColor: 'text-amber-400', glow: 'hover:shadow-[0_0_16px_rgba(245,158,11,0.3)]' },
           { icon: Crown, label: t('Profile', 'Профиль'), path: '/pro/profile', iconColor: 'text-violet-400', glow: 'hover:shadow-[0_0_16px_rgba(139,92,246,0.3)]' },
         ].map((action, i) => (
           <motion.button

@@ -410,6 +410,24 @@ export default function ParentDashboard() {
       )}
 
       {/* ───── CHILD CARDS — premium progress ───── */}
+      {(!children || children.length === 0) && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          onClick={() => navigate('/parent/children')}
+          className="mx-4 rounded-2xl p-5 flex items-center gap-4 cursor-pointer group transition-all border border-dashed border-primary/20 hover:border-primary/40"
+          style={{ background: 'linear-gradient(135deg, rgba(6,182,212,0.04) 0%, rgba(139,92,246,0.03) 100%)' }}
+        >
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 bg-primary/10 border border-primary/15 group-hover:scale-105 transition-transform">
+            <Plus className="w-5 h-5 text-primary" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-foreground">{t('Add Your Child', 'Добавьте ребёнка')}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">{t('Start tracking their swimming journey', 'Начните отслеживать прогресс в плавании')}</p>
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground/30 group-hover:text-primary transition-colors" />
+        </motion.div>
+      )}
       {children && children.length > 0 && (
         <div>
           <h3 className="font-semibold text-[10px] text-muted-foreground/60 uppercase tracking-[0.15em] px-4 mb-3">
@@ -658,7 +676,7 @@ export default function ParentDashboard() {
             { icon: Waves, label: t('Book Lesson', 'Записаться'), sub: t('Choose coach & time', 'Тренер и время'), path: '/parent/booking', bg: 'bg-cyan-50 dark:bg-cyan-500/8', iconBg: 'bg-cyan-100 dark:bg-cyan-500/15', accent: 'text-cyan-600 dark:text-cyan-400', border: 'border-cyan-200/60 dark:border-cyan-500/15' },
             { icon: Send, label: t('Message Coach', 'Написать'), sub: t('Direct chat', 'Личное сообщение'), path: '/chat', bg: 'bg-violet-50 dark:bg-violet-500/8', iconBg: 'bg-violet-100 dark:bg-violet-500/15', accent: 'text-violet-600 dark:text-violet-400', border: 'border-violet-200/60 dark:border-violet-500/15' },
             { icon: Wallet, label: t('Payments', 'Платежи'), sub: t('History & invoices', 'История и счета'), path: '/parent/payments', bg: 'bg-amber-50 dark:bg-amber-500/8', iconBg: 'bg-amber-100 dark:bg-amber-500/15', accent: 'text-amber-600 dark:text-amber-400', border: 'border-amber-200/60 dark:border-amber-500/15' },
-            { icon: Trophy, label: t('Progress', 'Прогресс'), sub: t('Coins & achievements', 'Монеты и награды'), path: '/parent/coins', bg: 'bg-emerald-50 dark:bg-emerald-500/8', iconBg: 'bg-emerald-100 dark:bg-emerald-500/15', accent: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200/60 dark:border-emerald-500/15' },
+            { icon: Trophy, label: t('Progress', 'Прогресс'), sub: t('Children & swim caps', 'Дети и шапочки'), path: '/parent/children', bg: 'bg-emerald-50 dark:bg-emerald-500/8', iconBg: 'bg-emerald-100 dark:bg-emerald-500/15', accent: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200/60 dark:border-emerald-500/15' },
           ].map((action, i) => (
             <motion.button
               key={action.path}
@@ -731,126 +749,25 @@ export default function ParentDashboard() {
         </motion.div>
       )}
 
-      {/* ───── PRICING PLANS — premium ───── */}
-      <div className="px-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-[10px] text-muted-foreground/60 uppercase tracking-[0.15em]">
-            {t('Choose a Plan', 'Выберите пакет')}
-          </h3>
-          <button
-            onClick={() => navigate('/payment')}
-            className="text-xs text-primary font-medium flex items-center gap-1"
-          >
-            {t('View All', 'Все пакеты')} <ArrowRight size={12} />
-          </button>
-        </div>
-
-        {/* Private / Group toggle */}
-        <div className="flex gap-2 bg-muted/50 rounded-xl p-1">
-          <button
-            onClick={() => setPlanType('private')}
-            className={cn(
-              'flex-1 py-2 rounded-xl text-xs font-medium transition-all',
-              planType === 'private'
-                ? 'bg-card text-primary shadow-sm'
-                : 'text-muted-foreground'
-            )}
-          >
-            🏠 {t('Private', 'Личные')}
-          </button>
-          <button
-            onClick={() => setPlanType('group')}
-            className={cn(
-              'flex-1 py-2 rounded-xl text-xs font-medium transition-all',
-              planType === 'group'
-                ? 'bg-card text-primary shadow-sm'
-                : 'text-muted-foreground'
-            )}
-          >
-            👥 {t('Group', 'Группа')}
-          </button>
-        </div>
-
-        {/* Plan cards — horizontal scroll */}
-        <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 snap-x snap-mandatory">
-          {filteredPlans.length > 0 ? filteredPlans.map((plan, i) => {
-            const isTrial = plan.plan_key.includes('trial');
-            const isPopular = plan.plan_key.includes('pack_10') || plan.plan_key.includes('pack_8') || plan.plan_key.includes('premium');
-            return (
-              <motion.div
-                key={plan.id}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className={cn(
-                  'snap-start shrink-0 w-[200px] rounded-2xl border p-4 space-y-2 relative cursor-pointer hover:border-primary/50 transition-all',
-                  isTrial
-                    ? 'bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-950/30 dark:to-red-950/30 border-orange-300 dark:border-orange-700'
-                    : isPopular
-                      ? 'bg-gradient-to-br from-primary/5 to-primary/10 border-primary/30'
-                      : 'bg-card border-border'
-                )}
-                onClick={() => navigate('/payment')}
-              >
-                {isTrial && (
-                  <span className="absolute -top-2 right-3 bg-gradient-to-r from-red-500 to-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                    🎁 -50%
-                  </span>
-                )}
-                {isPopular && !isTrial && (
-                  <span className="absolute -top-2 right-3 bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full">
-                    ⭐ {t('Popular', 'Хит')}
-                  </span>
-                )}
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">{plan.icon || '🏊'}</span>
-                  <p className="font-semibold text-sm text-foreground leading-tight">{plan.name}</p>
-                </div>
-                {plan.description && (
-                  <p className="text-[11px] text-muted-foreground line-clamp-2">{plan.description}</p>
-                )}
-                <div className="pt-1">
-                  <div className="flex items-baseline gap-1">
-                    <span className={cn(
-                      'text-lg font-black',
-                      isTrial ? 'text-orange-500' : 'text-primary'
-                    )}>
-                      {plan.price.toLocaleString()}
-                    </span>
-                    <span className="text-xs text-muted-foreground">{plan.currency}</span>
-                  </div>
-                  {plan.original_price && plan.original_price > plan.price && (
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10px] text-muted-foreground line-through">
-                        {plan.original_price.toLocaleString()} {plan.currency}
-                      </span>
-                      {plan.discount_percent && (
-                        <span className="text-[10px] text-emerald-600 font-semibold">-{plan.discount_percent}%</span>
-                      )}
-                    </div>
-                  )}
-                  {plan.price_per_lesson && (
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                      {plan.price_per_lesson} {plan.currency}/{t('lesson', 'занятие')}
-                    </p>
-                  )}
-                </div>
-                {plan.features && plan.features.length > 0 && (
-                  <div className="space-y-0.5 pt-1 border-t border-border/50">
-                    {plan.features.slice(0, 2).map((f, fi) => (
-                      <p key={fi} className="text-[10px] text-muted-foreground">✓ {f}</p>
-                    ))}
-                  </div>
-                )}
-              </motion.div>
-            );
-          }) : (
-            <div className="w-full text-center py-6 text-sm text-muted-foreground">
-              {t('No plans available for your city', 'Нет доступных пакетов для вашего города')}
-            </div>
-          )}
-        </div>
-      </div>
+      {/* ───── PLANS CTA (compact) ───── */}
+      {!activeSub && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          onClick={() => navigate('/parent/booking')}
+          className="mx-4 rounded-2xl p-4 flex items-center gap-4 cursor-pointer group transition-all border border-primary/15 hover:border-primary/30"
+          style={{ background: 'linear-gradient(135deg, rgba(6,182,212,0.05) 0%, rgba(139,92,246,0.03) 100%)' }}
+        >
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-primary/10 border border-primary/15 group-hover:scale-105 transition-transform">
+            <Sparkles className="w-5 h-5 text-primary" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-foreground">{t('Choose a Lesson Package', 'Выбрать пакет занятий')}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">{t('Private & group lessons from 200 AED', 'Личные и групповые от 200 AED')}</p>
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+        </motion.div>
+      )}
 
       {/* ───── LOW LESSONS WARNING ───── */}
       {activeSub && lessonsRemaining <= 2 && lessonsRemaining > 0 && (
