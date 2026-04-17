@@ -26,7 +26,8 @@ const IS_DEV = import.meta.env.DEV
   || window.location.hostname === 'localhost'
   || window.location.hostname === '127.0.0.1'
   || window.location.hostname.includes('lovable.app')
-  || window.location.hostname.includes('lovableproject.com');
+  || window.location.hostname.includes('lovableproject.com')
+  || window.location.hostname.includes('vercel.app');
 
 const SWIM_BELTS_LIST = ['white', 'sky_blue', 'green', 'yellow', 'orange', 'red', 'black'];
 
@@ -374,18 +375,83 @@ export function DevTestPanel() {
           )}
         </div>
 
-        {/* ── QUICK NAV ── */}
+        {/* ── BOOKING (parent/coach) ── */}
+        {(role === 'parent' || role === 'coach') && (
+          <div>
+            <button onClick={() => toggleSection('booking')} className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-muted/50 transition-colors">
+              <span className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                <Star size={12} className="text-sky-400" /> Booking
+              </span>
+              {section === 'booking' ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            </button>
+            {section === 'booking' && (
+              <div className="flex flex-wrap gap-1.5 px-2 pb-2 pt-1">
+                <ActionBtn
+                  label="Create Test Booking"
+                  icon={<Star size={10} />}
+                  onClick={() => withLoading('booking', async () => {
+                    const { data: coaches } = await supabase.from('coaches').select('id').limit(1);
+                    const { data: pools } = await supabase.from('pools').select('id').limit(1);
+                    if (!coaches?.length || !pools?.length) { toast({ title: 'No coaches or pools', variant: 'destructive' }); return; }
+                    const { error } = await supabase.from('bookings').insert({
+                      [role === 'parent' ? 'parent_id' : 'coach_id']: user.id,
+                      coach_id: coaches[0].id,
+                      pool_id: pools[0].id,
+                      status: 'confirmed',
+                      booking_type: 'single',
+                      lesson_fee: 400,
+                      currency: 'AED',
+                    } as any);
+                    if (error) throw error;
+                    toast({ title: 'Test booking created! 📅' });
+                  })}
+                  loading={loading === 'booking'}
+                  color="bg-sky-500/10 text-sky-400 hover:bg-sky-500/20"
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── STATE INSPECTOR ── */}
+        <div>
+          <button onClick={() => toggleSection('state')} className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-muted/50 transition-colors">
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+              <FlaskConical size={12} className="text-gray-400" /> State
+            </span>
+            {section === 'state' ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
+          {section === 'state' && (
+            <div className="px-2 pb-2 pt-1 space-y-1 font-mono text-[10px] text-muted-foreground">
+              <div className="flex justify-between"><span>user_id</span><span className="text-foreground truncate ml-2 max-w-[120px]">{user.id.substring(0, 12)}...</span></div>
+              <div className="flex justify-between"><span>email</span><span className="text-foreground truncate ml-2 max-w-[120px]">{user.email}</span></div>
+              <div className="flex justify-between"><span>role</span><span className="text-primary font-bold">{role || 'none'}</span></div>
+              <div className="flex justify-between"><span>host</span><span className="text-foreground">{window.location.hostname}</span></div>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(user.id);
+                  toast({ title: 'User ID copied!' });
+                }}
+                className="w-full mt-1 px-2 py-1 rounded bg-muted/50 text-muted-foreground hover:text-foreground text-[10px] transition-colors"
+              >
+                Copy user ID
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* ── QUICK NAV + LOGOUT ── */}
         <div className="border-t border-border pt-2 mt-1">
           <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider px-2 mb-1">Quick Nav</p>
           <div className="flex flex-wrap gap-1 px-2 pb-1">
             {[
-              { label: 'Student', path: '/student' },
-              { label: 'Coach', path: '/coach' },
-              { label: 'Freelancer', path: '/freelancer' },
-              { label: 'Parent', path: '/parent' },
-              { label: 'Admin', path: '/admin' },
-              { label: 'Pro', path: '/pro' },
-              { label: 'Login', path: '/auth/login' },
+              { label: '👑 Admin', path: '/admin' },
+              { label: '🏊 Coach', path: '/coach' },
+              { label: '👨‍👩‍👧 Parent', path: '/parent' },
+              { label: '🎮 Student', path: '/student' },
+              { label: '🌊 Freelancer', path: '/freelancer' },
+              { label: '🏆 Pro', path: '/pro' },
+              { label: '📋 PM', path: '/pm' },
             ].map(nav => (
               <button
                 key={nav.path}
@@ -396,6 +462,13 @@ export function DevTestPanel() {
               </button>
             ))}
           </div>
+          <button
+            onClick={async () => { await supabase.auth.signOut(); window.location.href = '/auth/login'; }}
+            className="w-full mx-2 mt-1 mb-2 px-2 py-1.5 text-[10px] font-bold rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+            style={{ width: 'calc(100% - 16px)' }}
+          >
+            🚪 Logout
+          </button>
         </div>
       </div>
     </div>
