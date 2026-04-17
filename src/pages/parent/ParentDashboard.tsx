@@ -666,38 +666,98 @@ export default function ParentDashboard() {
         </motion.div>
       )}
 
-      {/* ───── QUICK ACTIONS — premium glass grid ───── */}
-      <div className="px-4">
-        <h3 className="font-semibold text-[10px] text-muted-foreground/60 uppercase tracking-[0.15em] mb-3">
+      {/* ───── SMART ACTIONS — contextual ───── */}
+      <div className="px-4 space-y-2.5">
+        <h3 className="font-semibold text-[10px] text-muted-foreground/60 uppercase tracking-[0.15em]">
           {t('Quick Actions', 'Быстрые действия')}
         </h3>
+
+        {/* Row 1: Primary actions — always visible */}
         <div className="grid grid-cols-2 gap-2.5">
-          {[
-            { icon: Waves, label: t('Book Lesson', 'Записаться'), sub: t('Choose coach & time', 'Тренер и время'), path: '/parent/booking', bg: 'bg-cyan-50 dark:bg-cyan-500/8', iconBg: 'bg-cyan-100 dark:bg-cyan-500/15', accent: 'text-cyan-600 dark:text-cyan-400', border: 'border-cyan-200/60 dark:border-cyan-500/15' },
-            { icon: Send, label: t('Message Coach', 'Написать'), sub: t('Direct chat', 'Личное сообщение'), path: '/chat', bg: 'bg-violet-50 dark:bg-violet-500/8', iconBg: 'bg-violet-100 dark:bg-violet-500/15', accent: 'text-violet-600 dark:text-violet-400', border: 'border-violet-200/60 dark:border-violet-500/15' },
-            { icon: Wallet, label: t('Payments', 'Платежи'), sub: t('History & invoices', 'История и счета'), path: '/parent/payments', bg: 'bg-amber-50 dark:bg-amber-500/8', iconBg: 'bg-amber-100 dark:bg-amber-500/15', accent: 'text-amber-600 dark:text-amber-400', border: 'border-amber-200/60 dark:border-amber-500/15' },
-            { icon: Trophy, label: t('Progress', 'Прогресс'), sub: t('Children & swim caps', 'Дети и шапочки'), path: '/parent/children', bg: 'bg-emerald-50 dark:bg-emerald-500/8', iconBg: 'bg-emerald-100 dark:bg-emerald-500/15', accent: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200/60 dark:border-emerald-500/15' },
-          ].map((action, i) => (
-            <motion.button
-              key={action.path}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 + i * 0.05 }}
-              onClick={() => navigate(action.path)}
-              className={cn(
-                "rounded-2xl p-4 flex flex-col gap-2.5 text-left transition-all active:scale-[0.97]",
-                action.bg, "border", action.border, "hover:shadow-md"
-              )}
-            >
-              <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center", action.iconBg)}>
-                <action.icon className={cn("w-[18px] h-[18px]", action.accent)} strokeWidth={2} />
-              </div>
-              <div>
-                <span className="text-[13px] font-semibold text-foreground block">{action.label}</span>
-                <span className="text-[10px] text-muted-foreground/60 mt-0.5 block">{action.sub}</span>
-              </div>
-            </motion.button>
-          ))}
+          <motion.button
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            onClick={() => navigate('/parent/booking')}
+            className="rounded-2xl p-4 flex flex-col gap-2 text-left transition-all active:scale-[0.97] bg-cyan-50 dark:bg-cyan-500/8 border border-cyan-200/60 dark:border-cyan-500/15 hover:shadow-md"
+          >
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-cyan-100 dark:bg-cyan-500/15">
+              <Waves className="w-[18px] h-[18px] text-cyan-600 dark:text-cyan-400" strokeWidth={2} />
+            </div>
+            <div>
+              <span className="text-[13px] font-semibold text-foreground block">{t('Book Lesson', 'Записаться')}</span>
+              <span className="text-[10px] text-muted-foreground/60 block">{t('Choose coach & time', 'Тренер и время')}</span>
+            </div>
+          </motion.button>
+
+          <motion.button
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            onClick={() => navigate('/chat')}
+            className="rounded-2xl p-4 flex flex-col gap-2 text-left transition-all active:scale-[0.97] bg-violet-50 dark:bg-violet-500/8 border border-violet-200/60 dark:border-violet-500/15 hover:shadow-md"
+          >
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-violet-100 dark:bg-violet-500/15">
+              <Send className="w-[18px] h-[18px] text-violet-600 dark:text-violet-400" strokeWidth={2} />
+            </div>
+            <div>
+              <span className="text-[13px] font-semibold text-foreground block">{t('Message Coach', 'Написать')}</span>
+              <span className="text-[10px] text-muted-foreground/60 block">{t('Direct chat', 'Личное сообщение')}</span>
+            </div>
+          </motion.button>
+        </div>
+
+        {/* Row 2: Contextual compact actions — horizontal scroll */}
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+          <motion.button
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+            onClick={() => navigate('/parent/children')}
+            className="shrink-0 flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-border/50 bg-card hover:border-emerald-300 dark:hover:border-emerald-500/30 hover:shadow-sm transition-all active:scale-[0.97]"
+          >
+            <Trophy className="w-4 h-4 text-emerald-500" />
+            <span className="text-xs font-medium text-foreground whitespace-nowrap">{t('Progress', 'Прогресс')}</span>
+          </motion.button>
+          <motion.button
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.15 }}
+            onClick={() => navigate('/parent/payments')}
+            className="shrink-0 flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-border/50 bg-card hover:border-amber-300 dark:hover:border-amber-500/30 hover:shadow-sm transition-all active:scale-[0.97]"
+          >
+            <Wallet className="w-4 h-4 text-amber-500" />
+            <span className="text-xs font-medium text-foreground whitespace-nowrap">{t('Payments', 'Платежи')}</span>
+          </motion.button>
+          <motion.button
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+            onClick={() => navigate('/parent/coins')}
+            className="shrink-0 flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-border/50 bg-card hover:border-primary/30 hover:shadow-sm transition-all active:scale-[0.97]"
+          >
+            <Sparkles className="w-4 h-4 text-primary" />
+            <span className="text-xs font-medium text-foreground whitespace-nowrap">{t('Coins', 'Монеты')}</span>
+          </motion.button>
+          <motion.button
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.25 }}
+            onClick={() => navigate('/parent/referrals')}
+            className="shrink-0 flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-border/50 bg-card hover:border-rose-300 dark:hover:border-rose-500/30 hover:shadow-sm transition-all active:scale-[0.97]"
+          >
+            <Droplets className="w-4 h-4 text-rose-500" />
+            <span className="text-xs font-medium text-foreground whitespace-nowrap">{t('Referrals', 'Рефералы')}</span>
+          </motion.button>
+          <motion.button
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 }}
+            onClick={() => navigate('/parent/shop')}
+            className="shrink-0 flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-border/50 bg-card hover:border-indigo-300 dark:hover:border-indigo-500/30 hover:shadow-sm transition-all active:scale-[0.97]"
+          >
+            <Waves className="w-4 h-4 text-indigo-500" />
+            <span className="text-xs font-medium text-foreground whitespace-nowrap">{t('Shop', 'Магазин')}</span>
+          </motion.button>
         </div>
       </div>
 
@@ -766,6 +826,42 @@ export default function ParentDashboard() {
             <p className="text-[11px] text-muted-foreground mt-0.5">{t('Private & group lessons from 200 AED', 'Личные и групповые от 200 AED')}</p>
           </div>
           <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+        </motion.div>
+      )}
+
+      {/* ───── MONTHLY INSIGHT ───── */}
+      {children && children.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mx-4 rounded-2xl border border-border/50 bg-card p-4"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-[10px] text-muted-foreground/60 uppercase tracking-[0.15em]">
+              {t('This Month', 'В этом месяце')}
+            </h3>
+            <span className="text-[10px] text-muted-foreground/40">
+              {new Date().toLocaleDateString(undefined, { month: 'long' })}
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="text-center py-2 rounded-xl bg-cyan-50 dark:bg-cyan-500/5">
+              <p className="text-lg font-extrabold text-foreground tabular-nums">{activeSub?.used_lessons || 0}</p>
+              <p className="text-[9px] text-muted-foreground/60 uppercase mt-0.5">{t('Lessons', 'Уроков')}</p>
+            </div>
+            <div className="text-center py-2 rounded-xl bg-emerald-50 dark:bg-emerald-500/5">
+              <p className="text-lg font-extrabold text-foreground tabular-nums">
+                {children.reduce((sum: number, c: any) => sum + (c.wins || 0), 0)}
+              </p>
+              <p className="text-[9px] text-muted-foreground/60 uppercase mt-0.5">{t('Wins', 'Побед')}</p>
+            </div>
+            <div className="text-center py-2 rounded-xl bg-amber-50 dark:bg-amber-500/5">
+              <p className="text-lg font-extrabold text-foreground tabular-nums">
+                {children.reduce((sum: number, c: any) => sum + (c.coin_balance || 0), 0).toLocaleString()}
+              </p>
+              <p className="text-[9px] text-muted-foreground/60 uppercase mt-0.5">{t('Coins', 'Монет')}</p>
+            </div>
+          </div>
         </motion.div>
       )}
 
