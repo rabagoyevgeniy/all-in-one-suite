@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useMemo, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,33 +7,60 @@ import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, ChevronRight, ChevronLeft, Star, MapPin, CheckCircle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import {
+  Loader2,
+  ChevronRight,
+  ChevronLeft,
+  Star,
+  MapPin,
+  CheckCircle,
+  Check,
+  Sparkles,
+  Waves,
+  Sunrise,
+  Sun,
+  Moon,
+  Package as PackageIcon,
+  Zap,
+  Gift,
+  Tag,
+  Users,
+} from 'lucide-react';
 import { COACH_RANKS } from '@/lib/constants';
 import { toast } from '@/hooks/use-toast';
 import { useLanguage } from '@/hooks/useLanguage';
 import { cn } from '@/lib/utils';
 
-const STEP_LABELS = [
-  { num: 1, label: 'Coach' },
-  { num: 2, label: 'Date' },
-  { num: 3, label: 'Confirm' },
-];
+type LessonType = 'package' | 'single' | 'trial';
+type SortMode = 'preferred' | 'top' | 'all';
+
+const TIME_BUCKETS = [
+  { key: 'morning', label: 'Morning', labelRu: 'Утро', icon: Sunrise, range: [5, 12] },
+  { key: 'afternoon', label: 'Afternoon', labelRu: 'День', icon: Sun, range: [12, 18] },
+  { key: 'evening', label: 'Evening', labelRu: 'Вечер', icon: Moon, range: [18, 23] },
+] as const;
 
 export default function ParentBooking() {
   const { user, profile } = useAuthStore();
   const navigate = useNavigate();
   const { t } = useLanguage();
+
+  // Wizard state
   const [step, setStep] = useState(1);
+  const [lessonType, setLessonType] = useState<LessonType>('single');
+  const [selectedChild, setSelectedChild] = useState<string | null>(null);
   const [selectedCoach, setSelectedCoach] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<any>(null);
   const [selectedPool, setSelectedPool] = useState<string | null>(null);
-  const [selectedChild, setSelectedChild] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
+  const [promoCode, setPromoCode] = useState('');
+  const [promoApplied, setPromoApplied] = useState<{ code: string; pct: number } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [sortMode, setSortMode] = useState<SortMode>('preferred');
 
-  // Check if parent has active subscription
+  // ── Queries ──
   const { data: activeSub } = useQuery({
     queryKey: ['parent-active-sub', user?.id],
     queryFn: async () => {
@@ -49,7 +76,6 @@ export default function ParentBooking() {
     enabled: !!user?.id,
   });
 
-  // Get parent's regular coaches (from bookings)
   const { data: parentCoachIds } = useQuery({
     queryKey: ['parent-coach-ids', user?.id],
     queryFn: async () => {
@@ -67,7 +93,7 @@ export default function ParentBooking() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('coaches')
-        .select('*, profiles!coaches_id_fkey(full_name), lesson_reviews(count)')
+        .select('*, profiles!coaches_id_fkey(full_name, avatar_url), lesson_reviews(count)')
         .order('avg_rating', { ascending: false });
       if (error) throw error;
       return data;
@@ -79,7 +105,7 @@ export default function ParentBooking() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('students')
-        .select('id, profiles!students_id_fkey(full_name)')
+        .select('id, swim_belt, coin_balance, profiles!students_id_fkey(full_name)')
         .eq('parent_id', user!.id);
       if (error) throw error;
       return data;
@@ -87,10 +113,29 @@ export default function ParentBooking() {
     enabled: !!user?.id,
   });
 
-  const next30Days = Array.from({ length: 30 }, (_, i) => {
+  // Generate next 30 days
+  const next30Days = useMemo(() => Array.from({ length: 30 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() + i);
     return d.toISOString().split('T')[0];
+  }), []);
+
+  // Load slot counts per day for the selected coach — for availability dots
+  const { data: slotCounts } = useQuery({
+    queryKey: ['booking-slot-counts', selectedCoach?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('time_slots')
+        .select('date')
+        .eq('coach_id', selectedCoach!.id)
+        .eq('status', 'available')
+        .in('date', next30Days);
+      if (error) throw error;
+      const counts: Record<string, number> = {};
+      for (const row of data || []) counts[row.date] = (counts[row.date] || 0) + 1;
+      return counts;
+    },
+    enabled: !!selectedCoach?.id,
   });
 
   const { data: slots, isLoading: slotsLoading } = useQuery({
@@ -122,11 +167,74 @@ export default function ParentBooking() {
     },
   });
 
+  // Auto-select single child and set lessonType if already subscribed
+  useEffect(() => {
+    if (children && children.length === 1 && !selectedChild) {
+      setSelectedChild(children[0].id);
+    }
+  }, [children, selectedChild]);
+
+  useEffect(() => {
+    if (activeSub) setLessonType('package');
+  }, [activeSub]);
+
+  // ── Derived ──
+  const coachesSorted = useMemo(() => {
+    if (!coaches) return [];
+    if (sortMode === 'preferred') {
+      return [...coaches].sort((a: any, b: any) => {
+        const ap = parentCoachIds?.includes(a.id) ? 1 : 0;
+        const bp = parentCoachIds?.includes(b.id) ? 1 : 0;
+        if (ap !== bp) return bp - ap;
+        return Number(b.avg_rating || 0) - Number(a.avg_rating || 0);
+      });
+    }
+    if (sortMode === 'top') {
+      return [...coaches].sort((a: any, b: any) => Number(b.avg_rating || 0) - Number(a.avg_rating || 0));
+    }
+    return coaches;
+  }, [coaches, sortMode, parentCoachIds]);
+
+  const basePrice = activeSub ? 0 : Number(selectedCoach?.hourly_rate_aed || 0);
+  const discountPct = promoApplied?.pct || 0;
+  const finalPrice = Math.round(basePrice * (1 - discountPct / 100));
+
+  const rankInfo = (id: string) => COACH_RANKS.find(r => r.id === id);
+
+  // Group slots by time of day
+  const slotsByBucket = useMemo(() => {
+    const buckets: Record<string, any[]> = { morning: [], afternoon: [], evening: [] };
+    for (const s of slots || []) {
+      const h = parseInt(String(s.start_time).split(':')[0], 10);
+      if (h >= 5 && h < 12) buckets.morning.push(s);
+      else if (h >= 12 && h < 18) buckets.afternoon.push(s);
+      else buckets.evening.push(s);
+    }
+    return buckets;
+  }, [slots]);
+
+  // ── Handlers ──
+  const handleApplyPromo = () => {
+    const code = promoCode.trim().toUpperCase();
+    if (!code) return;
+    // Demo logic — real validation would hit discount_codes table
+    const validCodes: Record<string, number> = {
+      'WELCOME10': 10,
+      'SUMMER20': 20,
+      'FRIEND15': 15,
+    };
+    if (validCodes[code]) {
+      setPromoApplied({ code, pct: validCodes[code] });
+      toast({ title: t(`Promo applied: ${validCodes[code]}% off`, `Промокод: скидка ${validCodes[code]}%`) });
+    } else {
+      toast({ title: t('Invalid promo code', 'Неверный промокод'), variant: 'destructive' });
+    }
+  };
+
   const handleConfirm = async () => {
     if (!selectedCoach || !selectedSlot || !selectedPool || !selectedChild) return;
     setSubmitting(true);
     try {
-      // 1. Claim the time slot FIRST with race-condition guard
       const { data: slotUpdate, error: slotErr } = await supabase
         .from('time_slots')
         .update({ status: 'booked' })
@@ -139,26 +247,23 @@ export default function ParentBooking() {
         return;
       }
 
-      // 2. Create booking AFTER slot is locked
       const { error: bookingErr } = await supabase.from('bookings').insert({
         parent_id: user!.id,
         student_id: selectedChild,
         coach_id: selectedCoach.id,
         pool_id: selectedPool,
         slot_id: selectedSlot.id,
-        booking_type: 'single',
+        booking_type: lessonType === 'package' ? 'package' : lessonType === 'trial' ? 'trial' : 'single',
         status: 'confirmed',
-        lesson_fee: activeSub ? 0 : selectedCoach.hourly_rate_aed,
+        lesson_fee: finalPrice,
         currency: 'AED',
         notes: notes.trim() || null,
       });
       if (bookingErr) {
-        // Rollback: release the slot
         await supabase.from('time_slots').update({ status: 'available' }).eq('id', selectedSlot.id);
         throw bookingErr;
       }
 
-      // 3. Notify coach (non-critical)
       await supabase.from('notifications').insert({
         user_id: selectedCoach.id,
         title: '📅 New booking!',
@@ -175,234 +280,799 @@ export default function ParentBooking() {
     }
   };
 
-  const rankInfo = (id: string) => COACH_RANKS.find(r => r.id === id);
+  // ── Step validation ──
+  const canAdvance = (() => {
+    if (step === 1) return !!selectedChild && !!lessonType;
+    if (step === 2) return !!selectedCoach;
+    if (step === 3) return !!selectedDate && !!selectedSlot;
+    if (step === 4) return !!selectedPool;
+    return false;
+  })();
+
+  const STEPS: Array<{ num: number; label: string; labelRu: string }> = [
+    { num: 1, label: 'Setup', labelRu: 'Настройка' },
+    { num: 2, label: 'Coach', labelRu: 'Тренер' },
+    { num: 3, label: 'Time', labelRu: 'Время' },
+    { num: 4, label: 'Confirm', labelRu: 'Подтверждение' },
+  ];
 
   return (
-    <div className="px-4 py-6 space-y-6 pb-28">
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <h2 className="font-bold text-xl text-foreground">{t('Book a Lesson', 'Записаться на занятие')}</h2>
-
-        {/* Step indicator with labels */}
-        <div className="flex items-center gap-1 mt-4">
-          {STEP_LABELS.map((s, i) => (
-            <div key={s.num} className="flex items-center flex-1">
-              <div className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
-                step >= s.num ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-              )}>
-                <span>{s.num}</span>
-                <span>{s.label}</span>
-              </div>
-              {i < STEP_LABELS.length - 1 && (
-                <div className={cn("flex-1 h-0.5 mx-1", step > s.num ? 'bg-primary' : 'bg-muted')} />
-              )}
-            </div>
-          ))}
+    <div className="pb-28">
+      {/* ───── HEADER WITH STEPPER ───── */}
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-lg border-b border-border/50 px-4 pt-5 pb-3">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-display font-bold text-lg text-foreground">{t('Book a Lesson', 'Записаться на занятие')}</h2>
+          <button
+            onClick={() => navigate('/parent')}
+            className="text-xs text-muted-foreground hover:text-foreground"
+          >
+            {t('Cancel', 'Отмена')}
+          </button>
         </div>
-      </motion.div>
 
-      {/* STEP 1: Select Coach */}
-      {step === 1 && (
-        <div className="space-y-3">
-          <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">
-            {t('Select Coach', 'Выберите тренера')}
-          </h3>
-          {coachesLoading ? (
-            <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
-          ) : (
-            coaches?.map((c: any) => {
-              const p = c.profiles as any;
-              const rank = rankInfo(c.rank);
-              const selected = selectedCoach?.id === c.id;
-              const reviewCount = (c as any).lesson_reviews?.[0]?.count || 0;
-              const isPreferred = parentCoachIds?.includes(c.id);
-
-              return (
-                <motion.div
-                  key={c.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
+        {/* Premium stepper */}
+        <div className="flex items-center gap-1.5">
+          {STEPS.map((s, i) => {
+            const done = step > s.num;
+            const active = step === s.num;
+            return (
+              <div key={s.num} className="flex items-center flex-1">
+                <div
                   className={cn(
-                    "bg-card rounded-2xl p-4 cursor-pointer transition-all shadow-sm border",
-                    selected ? 'ring-2 ring-primary border-primary' : 'border-border'
+                    'flex items-center gap-1.5 transition-all',
+                    active && 'flex-1'
                   )}
-                  onClick={() => setSelectedCoach(c)}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center font-bold text-lg text-primary">
-                      {p?.full_name?.[0] || '?'}
+                  <div className={cn(
+                    'h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 transition-all',
+                    done && 'bg-emerald-500 text-white',
+                    active && 'bg-primary text-primary-foreground ring-4 ring-primary/15',
+                    !done && !active && 'bg-muted text-muted-foreground/60'
+                  )}>
+                    {done ? <Check className="w-3 h-3" /> : s.num}
+                  </div>
+                  {active && (
+                    <span className="text-xs font-semibold text-foreground whitespace-nowrap">
+                      {t(s.label, s.labelRu)}
+                    </span>
+                  )}
+                </div>
+                {i < STEPS.length - 1 && (
+                  <div className={cn(
+                    'flex-1 h-0.5 mx-1 rounded-full transition-all',
+                    step > s.num ? 'bg-emerald-500' : 'bg-muted'
+                  )} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <AnimatePresence mode="wait">
+        {/* ══════════════════════════════════════════════
+            STEP 1: SETUP — Child + Lesson Type
+           ══════════════════════════════════════════════ */}
+        {step === 1 && (
+          <motion.div
+            key="step1"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="px-4 py-5 space-y-6"
+          >
+            {/* Child Selector */}
+            {children && children.length > 0 && (
+              <div>
+                <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">
+                  {t('Who is the lesson for?', 'Для кого занятие?')}
+                </h3>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {children.map((c: any) => {
+                    const p = c.profiles as any;
+                    const sel = selectedChild === c.id;
+                    return (
+                      <motion.button
+                        key={c.id}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => setSelectedChild(c.id)}
+                        className={cn(
+                          'rounded-2xl p-3 text-left transition-all border',
+                          sel
+                            ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                            : 'border-border/60 bg-card hover:border-border'
+                        )}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white font-bold shrink-0">
+                            {p?.full_name?.[0] || '?'}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-sm text-foreground truncate">
+                              {p?.full_name?.split(' ')[0] || 'Child'}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                              {c.swim_belt || 'white'}
+                            </p>
+                          </div>
+                        </div>
+                      </motion.button>
+                    );
+                  })}
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => navigate('/parent/children')}
+                    className="rounded-2xl p-3 text-left transition-all border border-dashed border-border/60 hover:border-primary/40 text-muted-foreground hover:text-primary"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                        <Users className="w-4 h-4" />
+                      </div>
+                      <p className="font-medium text-sm">{t('Add child', 'Добавить')}</p>
+                    </div>
+                  </motion.button>
+                </div>
+              </div>
+            )}
+
+            {/* Lesson Type (only if no active subscription) */}
+            {!activeSub && (
+              <div>
+                <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">
+                  {t('Lesson Type', 'Тип занятия')}
+                </h3>
+                <div className="space-y-2.5">
+                  {/* Package */}
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setLessonType('package')}
+                    className={cn(
+                      'w-full rounded-2xl p-4 text-left transition-all border flex items-center gap-3',
+                      lessonType === 'package'
+                        ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                        : 'border-border/60 bg-card hover:border-border'
+                    )}
+                  >
+                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400/20 to-orange-500/10 border border-amber-400/20 flex items-center justify-center shrink-0">
+                      <PackageIcon className="w-5 h-5 text-amber-500" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <p className="font-medium text-sm text-foreground">{p?.full_name || 'Coach'}</p>
-                        {isPreferred && (
-                          <Badge className="text-[9px] bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 border-0">
-                            {t('Preferred', 'Избранный')}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <Badge variant="outline" className="text-[10px]" style={{ borderColor: rank?.color, color: rank?.color }}>
-                          {rank?.label || c.rank}
+                        <p className="font-semibold text-sm text-foreground">{t('Package', 'Пакет')}</p>
+                        <Badge className="text-[9px] bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 border-0 h-4">
+                          -20%
                         </Badge>
-                        {reviewCount > 0 ? (
-                          <span className="text-[11px] text-muted-foreground flex items-center gap-0.5">
-                            <Star size={10} className="text-warning fill-warning" /> {Number(c.avg_rating).toFixed(1)} ({reviewCount})
-                          </span>
-                        ) : (
-                          <Badge className="text-[9px] bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400 border-0">
-                            {t('New coach', 'Новый тренер')}
-                          </Badge>
-                        )}
                       </div>
-                      {c.specializations?.length > 0 && (
-                        <p className="text-[10px] text-muted-foreground mt-1">{c.specializations.join(', ')}</p>
-                      )}
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {t('4, 8 or 12 lessons — best value', '4, 8 или 12 занятий — выгодно')}
+                      </p>
                     </div>
-                    <div className="text-right">
-                      {activeSub ? (
-                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-                          {t('In your pack', 'В пакете')}
-                        </span>
-                      ) : (
-                        <span className="font-bold text-sm text-foreground">{c.hourly_rate_aed || '—'} AED</span>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })
-          )}
-          <Button className="w-full rounded-xl" disabled={!selectedCoach} onClick={() => setStep(2)}>
-            {t('Continue', 'Далее')} <ChevronRight size={16} />
-          </Button>
-        </div>
-      )}
+                    {lessonType === 'package' && <Check className="w-4 h-4 text-primary shrink-0" />}
+                  </motion.button>
 
-      {/* STEP 2: Date & Time */}
-      {step === 2 && (
-        <div className="space-y-4">
-          <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">
-            {t('Select Date & Time', 'Выберите дату и время')}
-          </h3>
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {next30Days.map(d => {
-              const day = new Date(d);
-              const sel = selectedDate === d;
-              const isToday = d === new Date().toISOString().split('T')[0];
-              return (
-                <button
-                  key={d}
-                  onClick={() => { setSelectedDate(d); setSelectedSlot(null); }}
-                  className={cn(
-                    "shrink-0 px-3 py-2 rounded-xl text-center transition-all border",
-                    sel ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-foreground'
-                  )}
-                >
-                  <p className="text-[10px] uppercase">{isToday ? t('Today', 'Сег.') : day.toLocaleDateString('en', { weekday: 'short' })}</p>
-                  <p className="font-bold text-sm">{day.getDate()}</p>
-                  <p className="text-[10px]">{day.toLocaleDateString('en', { month: 'short' })}</p>
-                </button>
-              );
-            })}
-          </div>
-
-          {selectedDate && (
-            slotsLoading ? (
-              <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
-            ) : slots && slots.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {slots.map((s: any) => (
-                  <button
-                    key={s.id}
-                    onClick={() => setSelectedSlot(s)}
+                  {/* Single */}
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setLessonType('single')}
                     className={cn(
-                      "px-4 py-2.5 rounded-xl text-sm font-medium transition-all border",
-                      selectedSlot?.id === s.id ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-foreground'
+                      'w-full rounded-2xl p-4 text-left transition-all border flex items-center gap-3',
+                      lessonType === 'single'
+                        ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                        : 'border-border/60 bg-card hover:border-border'
                     )}
                   >
-                    {s.start_time?.substring(0, 5)}
-                  </button>
-                ))}
+                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-400/20 to-blue-500/10 border border-cyan-400/20 flex items-center justify-center shrink-0">
+                      <Zap className="w-5 h-5 text-cyan-500" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm text-foreground">{t('Single Lesson', 'Разовое занятие')}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {t('Pay per lesson — no commitment', 'Оплата за урок — без обязательств')}
+                      </p>
+                    </div>
+                    {lessonType === 'single' && <Check className="w-4 h-4 text-primary shrink-0" />}
+                  </motion.button>
+
+                  {/* Trial */}
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setLessonType('trial')}
+                    className={cn(
+                      'w-full rounded-2xl p-4 text-left transition-all border flex items-center gap-3',
+                      lessonType === 'trial'
+                        ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                        : 'border-border/60 bg-card hover:border-border'
+                    )}
+                  >
+                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-rose-400/20 to-pink-500/10 border border-rose-400/20 flex items-center justify-center shrink-0">
+                      <Gift className="w-5 h-5 text-rose-500" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-sm text-foreground">{t('Trial', 'Пробное')}</p>
+                        <Badge className="text-[9px] bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400 border-0 h-4">
+                          50% OFF
+                        </Badge>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {t('First lesson at 50% — try a coach', 'Первое занятие со скидкой 50%')}
+                      </p>
+                    </div>
+                    {lessonType === 'trial' && <Check className="w-4 h-4 text-primary shrink-0" />}
+                  </motion.button>
+                </div>
+              </div>
+            )}
+
+            {activeSub && (
+              <div className="rounded-2xl p-4 border border-emerald-200 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/5 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/15 flex items-center justify-center shrink-0">
+                  <PackageIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">
+                    {t('Using your active package', 'Используется активный пакет')}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {activeSub.used_lessons}/{activeSub.total_lessons} {t('lessons used', 'занятий использовано')}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <Button
+              size="lg"
+              className="w-full rounded-2xl h-12 font-semibold"
+              disabled={!canAdvance}
+              onClick={() => setStep(2)}
+            >
+              {t('Continue to Coach', 'К выбору тренера')}
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </motion.div>
+        )}
+
+        {/* ══════════════════════════════════════════════
+            STEP 2: COACH
+           ══════════════════════════════════════════════ */}
+        {step === 2 && (
+          <motion.div
+            key="step2"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="px-4 py-5 space-y-4"
+          >
+            {/* Sort tabs */}
+            <div className="flex gap-1.5 p-1 bg-muted/60 rounded-xl">
+              {([
+                { key: 'preferred', label: t('Preferred', 'Избранные') },
+                { key: 'top', label: t('Top Rated', 'Лучшие') },
+                { key: 'all', label: t('All', 'Все') },
+              ] as Array<{ key: SortMode; label: string }>).map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setSortMode(key)}
+                  className={cn(
+                    'flex-1 py-2 rounded-lg text-xs font-semibold transition-all',
+                    sortMode === key ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {coachesLoading ? (
+              <div className="flex justify-center py-10">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
               </div>
             ) : (
-              <div className="bg-card rounded-xl p-4 text-center text-muted-foreground text-sm border border-border">
-                {t('No available slots — try another date', 'Нет свободных слотов — попробуйте другую дату')}
+              <div className="space-y-2.5">
+                {coachesSorted.map((c: any, i: number) => {
+                  const p = c.profiles as any;
+                  const rank = rankInfo(c.rank);
+                  const selected = selectedCoach?.id === c.id;
+                  const reviewCount = c.lesson_reviews?.[0]?.count || 0;
+                  const isPreferred = parentCoachIds?.includes(c.id);
+
+                  return (
+                    <motion.div
+                      key={c.id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.03 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setSelectedCoach(c)}
+                      className={cn(
+                        'rounded-2xl p-3.5 cursor-pointer transition-all border',
+                        selected
+                          ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                          : 'border-border/60 bg-card hover:border-border'
+                      )}
+                    >
+                      <div className="flex items-start gap-3">
+                        {/* Avatar */}
+                        <div className="relative shrink-0">
+                          {p?.avatar_url ? (
+                            <img
+                              src={p.avatar_url}
+                              alt=""
+                              className="w-14 h-14 rounded-2xl object-cover ring-2 ring-border/40"
+                            />
+                          ) : (
+                            <div
+                              className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-sm"
+                              style={{
+                                background: `linear-gradient(135deg, ${rank?.color || '#06b6d4'}, ${rank?.color || '#06b6d4'}80)`,
+                              }}
+                            >
+                              {p?.full_name?.[0] || '?'}
+                            </div>
+                          )}
+                          {isPreferred && (
+                            <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 ring-2 ring-background flex items-center justify-center">
+                              <Star className="w-2.5 h-2.5 text-white fill-white" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="font-semibold text-sm text-foreground truncate">
+                                {p?.full_name || 'Coach'}
+                              </p>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <Badge
+                                  variant="outline"
+                                  className="text-[9px] h-4 px-1.5 border-current/30"
+                                  style={{ color: rank?.color }}
+                                >
+                                  {rank?.label || c.rank}
+                                </Badge>
+                                {reviewCount > 0 ? (
+                                  <span className="text-[11px] text-muted-foreground flex items-center gap-0.5">
+                                    <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                                    <span className="font-semibold text-foreground">
+                                      {Number(c.avg_rating || 0).toFixed(1)}
+                                    </span>
+                                    <span>({reviewCount})</span>
+                                  </span>
+                                ) : (
+                                  <Badge className="text-[9px] h-4 px-1.5 bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400 border-0">
+                                    {t('New', 'Новый')}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              {activeSub ? (
+                                <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">
+                                  {t('In pack', 'В пакете')}
+                                </span>
+                              ) : (
+                                <>
+                                  <p className="font-bold text-sm text-foreground tabular-nums">
+                                    {c.hourly_rate_aed || '—'}
+                                  </p>
+                                  <p className="text-[9px] text-muted-foreground uppercase">AED/h</p>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          {c.specializations && c.specializations.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {c.specializations.slice(0, 3).map((s: string) => (
+                                <span
+                                  key={s}
+                                  className="text-[9px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground"
+                                >
+                                  {s}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
               </div>
-            )
-          )}
+            )}
 
-          <div className="flex gap-2">
-            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setStep(1)}><ChevronLeft size={16} /> {t('Back', 'Назад')}</Button>
-            <Button className="flex-1 rounded-xl" disabled={!selectedSlot} onClick={() => setStep(3)}>{t('Continue', 'Далее')} <ChevronRight size={16} /></Button>
-          </div>
-        </div>
-      )}
-
-      {/* STEP 3: Confirm */}
-      {step === 3 && (
-        <div className="space-y-4">
-          <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">
-            {t('Confirm Booking', 'Подтвердите бронирование')}
-          </h3>
-
-          {children && children.length > 0 && (
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">{t('Select Child', 'Выберите ребёнка')}</label>
-              <Select value={selectedChild || ''} onValueChange={setSelectedChild}>
-                <SelectTrigger className="rounded-xl"><SelectValue placeholder={t('Select child', 'Выберите')} /></SelectTrigger>
-                <SelectContent>
-                  {children.map((c: any) => (
-                    <SelectItem key={c.id} value={c.id}>{(c.profiles as any)?.full_name || 'Child'}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" className="flex-1 rounded-2xl h-12" onClick={() => setStep(1)}>
+                <ChevronLeft className="w-4 h-4" />
+                {t('Back', 'Назад')}
+              </Button>
+              <Button
+                className="flex-[2] rounded-2xl h-12 font-semibold"
+                disabled={!canAdvance}
+                onClick={() => setStep(3)}
+              >
+                {t('Pick Time', 'Выбрать время')}
+                <ChevronRight className="w-4 h-4" />
+              </Button>
             </div>
-          )}
+          </motion.div>
+        )}
 
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">{t('Select Pool', 'Выберите бассейн')}</label>
-            <Select value={selectedPool || ''} onValueChange={setSelectedPool}>
-              <SelectTrigger className="rounded-xl"><SelectValue placeholder={t('Select pool', 'Выберите')} /></SelectTrigger>
-              <SelectContent>
-                {pools?.map((p: any) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    <span className="flex items-center gap-1"><MapPin size={12} /> {p.name}</span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        {/* ══════════════════════════════════════════════
+            STEP 3: DATE & TIME
+           ══════════════════════════════════════════════ */}
+        {step === 3 && (
+          <motion.div
+            key="step3"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="px-4 py-5 space-y-5"
+          >
+            {/* Compact coach chip */}
+            {selectedCoach && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/40 border border-border/40">
+                <div
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-xs"
+                  style={{
+                    background: `linear-gradient(135deg, ${rankInfo(selectedCoach.rank)?.color || '#06b6d4'}, ${rankInfo(selectedCoach.rank)?.color || '#06b6d4'}80)`,
+                  }}
+                >
+                  {(selectedCoach.profiles as any)?.full_name?.[0]}
+                </div>
+                <span className="text-xs text-foreground font-medium flex-1 truncate">
+                  {(selectedCoach.profiles as any)?.full_name}
+                </span>
+                <button
+                  onClick={() => setStep(2)}
+                  className="text-[11px] text-primary font-medium"
+                >
+                  {t('Change', 'Сменить')}
+                </button>
+              </div>
+            )}
 
-          {/* Summary Card */}
-          <div className="bg-card rounded-2xl p-4 space-y-2 text-sm border border-border shadow-sm">
-            <div className="flex justify-between"><span className="text-muted-foreground">{t('Coach', 'Тренер')}</span><span className="font-medium text-foreground">{(selectedCoach?.profiles as any)?.full_name}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">{t('Date', 'Дата')}</span><span className="font-medium text-foreground">{selectedDate && new Date(selectedDate).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">{t('Time', 'Время')}</span><span className="font-medium text-foreground">{selectedSlot?.start_time?.substring(0, 5)}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">{t('Price', 'Цена')}</span><span className="font-bold text-foreground">{activeSub ? t('Included in pack', 'Включено в пакет') : `${selectedCoach?.hourly_rate_aed || '—'} AED`}</span></div>
-          </div>
+            {/* Date picker with availability dots */}
+            <div>
+              <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">
+                {t('Select Date', 'Выберите дату')}
+              </h3>
+              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
+                {next30Days.map(d => {
+                  const day = new Date(d);
+                  const sel = selectedDate === d;
+                  const isToday = d === new Date().toISOString().split('T')[0];
+                  const count = slotCounts?.[d] || 0;
+                  const disabled = count === 0 && slotCounts !== undefined;
+                  return (
+                    <button
+                      key={d}
+                      disabled={disabled}
+                      onClick={() => { setSelectedDate(d); setSelectedSlot(null); }}
+                      className={cn(
+                        'shrink-0 w-14 py-2 rounded-2xl text-center transition-all border flex flex-col items-center gap-0.5',
+                        sel
+                          ? 'bg-primary text-primary-foreground border-primary shadow-md'
+                          : disabled
+                            ? 'bg-muted/30 border-transparent text-muted-foreground/40'
+                            : 'bg-card border-border/60 text-foreground hover:border-border'
+                      )}
+                    >
+                      <p className="text-[9px] uppercase font-medium opacity-70">
+                        {isToday ? t('Today', 'Сег.') : day.toLocaleDateString('en', { weekday: 'short' })}
+                      </p>
+                      <p className="font-bold text-base tabular-nums">{day.getDate()}</p>
+                      {!disabled && (
+                        <div className="flex gap-0.5 h-1">
+                          {[...Array(Math.min(count, 3))].map((_, i) => (
+                            <div
+                              key={i}
+                              className={cn(
+                                'w-1 h-1 rounded-full',
+                                sel ? 'bg-primary-foreground/60' : 'bg-emerald-500'
+                              )}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-          {/* Notes */}
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">{t('Special notes (optional)', 'Заметки (необязательно)')}</label>
-            <Textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              placeholder={t('Any special requests...', 'Особые пожелания...')}
-              className="rounded-xl resize-none"
-              rows={2}
-            />
-          </div>
+            {/* Time slots grouped */}
+            {selectedDate && (
+              <div>
+                <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">
+                  {t('Select Time', 'Выберите время')}
+                </h3>
+                {slotsLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  </div>
+                ) : slots && slots.length > 0 ? (
+                  <div className="space-y-3">
+                    {TIME_BUCKETS.map(bucket => {
+                      const bucketSlots = slotsByBucket[bucket.key];
+                      if (bucketSlots.length === 0) return null;
+                      const Icon = bucket.icon;
+                      return (
+                        <div key={bucket.key}>
+                          <div className="flex items-center gap-1.5 mb-2">
+                            <Icon className="w-3.5 h-3.5 text-muted-foreground" />
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              {t(bucket.label, bucket.labelRu)}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground/60">
+                              · {bucketSlots.length}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-4 gap-2">
+                            {bucketSlots.map((s: any) => {
+                              const sel = selectedSlot?.id === s.id;
+                              return (
+                                <motion.button
+                                  key={s.id}
+                                  whileTap={{ scale: 0.95 }}
+                                  onClick={() => setSelectedSlot(s)}
+                                  className={cn(
+                                    'py-2.5 rounded-xl text-sm font-semibold tabular-nums transition-all border',
+                                    sel
+                                      ? 'bg-primary text-primary-foreground border-primary shadow-md'
+                                      : 'bg-card border-border/60 text-foreground hover:border-primary/40'
+                                  )}
+                                >
+                                  {s.start_time?.substring(0, 5)}
+                                </motion.button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl p-6 text-center border border-dashed border-border/60">
+                    <p className="text-sm text-muted-foreground">
+                      {t('No slots available — try another date', 'Нет свободных слотов — попробуйте другую дату')}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
-          <div className="flex gap-2">
-            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setStep(2)}><ChevronLeft size={16} /> {t('Back', 'Назад')}</Button>
-            <Button className="flex-1 rounded-xl gap-1" disabled={submitting || !selectedPool || !selectedChild} onClick={handleConfirm}>
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle size={16} />}
-              {t('Confirm Booking', 'Подтвердить')}
-            </Button>
-          </div>
-        </div>
-      )}
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" className="flex-1 rounded-2xl h-12" onClick={() => setStep(2)}>
+                <ChevronLeft className="w-4 h-4" />
+                {t('Back', 'Назад')}
+              </Button>
+              <Button
+                className="flex-[2] rounded-2xl h-12 font-semibold"
+                disabled={!canAdvance}
+                onClick={() => setStep(4)}
+              >
+                {t('Review & Confirm', 'К подтверждению')}
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ══════════════════════════════════════════════
+            STEP 4: POOL + CONFIRM
+           ══════════════════════════════════════════════ */}
+        {step === 4 && (
+          <motion.div
+            key="step4"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="px-4 py-5 space-y-5"
+          >
+            {/* Pool selection */}
+            <div>
+              <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">
+                {t('Select Pool', 'Выберите бассейн')}
+              </h3>
+              <div className="space-y-2">
+                {pools?.map((p: any) => {
+                  const sel = selectedPool === p.id;
+                  return (
+                    <motion.button
+                      key={p.id}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setSelectedPool(p.id)}
+                      className={cn(
+                        'w-full rounded-2xl p-3.5 text-left transition-all border flex items-center gap-3',
+                        sel
+                          ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                          : 'border-border/60 bg-card hover:border-border'
+                      )}
+                    >
+                      <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-400/20 to-blue-500/10 border border-cyan-400/20 flex items-center justify-center shrink-0">
+                        <Waves className="w-5 h-5 text-cyan-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm text-foreground truncate">{p.name}</p>
+                        <p className="text-[11px] text-muted-foreground truncate flex items-center gap-1 mt-0.5">
+                          <MapPin className="w-3 h-3" />
+                          {p.address || p.city || '—'}
+                        </p>
+                      </div>
+                      {sel && <Check className="w-4 h-4 text-primary shrink-0" />}
+                    </motion.button>
+                  );
+                })}
+                {(!pools || pools.length === 0) && (
+                  <div className="rounded-2xl p-4 text-center border border-dashed border-border/60">
+                    <p className="text-sm text-muted-foreground">
+                      {t('No pools configured', 'Бассейны не настроены')}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Summary card */}
+            <div>
+              <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">
+                {t('Summary', 'Сводка')}
+              </h3>
+              <div className="rounded-2xl border border-border/60 bg-card overflow-hidden">
+                <div className="p-4 space-y-2.5 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">{t('Child', 'Ребёнок')}</span>
+                    <span className="font-medium text-foreground">
+                      {(children?.find((c: any) => c.id === selectedChild)?.profiles as any)?.full_name || '—'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">{t('Coach', 'Тренер')}</span>
+                    <span className="font-medium text-foreground">
+                      {(selectedCoach?.profiles as any)?.full_name}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">{t('When', 'Когда')}</span>
+                    <span className="font-medium text-foreground">
+                      {selectedDate &&
+                        new Date(selectedDate).toLocaleDateString(undefined, {
+                          weekday: 'short',
+                          day: 'numeric',
+                          month: 'short',
+                        })}{' '}
+                      · {selectedSlot?.start_time?.substring(0, 5)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">{t('Type', 'Тип')}</span>
+                    <span className="font-medium text-foreground capitalize">
+                      {lessonType === 'package'
+                        ? t('Package', 'Пакет')
+                        : lessonType === 'trial'
+                          ? t('Trial', 'Пробное')
+                          : t('Single', 'Разовое')}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Price breakdown */}
+                <div className="px-4 py-3 border-t border-border/40 bg-muted/30 space-y-1.5">
+                  {activeSub ? (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">{t('Price', 'Цена')}</span>
+                      <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                        {t('Included in pack', 'Включено в пакет')}
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">{t('Base', 'Базовая')}</span>
+                        <span className="text-foreground tabular-nums">{basePrice} AED</span>
+                      </div>
+                      {promoApplied && (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                            <Tag className="w-3 h-3" />
+                            {promoApplied.code} (-{promoApplied.pct}%)
+                          </span>
+                          <span className="text-emerald-600 dark:text-emerald-400 tabular-nums">
+                            −{basePrice - finalPrice} AED
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between pt-1.5 border-t border-border/40">
+                        <span className="text-sm font-semibold text-foreground">{t('Total', 'Итого')}</span>
+                        <span className="text-lg font-bold text-foreground tabular-nums">
+                          {finalPrice} AED
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Promo code */}
+            {!activeSub && !promoApplied && (
+              <div>
+                <div className="flex gap-2">
+                  <Input
+                    value={promoCode}
+                    onChange={e => setPromoCode(e.target.value.toUpperCase())}
+                    placeholder={t('Promo code (optional)', 'Промокод (необязательно)')}
+                    className="rounded-xl h-11 text-sm uppercase tracking-wider"
+                  />
+                  <Button
+                    variant="outline"
+                    className="rounded-xl h-11 px-4 text-xs font-semibold"
+                    onClick={handleApplyPromo}
+                    disabled={!promoCode.trim()}
+                  >
+                    {t('Apply', 'Применить')}
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground/60 mt-1.5 ml-1">
+                  {t('Try: WELCOME10, SUMMER20, FRIEND15', 'Попробуйте: WELCOME10, SUMMER20, FRIEND15')}
+                </p>
+              </div>
+            )}
+            {promoApplied && (
+              <div className="flex items-center justify-between rounded-xl px-4 py-2.5 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                    {promoApplied.code} — {promoApplied.pct}% off
+                  </span>
+                </div>
+                <button
+                  onClick={() => { setPromoApplied(null); setPromoCode(''); }}
+                  className="text-[11px] text-muted-foreground hover:text-foreground"
+                >
+                  {t('Remove', 'Убрать')}
+                </button>
+              </div>
+            )}
+
+            {/* Notes */}
+            <div>
+              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">
+                {t('Special notes', 'Заметки')}{' '}
+                <span className="lowercase font-normal">({t('optional', 'необязательно')})</span>
+              </label>
+              <Textarea
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                placeholder={t('Allergies, preferences, anything the coach should know...', 'Аллергии, предпочтения, всё что важно знать тренеру...')}
+                className="rounded-xl resize-none text-sm"
+                rows={3}
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" className="flex-1 rounded-2xl h-12" onClick={() => setStep(3)}>
+                <ChevronLeft className="w-4 h-4" />
+                {t('Back', 'Назад')}
+              </Button>
+              <Button
+                className="flex-[2] rounded-2xl h-12 font-bold gap-1.5"
+                disabled={submitting || !canAdvance}
+                onClick={handleConfirm}
+              >
+                {submitting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle className="w-4 h-4" />
+                )}
+                {t('Confirm Booking', 'Подтвердить')}
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
