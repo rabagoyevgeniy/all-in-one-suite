@@ -34,6 +34,7 @@ import { COACH_RANKS } from '@/lib/constants';
 import { toast } from '@/hooks/use-toast';
 import { useLanguage } from '@/hooks/useLanguage';
 import { cn } from '@/lib/utils';
+import PaymentSheet from '@/components/parent/PaymentSheet';
 
 type LessonType = 'package' | 'single' | 'trial';
 type SortMode = 'favorites' | 'preferred' | 'top' | 'all';
@@ -102,6 +103,9 @@ export default function ParentBooking() {
   // Recurring weekly booking
   const [recurring, setRecurring] = useState(false);
   const [recurringWeeks, setRecurringWeeks] = useState(4);
+
+  // Payment sheet
+  const [paymentSheetOpen, setPaymentSheetOpen] = useState(false);
 
   // ── Queries ──
   const { data: activeSub } = useQuery({
@@ -318,7 +322,21 @@ export default function ParentBooking() {
     return data || [];
   };
 
-  const handleConfirm = async () => {
+  // Entry point from Confirm button — decides whether to collect payment first.
+  const handleConfirm = () => {
+    if (!selectedCoach || !selectedSlot || !selectedPool || !selectedChild) return;
+    // If user has an active pack, the lesson is pre-paid — skip payment sheet.
+    if (activeSub) {
+      performBooking(null);
+      return;
+    }
+    // Otherwise, open payment sheet — booking happens on success callback.
+    setPaymentSheetOpen(true);
+  };
+
+  const performBooking = async (
+    payment: { method: string; last4?: string } | null,
+  ) => {
     if (!selectedCoach || !selectedSlot || !selectedPool || !selectedChild) return;
     setSubmitting(true);
     try {
@@ -361,6 +379,9 @@ export default function ParentBooking() {
         }
         bookedIds.push(slot.id);
 
+        const paymentSuffix = payment
+          ? `\n[Paid via ${payment.method}${payment.last4 ? ` •••• ${payment.last4}` : ''}]`
+          : '';
         const { error: bookingErr } = await supabase.from('bookings').insert({
           parent_id: user!.id,
           student_id: selectedChild,
@@ -369,9 +390,9 @@ export default function ParentBooking() {
           slot_id: slot.id,
           booking_type: lessonType === 'package' ? 'package' : lessonType === 'trial' ? 'trial' : 'single',
           status: 'confirmed',
-          lesson_fee: finalPrice,
+          lesson_fee: activeSub ? 0 : finalPrice,
           currency: 'AED',
-          notes: notes.trim() || null,
+          notes: (notes.trim() + paymentSuffix).trim() || null,
         });
         if (bookingErr) {
           // Rollback all claims
@@ -1315,12 +1336,51 @@ export default function ParentBooking() {
                 ) : (
                   <CheckCircle className="w-4 h-4" />
                 )}
-                {t('Confirm Booking', 'Подтвердить')}
+                {activeSub
+                  ? t('Confirm Booking', 'Подтвердить')
+                  : t(
+                      `Pay ${finalPrice * (recurring ? recurringWeeks : 1)} AED`,
+                      `Оплатить ${finalPrice * (recurring ? recurringWeeks : 1)} AED`,
+                    )}
               </Button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ─── Payment Sheet (opens on Confirm when no active subscription) ─── */}
+      <PaymentSheet
+        open={paymentSheetOpen}
+        onOpenChange={(v) => { if (!submitting) setPaymentSheetOpen(v); }}
+        amount={finalPrice * (recurring ? recurringWeeks : 1)}
+        currency="AED"
+        userId={user?.id}
+        description={
+          selectedCoach && selectedSlot
+            ? `${(selectedCoach.profiles as any)?.full_name} · ${
+                selectedDate &&
+                new Date(selectedDate).toLocaleDateString(undefined, {
+                  day: 'numeric',
+                  month: 'short',
+                })
+              } · ${selectedSlot.start_time?.substring(0, 5)}${
+                recurring ? ` (×${recurringWeeks})` : ''
+              }`
+            : undefined
+        }
+        onSuccess={async (method) => {
+          setPaymentSheetOpen(false);
+          await performBooking({
+            method:
+              method.type === 'apple'
+                ? 'Apple Pay'
+                : method.type === 'google'
+                  ? 'Google Pay'
+                  : 'Card',
+            last4: method.last4,
+          });
+        }}
+      />
     </div>
   );
 }
