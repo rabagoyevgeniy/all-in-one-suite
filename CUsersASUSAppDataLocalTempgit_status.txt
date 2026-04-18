@@ -1,0 +1,12 @@
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	new file:   src/components/parent/PaymentSheet.tsx
+	modified:   src/pages/parent/ParentBooking.tsx
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	"C\357\200\272UsersASUSAppDataLocalTempgit_status.txt"
+

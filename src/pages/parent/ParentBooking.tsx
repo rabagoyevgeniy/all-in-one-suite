@@ -29,6 +29,9 @@ import {
   Users,
   Heart,
   Repeat,
+  Wand2,
+  TrendingUp,
+  Flame,
 } from 'lucide-react';
 import { COACH_RANKS } from '@/lib/constants';
 import { toast } from '@/hooks/use-toast';
@@ -63,6 +66,26 @@ const TIME_BUCKETS = [
   { key: 'afternoon', label: 'Afternoon', labelRu: 'День', icon: Sun, range: [12, 18] },
   { key: 'evening', label: 'Evening', labelRu: 'Вечер', icon: Moon, range: [18, 23] },
 ] as const;
+
+// ── AI matching heuristics ──
+// Map child's swim cap level → recommended coach ranks
+const BELT_TO_RANKS: Record<string, string[]> = {
+  white: ['trainee', 'junior'],
+  sky_blue: ['trainee', 'junior'],
+  green: ['junior', 'senior'],
+  yellow: ['junior', 'senior'],
+  orange: ['senior', 'elite'],
+  red: ['senior', 'elite'],
+  black: ['elite', 'profitelite'],
+};
+
+// A slot is marked "Popular" if it falls in the after-school / early-evening
+// sweet spot (15:00–19:00) — when most parents typically book kids' lessons.
+function isPopularSlot(startTime?: string): boolean {
+  if (!startTime) return false;
+  const h = parseInt(String(startTime).split(':')[0], 10);
+  return h >= 15 && h < 19;
+}
 
 export default function ParentBooking() {
   const { user, profile } = useAuthStore();
@@ -226,6 +249,68 @@ export default function ParentBooking() {
   }, [activeSub]);
 
   // ── Derived ──
+  const currentChild = useMemo(
+    () => children?.find((c: any) => c.id === selectedChild),
+    [children, selectedChild],
+  );
+  const childLevel = (currentChild as any)?.swim_belt || 'white';
+  const recommendedRanks = BELT_TO_RANKS[childLevel] || ['junior', 'senior'];
+  const childLevelInfo = useMemo(
+    () => ({
+      level: childLevel,
+      className:
+        childLevel === 'white'
+          ? 'Beginner'
+          : childLevel === 'sky_blue'
+            ? 'Novice'
+            : childLevel === 'green'
+              ? 'Intermediate'
+              : childLevel === 'yellow'
+                ? 'Advanced'
+                : childLevel === 'orange'
+                  ? 'Expert'
+                  : childLevel === 'red'
+                    ? 'Pro'
+                    : 'Legend',
+      ruName:
+        childLevel === 'white'
+          ? 'Новичок'
+          : childLevel === 'sky_blue'
+            ? 'Начинающий'
+            : childLevel === 'green'
+              ? 'Средний'
+              : childLevel === 'yellow'
+                ? 'Продвинутый'
+                : childLevel === 'orange'
+                  ? 'Эксперт'
+                  : childLevel === 'red'
+                    ? 'Про'
+                    : 'Легенда',
+    }),
+    [childLevel],
+  );
+
+  // Smart Match scoring — emulates AI recommendation.
+  // Base: rating × 20 (0-100). Boosts: rank match (+15), familiarity (+10).
+  const scoreCoach = (c: any) => {
+    let score = Number(c.avg_rating || 0) * 20;
+    if (recommendedRanks.includes(c.rank)) score += 15;
+    if (parentCoachIds?.includes(c.id)) score += 10;
+    return score;
+  };
+
+  // Pick the top recommendation — prefer someone NEW (not already favorited),
+  // so the AI surfaces discovery rather than what the user already knows.
+  const recommendedCoach = useMemo(() => {
+    if (!coaches || coaches.length === 0 || !selectedChild) return null;
+    const scored = [...coaches]
+      .map((c: any) => ({ c, score: scoreCoach(c) }))
+      .sort((a, b) => b.score - a.score);
+    // Prefer highest non-favorited coach; fall back to overall top if nothing else.
+    const topNew = scored.find(({ c }) => !favorites.has(c.id));
+    return (topNew || scored[0])?.c || null;
+  }, [coaches, selectedChild, recommendedRanks, parentCoachIds, favorites]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const coachesSorted = useMemo(() => {
     if (!coaches) return [];
     if (sortMode === 'favorites') {
@@ -694,6 +779,88 @@ export default function ParentBooking() {
             exit={{ opacity: 0, x: -20 }}
             className="px-4 py-5 space-y-4"
           >
+            {/* ── AI Smart Match banner ── */}
+            {recommendedCoach && selectedChild && selectedCoach?.id !== recommendedCoach.id && (
+              <motion.button
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                whileTap={{ scale: 0.99 }}
+                onClick={() => setSelectedCoach(recommendedCoach)}
+                className="w-full rounded-2xl p-3.5 text-left border border-violet-500/25 bg-gradient-to-br from-violet-500/10 via-fuchsia-500/5 to-transparent hover:border-violet-500/40 transition-all relative overflow-hidden"
+              >
+                {/* Shimmer accent */}
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-fuchsia-400/20 to-transparent rounded-full blur-2xl -translate-y-8 translate-x-8 pointer-events-none" />
+
+                <div className="flex items-center gap-1.5 mb-2 relative">
+                  <div className="w-5 h-5 rounded-md bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-sm">
+                    <Wand2 className="w-3 h-3 text-white" />
+                  </div>
+                  <span className="text-[10px] font-bold tracking-wider uppercase bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
+                    {t('AI Smart Match', 'AI рекомендация')}
+                  </span>
+                  <Sparkles className="w-3 h-3 text-fuchsia-500" />
+                </div>
+
+                <div className="flex items-center gap-3 relative">
+                  {/* Avatar */}
+                  {(recommendedCoach.profiles as any)?.avatar_url ? (
+                    <img
+                      src={(recommendedCoach.profiles as any).avatar_url}
+                      alt=""
+                      className="w-12 h-12 rounded-xl object-cover ring-2 ring-violet-500/20 shrink-0"
+                    />
+                  ) : (
+                    <div
+                      className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold shrink-0 ring-2 ring-violet-500/20"
+                      style={{
+                        background: `linear-gradient(135deg, ${rankInfo(recommendedCoach.rank)?.color || '#8b5cf6'}, ${rankInfo(recommendedCoach.rank)?.color || '#8b5cf6'}80)`,
+                      }}
+                    >
+                      {(recommendedCoach.profiles as any)?.full_name?.[0] || '?'}
+                    </div>
+                  )}
+
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm text-foreground truncate">
+                      {(recommendedCoach.profiles as any)?.full_name || 'Coach'}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted-foreground flex-wrap">
+                      <span className="flex items-center gap-0.5">
+                        <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                        <span className="font-semibold text-foreground">
+                          {Number(recommendedCoach.avg_rating || 0).toFixed(1)}
+                        </span>
+                      </span>
+                      {recommendedRanks.includes(recommendedCoach.rank) && (
+                        <>
+                          <span className="text-muted-foreground/50">·</span>
+                          <span className="text-violet-600 dark:text-violet-400 font-medium">
+                            {t(
+                              `Great for ${childLevelInfo.className}`,
+                              `Идеально для «${childLevelInfo.ruName}»`,
+                            )}
+                          </span>
+                        </>
+                      )}
+                      {parentCoachIds?.includes(recommendedCoach.id) && (
+                        <>
+                          <span className="text-muted-foreground/50">·</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                            {t('Trusted by you', 'Вы уже бронировали')}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 text-[11px] font-bold text-violet-600 dark:text-violet-400 flex items-center gap-0.5">
+                    {t('Pick', 'Выбрать')}
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+              </motion.button>
+            )}
+
             {/* Sort tabs */}
             <div className="flex gap-1 p-1 bg-muted/60 rounded-xl overflow-x-auto scrollbar-hide">
               {([
@@ -760,6 +927,7 @@ export default function ParentBooking() {
                   const reviewCount = c.lesson_reviews?.[0]?.count || 0;
                   const isPreferred = parentCoachIds?.includes(c.id);
                   const isFavorite = favorites.has(c.id);
+                  const isPerfectFit = selectedChild && recommendedRanks.includes(c.rank);
 
                   return (
                     <motion.div
@@ -869,9 +1037,15 @@ export default function ParentBooking() {
                               </button>
                             </div>
                           </div>
-                          {c.specializations && c.specializations.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-2">
-                              {c.specializations.slice(0, 3).map((s: string) => (
+                          <div className="flex flex-wrap gap-1 mt-2 items-center">
+                            {isPerfectFit && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-gradient-to-r from-violet-500/15 to-fuchsia-500/15 text-violet-600 dark:text-violet-400 font-semibold border border-violet-500/20 flex items-center gap-0.5">
+                                <Wand2 className="w-2.5 h-2.5" />
+                                {t('Perfect fit', 'Идеальный матч')}
+                              </span>
+                            )}
+                            {c.specializations && c.specializations.length > 0 &&
+                              c.specializations.slice(0, 3).map((s: string) => (
                                 <span
                                   key={s}
                                   className="text-[9px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground"
@@ -879,8 +1053,7 @@ export default function ParentBooking() {
                                   {s}
                                 </span>
                               ))}
-                            </div>
-                          )}
+                          </div>
                         </div>
                       </div>
                     </motion.div>
@@ -939,6 +1112,37 @@ export default function ParentBooking() {
                 </button>
               </div>
             )}
+
+            {/* AI hint — suggest the best upcoming day based on slot density */}
+            {slotCounts && Object.keys(slotCounts).length > 0 && !selectedDate && (() => {
+              const best = Object.entries(slotCounts).sort((a, b) => b[1] - a[1])[0];
+              if (!best || best[1] === 0) return null;
+              const bestDate = new Date(best[0]);
+              const weekday = bestDate.toLocaleDateString(undefined, { weekday: 'long' });
+              const dayLabel = bestDate.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+              return (
+                <motion.button
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  onClick={() => setSelectedDate(best[0])}
+                  className="w-full rounded-xl px-3 py-2.5 border border-violet-500/20 bg-violet-500/5 hover:bg-violet-500/10 flex items-center gap-2 transition-all text-left"
+                >
+                  <div className="w-6 h-6 rounded-md bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shrink-0">
+                    <TrendingUp className="w-3 h-3 text-white" />
+                  </div>
+                  <p className="text-[11px] flex-1 text-foreground">
+                    <span className="font-semibold">{t('AI tip:', 'AI совет:')}</span>{' '}
+                    <span className="text-muted-foreground">
+                      {t(
+                        `Best availability is ${weekday}, ${dayLabel} (${best[1]} slots)`,
+                        `Лучше всего ${weekday}, ${dayLabel} (${best[1]} слотов)`,
+                      )}
+                    </span>
+                  </p>
+                  <ChevronRight className="w-3.5 h-3.5 text-violet-500 shrink-0" />
+                </motion.button>
+              );
+            })()}
 
             {/* Date picker with availability dots */}
             <div>
@@ -1019,18 +1223,27 @@ export default function ParentBooking() {
                           <div className="grid grid-cols-4 gap-2">
                             {bucketSlots.map((s: any) => {
                               const sel = selectedSlot?.id === s.id;
+                              const popular = isPopularSlot(s.start_time);
                               return (
                                 <motion.button
                                   key={s.id}
                                   whileTap={{ scale: 0.95 }}
                                   onClick={() => setSelectedSlot(s)}
                                   className={cn(
-                                    'py-2.5 rounded-xl text-sm font-semibold tabular-nums transition-all border',
+                                    'relative py-2.5 rounded-xl text-sm font-semibold tabular-nums transition-all border',
                                     sel
                                       ? 'bg-primary text-primary-foreground border-primary shadow-md'
                                       : 'bg-card border-border/60 text-foreground hover:border-primary/40'
                                   )}
                                 >
+                                  {popular && !sel && (
+                                    <span
+                                      className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-orange-500 ring-2 ring-background flex items-center justify-center shadow-sm"
+                                      title={t('Popular time', 'Популярное время')}
+                                    >
+                                      <Flame className="w-2.5 h-2.5 text-white" />
+                                    </span>
+                                  )}
                                   {s.start_time?.substring(0, 5)}
                                 </motion.button>
                               );
