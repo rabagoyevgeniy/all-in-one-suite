@@ -254,6 +254,18 @@ export default function ParentDashboard() {
 
   const lessonsRemaining = activeSub ? (activeSub.total_lessons || 0) - (activeSub.used_lessons || 0) : 0;
 
+  // ───── SMART CTA STATE MACHINE ─────
+  // Determines the single primary action to avoid competing "Book Lesson" CTAs
+  // no-child        → priority: Add Child (hide all booking CTAs)
+  // needs-subscription → priority: Choose Package (hide Book First Lesson hero CTA)
+  // needs-first-booking → priority: Book First Lesson (hide Plans CTA — already subscribed)
+  // active          → Hero shows next lesson; no extra CTA needed
+  const userState: 'no-child' | 'needs-subscription' | 'needs-first-booking' | 'active' =
+    !children?.length ? 'no-child'
+    : !activeSub ? 'needs-subscription'
+    : !activeBooking ? 'needs-first-booking'
+    : 'active';
+
   // Pricing plans
   const parentCity = (profile?.city?.toLowerCase() === 'baku' ? 'baku' : 'dubai') as 'dubai' | 'baku';
   const { data: pricingPlans = [] } = usePricingPlans(parentCity);
@@ -360,21 +372,62 @@ export default function ParentDashboard() {
                 </button>
               </div>
             </motion.div>
-          ) : (
+          ) : userState === 'no-child' ? (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+              onClick={() => navigate('/parent/children')}
+              className="mt-5 rounded-2xl p-4 flex items-center gap-4 cursor-pointer group transition-all"
+              style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(6,182,212,0.06) 100%)', border: '1px solid rgba(16,185,129,0.15)' }}
+            >
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform" style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.2), rgba(16,185,129,0.08))', border: '1px solid rgba(16,185,129,0.18)' }}>
+                <Plus className="w-5 h-5 text-emerald-400" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-white">{t('Add Your Child', 'Добавьте ребёнка')}</p>
+                <p className="text-[11px] text-white/35 mt-0.5">{t('Step 1 of 3 — then choose a package', 'Шаг 1 из 3 — затем выберите пакет')}</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-emerald-400 transition-colors" />
+            </motion.div>
+          ) : userState === 'needs-subscription' ? (
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
               onClick={() => navigate('/parent/booking')}
               className="mt-5 rounded-2xl p-4 flex items-center gap-4 cursor-pointer group transition-all"
-              style={{ background: 'linear-gradient(135deg, rgba(6,182,212,0.08) 0%, rgba(139,92,246,0.06) 100%)', border: '1px solid rgba(6,182,212,0.12)' }}
+              style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.1) 0%, rgba(217,119,6,0.05) 100%)', border: '1px solid rgba(245,158,11,0.18)' }}
             >
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform" style={{ background: 'linear-gradient(135deg, rgba(6,182,212,0.2), rgba(6,182,212,0.08))', border: '1px solid rgba(6,182,212,0.15)' }}>
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform" style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.22), rgba(245,158,11,0.08))', border: '1px solid rgba(245,158,11,0.2)' }}>
+                <Sparkles className="w-5 h-5 text-amber-400" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-white">{t('Choose a Package', 'Выберите пакет')}</p>
+                <p className="text-[11px] text-white/35 mt-0.5">{t('Step 2 of 3 — save up to 20% with packages', 'Шаг 2 из 3 — экономия до 20% с пакетами')}</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-amber-400 transition-colors" />
+            </motion.div>
+          ) : (
+            // needs-first-booking: has child + subscription, ready to book
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+              onClick={() => navigate('/parent/booking')}
+              className="mt-5 rounded-2xl p-4 flex items-center gap-4 cursor-pointer group transition-all"
+              style={{ background: 'linear-gradient(135deg, rgba(6,182,212,0.12) 0%, rgba(139,92,246,0.08) 100%)', border: '1px solid rgba(6,182,212,0.2)' }}
+            >
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform" style={{ background: 'linear-gradient(135deg, rgba(6,182,212,0.25), rgba(6,182,212,0.1))', border: '1px solid rgba(6,182,212,0.2)' }}>
                 <Waves className="w-5 h-5 text-cyan-400" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-semibold text-white">{t('Book First Lesson', 'Записаться на урок')}</p>
-                <p className="text-[11px] text-white/35 mt-0.5">{t('Choose a coach and pick a time', 'Выберите тренера и время')}</p>
+                <p className="text-sm font-semibold text-white">{t('Book Your First Lesson', 'Записаться на первое занятие')}</p>
+                <p className="text-[11px] text-white/40 mt-0.5">
+                  {lessonsRemaining > 0
+                    ? t(`${lessonsRemaining} lessons ready to schedule`, `${lessonsRemaining} занятий готовы к записи`)
+                    : t('Choose a coach and pick a time', 'Выберите тренера и время')}
+                </p>
               </div>
               <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-cyan-400 transition-colors" />
             </motion.div>
@@ -410,24 +463,7 @@ export default function ParentDashboard() {
       )}
 
       {/* ───── CHILD CARDS — premium progress ───── */}
-      {(!children || children.length === 0) && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          onClick={() => navigate('/parent/children')}
-          className="mx-4 rounded-2xl p-5 flex items-center gap-4 cursor-pointer group transition-all border border-dashed border-primary/20 hover:border-primary/40"
-          style={{ background: 'linear-gradient(135deg, rgba(6,182,212,0.04) 0%, rgba(139,92,246,0.03) 100%)' }}
-        >
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 bg-primary/10 border border-primary/15 group-hover:scale-105 transition-transform">
-            <Plus className="w-5 h-5 text-primary" />
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-foreground">{t('Add Your Child', 'Добавьте ребёнка')}</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">{t('Start tracking their swimming journey', 'Начните отслеживать прогресс в плавании')}</p>
-          </div>
-          <ChevronRight className="w-4 h-4 text-muted-foreground/30 group-hover:text-primary transition-colors" />
-        </motion.div>
-      )}
+      {/* Note: no-child state is handled by Hero contextual CTA above */}
       {children && children.length > 0 && (
         <div>
           <h3 className="font-semibold text-[10px] text-muted-foreground/60 uppercase tracking-[0.15em] px-4 mb-3">
@@ -674,6 +710,7 @@ export default function ParentDashboard() {
 
         {/* Row 1: Primary actions — always visible */}
         <div className="grid grid-cols-2 gap-2.5">
+          {/* Contextual primary action: changes label based on userState to avoid CTA competition with Hero */}
           <motion.button
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -681,11 +718,19 @@ export default function ParentDashboard() {
             className="rounded-2xl p-4 flex flex-col gap-2 text-left transition-all active:scale-[0.97] bg-cyan-50 dark:bg-cyan-500/8 border border-cyan-200/60 dark:border-cyan-500/15 hover:shadow-md"
           >
             <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-cyan-100 dark:bg-cyan-500/15">
-              <Waves className="w-[18px] h-[18px] text-cyan-600 dark:text-cyan-400" strokeWidth={2} />
+              <CalendarCheck className="w-[18px] h-[18px] text-cyan-600 dark:text-cyan-400" strokeWidth={2} />
             </div>
             <div>
-              <span className="text-[13px] font-semibold text-foreground block">{t('Book Lesson', 'Записаться')}</span>
-              <span className="text-[10px] text-muted-foreground/60 block">{t('Choose coach & time', 'Тренер и время')}</span>
+              <span className="text-[13px] font-semibold text-foreground block">
+                {userState === 'active'
+                  ? t('My Schedule', 'Моё расписание')
+                  : t('Book Lesson', 'Записаться')}
+              </span>
+              <span className="text-[10px] text-muted-foreground/60 block">
+                {userState === 'active'
+                  ? t('View & manage lessons', 'Просмотр и управление')
+                  : t('Pick coach & time', 'Тренер и время')}
+              </span>
             </div>
           </motion.button>
 
@@ -809,25 +854,7 @@ export default function ParentDashboard() {
         </motion.div>
       )}
 
-      {/* ───── PLANS CTA (compact) ───── */}
-      {!activeSub && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          onClick={() => navigate('/parent/booking')}
-          className="mx-4 rounded-2xl p-4 flex items-center gap-4 cursor-pointer group transition-all border border-primary/15 hover:border-primary/30"
-          style={{ background: 'linear-gradient(135deg, rgba(6,182,212,0.05) 0%, rgba(139,92,246,0.03) 100%)' }}
-        >
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-primary/10 border border-primary/15 group-hover:scale-105 transition-transform">
-            <Sparkles className="w-5 h-5 text-primary" />
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-foreground">{t('Choose a Lesson Package', 'Выбрать пакет занятий')}</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">{t('Private & group lessons from 200 AED', 'Личные и групповые от 200 AED')}</p>
-          </div>
-          <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
-        </motion.div>
-      )}
+      {/* ───── PLANS CTA removed — handled by Hero contextual CTA when userState === 'needs-subscription' ───── */}
 
       {/* ───── MONTHLY INSIGHT ───── */}
       {children && children.length > 0 && (
@@ -931,29 +958,7 @@ export default function ParentDashboard() {
         </div>
       )}
 
-      {/* ───── EMPTY STATE ───── */}
-      {!children?.length && !upcomingBookings?.length && !activeSub && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mx-4 card-elevated p-8 text-center space-y-4"
-        >
-          <div className="text-5xl animate-float">🏊</div>
-          <p className="text-sm text-muted-foreground">
-            {t(
-              'No lessons scheduled yet.\nBook your first swimming lesson!',
-              'У вас пока нет занятий.\nЗапишитесь на первое занятие!'
-            )}
-          </p>
-          <Button
-            className="rounded-2xl font-semibold gap-2 btn-gradient-primary border-0 h-11 px-6"
-            onClick={() => navigate('/parent/booking')}
-          >
-            <Plus size={18} />
-            {t('Book First Lesson', 'Первое занятие')}
-          </Button>
-        </motion.div>
-      )}
+      {/* ───── EMPTY STATE removed — Hero contextual CTA covers onboarding flow ───── */}
 
       {/* ───── RESCHEDULE BOTTOM SHEET ───── */}
       <Sheet open={!!rescheduleBooking} onOpenChange={(open) => !open && setRescheduleBooking(null)}>
