@@ -129,6 +129,26 @@ export default function ParentDashboard() {
     enabled: !!user?.id,
   });
 
+  // Last completed booking — powers the Rebook CTA
+  const { data: lastCompletedBooking } = useQuery({
+    queryKey: ['parent-last-completed', user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('bookings')
+        .select(`
+          id, coach_id, created_at,
+          coaches(id, rank, profiles:coaches_id_fkey(full_name, avatar_url))
+        `)
+        .eq('parent_id', user!.id)
+        .eq('status', 'completed')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
   // Reschedule slots
   const next14Days = Array.from({ length: 14 }, (_, i) => {
     const d = new Date();
@@ -665,6 +685,45 @@ export default function ParentDashboard() {
             </button>
           )}
         </div>
+      )}
+
+      {/* ───── REBOOK CTA — one-tap book with last coach ───── */}
+      {lastCompletedBooking && !activeBooking && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          onClick={() => navigate('/parent/booking', { state: { preselectCoachId: lastCompletedBooking.coach_id } })}
+          className="mx-4 rounded-2xl p-4 cursor-pointer group flex items-center gap-3 transition-all border border-border/50 bg-card hover:border-primary/30 hover:shadow-md"
+        >
+          <div className="relative shrink-0">
+            {(lastCompletedBooking.coaches as any)?.profiles?.avatar_url ? (
+              <img
+                src={(lastCompletedBooking.coaches as any).profiles.avatar_url}
+                alt=""
+                className="w-11 h-11 rounded-xl object-cover ring-2 ring-primary/20"
+              />
+            ) : (
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white font-bold">
+                {((lastCompletedBooking.coaches as any)?.profiles?.full_name || 'C')[0]}
+              </div>
+            )}
+            <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-500 ring-2 ring-background flex items-center justify-center">
+              <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-semibold">
+              {t('Quick Rebook', 'Быстрый повтор')}
+            </p>
+            <p className="text-sm font-semibold text-foreground truncate">
+              {t('Book again with', 'Повторить с')} {(lastCompletedBooking.coaches as any)?.profiles?.full_name?.split(' ')[0] || t('Coach', 'тренером')}
+            </p>
+          </div>
+          <div className="flex items-center gap-1 text-[11px] text-primary font-semibold group-hover:translate-x-0.5 transition-transform">
+            <span>{t('Book', 'Записаться')}</span>
+            <ChevronRight className="w-4 h-4" />
+          </div>
+        </motion.div>
       )}
 
       {/* ───── RATE COACH BANNER — gold accent ───── */}

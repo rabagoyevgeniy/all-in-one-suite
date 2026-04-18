@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import {
   Loader2,
   ChevronRight,
@@ -26,6 +27,8 @@ import {
   Gift,
   Tag,
   Users,
+  Heart,
+  Repeat,
 } from 'lucide-react';
 import { COACH_RANKS } from '@/lib/constants';
 import { toast } from '@/hooks/use-toast';
@@ -33,7 +36,26 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { cn } from '@/lib/utils';
 
 type LessonType = 'package' | 'single' | 'trial';
-type SortMode = 'preferred' | 'top' | 'all';
+type SortMode = 'favorites' | 'preferred' | 'top' | 'all';
+
+const FAVORITES_KEY = (userId: string) => `profit:fav-coaches:${userId}`;
+
+function loadFavorites(userId: string | undefined): Set<string> {
+  if (!userId) return new Set();
+  try {
+    const raw = localStorage.getItem(FAVORITES_KEY(userId));
+    if (!raw) return new Set();
+    return new Set(JSON.parse(raw));
+  } catch {
+    return new Set();
+  }
+}
+
+function saveFavorites(userId: string, favs: Set<string>) {
+  try {
+    localStorage.setItem(FAVORITES_KEY(userId), JSON.stringify([...favs]));
+  } catch {}
+}
 
 const TIME_BUCKETS = [
   { key: 'morning', label: 'Morning', labelRu: 'Утро', icon: Sunrise, range: [5, 12] },
@@ -44,7 +66,11 @@ const TIME_BUCKETS = [
 export default function ParentBooking() {
   const { user, profile } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useLanguage();
+
+  // Deep-link support — rebook flow passes { preselectCoachId } via navigate state
+  const deepLinkCoachId = (location.state as any)?.preselectCoachId as string | undefined;
 
   // Wizard state
   const [step, setStep] = useState(1);
@@ -59,6 +85,23 @@ export default function ParentBooking() {
   const [promoApplied, setPromoApplied] = useState<{ code: string; pct: number } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>('preferred');
+
+  // Favorites (localStorage-backed)
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  useEffect(() => { setFavorites(loadFavorites(user?.id)); }, [user?.id]);
+  const toggleFavorite = (coachId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (!user?.id) return;
+    const next = new Set(favorites);
+    if (next.has(coachId)) next.delete(coachId);
+    else next.add(coachId);
+    setFavorites(next);
+    saveFavorites(user.id, next);
+  };
+
+  // Recurring weekly booking
+  const [recurring, setRecurring] = useState(false);
+  const [recurringWeeks, setRecurringWeeks] = useState(4);
 
   // ── Queries ──
   const { data: activeSub } = useQuery({
@@ -181,11 +224,19 @@ export default function ParentBooking() {
   // ── Derived ──
   const coachesSorted = useMemo(() => {
     if (!coaches) return [];
+    if (sortMode === 'favorites') {
+      return coaches.filter((c: any) => favorites.has(c.id));
+    }
     if (sortMode === 'preferred') {
       return [...coaches].sort((a: any, b: any) => {
+        // Favorites first, then previously-booked, then rating
+        const af = favorites.has(a.id) ? 2 : 0;
+        const bf = favorites.has(b.id) ? 2 : 0;
         const ap = parentCoachIds?.includes(a.id) ? 1 : 0;
         const bp = parentCoachIds?.includes(b.id) ? 1 : 0;
-        if (ap !== bp) return bp - ap;
+        const aScore = af + ap;
+        const bScore = bf + bp;
+        if (aScore !== bScore) return bScore - aScore;
         return Number(b.avg_rating || 0) - Number(a.avg_rating || 0);
       });
     }
@@ -193,7 +244,23 @@ export default function ParentBooking() {
       return [...coaches].sort((a: any, b: any) => Number(b.avg_rating || 0) - Number(a.avg_rating || 0));
     }
     return coaches;
-  }, [coaches, sortMode, parentCoachIds]);
+  }, [coaches, sortMode, parentCoachIds, favorites]);
+
+  // Deep-link: if user navigated with a preselected coach (rebook flow), jump to Step 3
+  useEffect(() => {
+    if (!deepLinkCoachId || !coaches || selectedCoach) return;
+    const coach = coaches.find((c: any) => c.id === deepLinkCoachId);
+    if (coach) {
+      setSelectedCoach(coach);
+      // Auto-advance: Setup (if child is set) → Coach → Time
+      if (selectedChild || (children && children.length === 1)) {
+        if (children && children.length === 1) setSelectedChild(children[0].id);
+        setStep(3);
+      } else {
+        setStep(1);
+      }
+    }
+  }, [deepLinkCoachId, coaches]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const basePrice = activeSub ? 0 : Number(selectedCoach?.hourly_rate_aed || 0);
   const discountPct = promoApplied?.pct || 0;
@@ -231,48 +298,111 @@ export default function ParentBooking() {
     }
   };
 
+  // Helper: find matching slots for recurring bookings (same day-of-week, same start_time)
+  const findRecurringSlots = async (baseSlot: any, coachId: string, weeks: number) => {
+    const baseDate = new Date(baseSlot.date);
+    const targetDates: string[] = [];
+    for (let i = 1; i < weeks; i++) {
+      const d = new Date(baseDate);
+      d.setDate(d.getDate() + i * 7);
+      targetDates.push(d.toISOString().split('T')[0]);
+    }
+    if (targetDates.length === 0) return [];
+    const { data } = await supabase
+      .from('time_slots')
+      .select('*')
+      .eq('coach_id', coachId)
+      .eq('status', 'available')
+      .eq('start_time', baseSlot.start_time)
+      .in('date', targetDates);
+    return data || [];
+  };
+
   const handleConfirm = async () => {
     if (!selectedCoach || !selectedSlot || !selectedPool || !selectedChild) return;
     setSubmitting(true);
     try {
-      const { data: slotUpdate, error: slotErr } = await supabase
-        .from('time_slots')
-        .update({ status: 'booked' })
-        .eq('id', selectedSlot.id)
-        .eq('status', 'available')
-        .select()
-        .single();
-      if (slotErr || !slotUpdate) {
-        toast({ title: t('Slot already booked', 'Слот уже занят'), description: t('Please select another time', 'Выберите другое время'), variant: 'destructive' });
-        return;
+      // ── Build the list of slots to book (base + any recurring) ──
+      const slotsToBook: any[] = [selectedSlot];
+      let missedRecurring = 0;
+
+      if (recurring && recurringWeeks > 1) {
+        const extra = await findRecurringSlots(selectedSlot, selectedCoach.id, recurringWeeks);
+        slotsToBook.push(...extra);
+        missedRecurring = (recurringWeeks - 1) - extra.length;
       }
 
-      const { error: bookingErr } = await supabase.from('bookings').insert({
-        parent_id: user!.id,
-        student_id: selectedChild,
-        coach_id: selectedCoach.id,
-        pool_id: selectedPool,
-        slot_id: selectedSlot.id,
-        booking_type: lessonType === 'package' ? 'package' : lessonType === 'trial' ? 'trial' : 'single',
-        status: 'confirmed',
-        lesson_fee: finalPrice,
-        currency: 'AED',
-        notes: notes.trim() || null,
-      });
-      if (bookingErr) {
-        await supabase.from('time_slots').update({ status: 'available' }).eq('id', selectedSlot.id);
-        throw bookingErr;
+      const bookedIds: string[] = [];
+      for (const slot of slotsToBook) {
+        // Atomic claim: only proceed if still available
+        const { data: claimed, error: slotErr } = await supabase
+          .from('time_slots')
+          .update({ status: 'booked' })
+          .eq('id', slot.id)
+          .eq('status', 'available')
+          .select()
+          .single();
+        if (slotErr || !claimed) {
+          if (slot.id === selectedSlot.id) {
+            toast({
+              title: t('Slot already booked', 'Слот уже занят'),
+              description: t('Please select another time', 'Выберите другое время'),
+              variant: 'destructive',
+            });
+            // Rollback any already-claimed recurring slots
+            if (bookedIds.length > 0) {
+              await supabase.from('time_slots').update({ status: 'available' }).in('id', bookedIds);
+            }
+            return;
+          }
+          // Non-critical for recurring: just skip this week
+          missedRecurring += 1;
+          continue;
+        }
+        bookedIds.push(slot.id);
+
+        const { error: bookingErr } = await supabase.from('bookings').insert({
+          parent_id: user!.id,
+          student_id: selectedChild,
+          coach_id: selectedCoach.id,
+          pool_id: selectedPool,
+          slot_id: slot.id,
+          booking_type: lessonType === 'package' ? 'package' : lessonType === 'trial' ? 'trial' : 'single',
+          status: 'confirmed',
+          lesson_fee: finalPrice,
+          currency: 'AED',
+          notes: notes.trim() || null,
+        });
+        if (bookingErr) {
+          // Rollback all claims
+          await supabase.from('time_slots').update({ status: 'available' }).in('id', bookedIds);
+          throw bookingErr;
+        }
       }
 
+      // Coach notification (one summary, not per lesson)
+      const bookingCount = bookedIds.length;
       await supabase.from('notifications').insert({
         user_id: selectedCoach.id,
-        title: '📅 New booking!',
-        body: `${profile?.full_name} booked a lesson on ${selectedDate} at ${selectedSlot.start_time?.substring(0, 5)}`,
+        title: bookingCount > 1 ? `📅 ${bookingCount} new bookings!` : '📅 New booking!',
+        body:
+          bookingCount > 1
+            ? `${profile?.full_name} booked ${bookingCount} recurring lessons starting ${selectedDate} at ${selectedSlot.start_time?.substring(0, 5)}`
+            : `${profile?.full_name} booked a lesson on ${selectedDate} at ${selectedSlot.start_time?.substring(0, 5)}`,
         type: 'system',
       });
 
       navigate('/parent');
-      toast({ title: t('Lesson booked! ✅', 'Урок забронирован! ✅') });
+      if (bookingCount > 1) {
+        toast({
+          title: t(`${bookingCount} lessons booked! ✅`, `${bookingCount} занятий забронированы! ✅`),
+          description: missedRecurring > 0
+            ? t(`${missedRecurring} weeks skipped — slot unavailable`, `${missedRecurring} недель пропущены — слот занят`)
+            : undefined,
+        });
+      } else {
+        toast({ title: t('Lesson booked! ✅', 'Урок забронирован! ✅') });
+      }
     } catch {
       toast({ title: t('Booking failed', 'Ошибка бронирования'), variant: 'destructive' });
     } finally {
@@ -544,21 +674,38 @@ export default function ParentBooking() {
             className="px-4 py-5 space-y-4"
           >
             {/* Sort tabs */}
-            <div className="flex gap-1.5 p-1 bg-muted/60 rounded-xl">
+            <div className="flex gap-1 p-1 bg-muted/60 rounded-xl overflow-x-auto scrollbar-hide">
               {([
-                { key: 'preferred', label: t('Preferred', 'Избранные') },
+                { key: 'favorites', label: t('Favorites', 'Любимые'), icon: Heart, count: favorites.size },
+                { key: 'preferred', label: t('Recent', 'Недавние') },
                 { key: 'top', label: t('Top Rated', 'Лучшие') },
                 { key: 'all', label: t('All', 'Все') },
-              ] as Array<{ key: SortMode; label: string }>).map(({ key, label }) => (
+              ] as Array<{ key: SortMode; label: string; icon?: any; count?: number }>).map(({ key, label, icon: Icon, count }) => (
                 <button
                   key={key}
                   onClick={() => setSortMode(key)}
                   className={cn(
-                    'flex-1 py-2 rounded-lg text-xs font-semibold transition-all',
+                    'flex-1 min-w-fit py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap',
                     sortMode === key ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'
                   )}
                 >
+                  {Icon && (
+                    <Icon
+                      className={cn(
+                        'w-3 h-3',
+                        sortMode === key ? 'text-rose-500 fill-rose-500' : 'text-muted-foreground'
+                      )}
+                    />
+                  )}
                   {label}
+                  {typeof count === 'number' && count > 0 && (
+                    <span className={cn(
+                      'text-[9px] px-1 rounded-md',
+                      sortMode === key ? 'bg-rose-500/15 text-rose-500' : 'bg-muted-foreground/10'
+                    )}>
+                      {count}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -566,6 +713,22 @@ export default function ParentBooking() {
             {coachesLoading ? (
               <div className="flex justify-center py-10">
                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : sortMode === 'favorites' && coachesSorted.length === 0 ? (
+              <div className="rounded-2xl p-8 text-center border border-dashed border-border/60">
+                <Heart className="w-8 h-8 mx-auto text-muted-foreground/30 mb-2" />
+                <p className="text-sm font-semibold text-foreground">
+                  {t('No favorites yet', 'Пока нет любимых')}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t('Tap the heart on a coach card to save them here', 'Нажмите сердечко на карточке тренера')}
+                </p>
+                <button
+                  onClick={() => setSortMode('preferred')}
+                  className="mt-3 text-xs text-primary font-semibold"
+                >
+                  {t('Browse all coaches →', 'Смотреть всех →')}
+                </button>
               </div>
             ) : (
               <div className="space-y-2.5">
@@ -575,6 +738,7 @@ export default function ParentBooking() {
                   const selected = selectedCoach?.id === c.id;
                   const reviewCount = c.lesson_reviews?.[0]?.count || 0;
                   const isPreferred = parentCoachIds?.includes(c.id);
+                  const isFavorite = favorites.has(c.id);
 
                   return (
                     <motion.div
@@ -610,7 +774,11 @@ export default function ParentBooking() {
                               {p?.full_name?.[0] || '?'}
                             </div>
                           )}
-                          {isPreferred && (
+                          {isFavorite ? (
+                            <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-rose-500 ring-2 ring-background flex items-center justify-center">
+                              <Heart className="w-2.5 h-2.5 text-white fill-white" />
+                            </div>
+                          ) : isPreferred && (
                             <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 ring-2 ring-background flex items-center justify-center">
                               <Star className="w-2.5 h-2.5 text-white fill-white" />
                             </div>
@@ -647,19 +815,37 @@ export default function ParentBooking() {
                                 )}
                               </div>
                             </div>
-                            <div className="text-right shrink-0">
+                            <div className="text-right shrink-0 flex items-start gap-1.5">
                               {activeSub ? (
                                 <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">
                                   {t('In pack', 'В пакете')}
                                 </span>
                               ) : (
-                                <>
-                                  <p className="font-bold text-sm text-foreground tabular-nums">
+                                <div>
+                                  <p className="font-bold text-sm text-foreground tabular-nums text-right">
                                     {c.hourly_rate_aed || '—'}
                                   </p>
-                                  <p className="text-[9px] text-muted-foreground uppercase">AED/h</p>
-                                </>
+                                  <p className="text-[9px] text-muted-foreground uppercase text-right">AED/h</p>
+                                </div>
                               )}
+                              {/* Heart favorite toggle */}
+                              <button
+                                onClick={(e) => toggleFavorite(c.id, e)}
+                                className={cn(
+                                  'w-7 h-7 rounded-lg flex items-center justify-center transition-all',
+                                  isFavorite
+                                    ? 'bg-rose-500/10 hover:bg-rose-500/20'
+                                    : 'bg-muted/50 hover:bg-muted'
+                                )}
+                                aria-label={isFavorite ? t('Remove from favorites', 'Убрать из любимых') : t('Add to favorites', 'Добавить в любимые')}
+                              >
+                                <Heart
+                                  className={cn(
+                                    'w-3.5 h-3.5 transition-all',
+                                    isFavorite ? 'text-rose-500 fill-rose-500' : 'text-muted-foreground'
+                                  )}
+                                />
+                              </button>
                             </div>
                           </div>
                           {c.specializations && c.specializations.length > 0 && (
@@ -915,6 +1101,60 @@ export default function ParentBooking() {
               </div>
             </div>
 
+            {/* Recurring weekly */}
+            <div className="rounded-2xl border border-border/60 bg-card p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-400/20 to-indigo-500/10 border border-violet-400/20 flex items-center justify-center shrink-0">
+                    <Repeat className="w-4 h-4 text-violet-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">
+                      {t('Book weekly', 'Бронировать еженедельно')}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {t('Same day & time every week', 'То же время каждую неделю')}
+                    </p>
+                  </div>
+                </div>
+                <Switch checked={recurring} onCheckedChange={setRecurring} />
+              </div>
+
+              {recurring && selectedSlot && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="mt-4 pt-4 border-t border-border/40"
+                >
+                  <p className="text-[11px] font-medium text-muted-foreground mb-2">
+                    {t('How many weeks?', 'Сколько недель?')}
+                  </p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[2, 4, 8, 12].map(n => (
+                      <button
+                        key={n}
+                        onClick={() => setRecurringWeeks(n)}
+                        className={cn(
+                          'py-2.5 rounded-xl text-sm font-bold tabular-nums transition-all border',
+                          recurringWeeks === n
+                            ? 'bg-violet-500 text-white border-violet-500 shadow-md'
+                            : 'bg-card border-border/60 text-foreground hover:border-violet-400/40'
+                        )}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground/70 mt-2.5">
+                    {t(
+                      `Creates ${recurringWeeks} bookings on ${new Date(selectedSlot.date).toLocaleDateString(undefined, { weekday: 'long' })}s at ${selectedSlot.start_time?.substring(0, 5)}. If a week is unavailable, it will be skipped.`,
+                      `Создаст ${recurringWeeks} бронирований по ${new Date(selectedSlot.date).toLocaleDateString(undefined, { weekday: 'long' })}м в ${selectedSlot.start_time?.substring(0, 5)}. Занятые недели пропустятся.`
+                    )}
+                  </p>
+                </motion.div>
+              )}
+            </div>
+
             {/* Summary card */}
             <div>
               <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">
@@ -962,7 +1202,11 @@ export default function ParentBooking() {
                 <div className="px-4 py-3 border-t border-border/40 bg-muted/30 space-y-1.5">
                   {activeSub ? (
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">{t('Price', 'Цена')}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {recurring
+                          ? t(`Price (x${recurringWeeks})`, `Цена (x${recurringWeeks})`)
+                          : t('Price', 'Цена')}
+                      </span>
                       <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
                         {t('Included in pack', 'Включено в пакет')}
                       </span>
@@ -970,10 +1214,14 @@ export default function ParentBooking() {
                   ) : (
                     <>
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">{t('Base', 'Базовая')}</span>
-                        <span className="text-foreground tabular-nums">{basePrice} AED</span>
+                        <span className="text-muted-foreground">
+                          {recurring ? t(`Per lesson (x${recurringWeeks})`, `За урок (x${recurringWeeks})`) : t('Base', 'Базовая')}
+                        </span>
+                        <span className="text-foreground tabular-nums">
+                          {recurring ? `${finalPrice} × ${recurringWeeks}` : `${basePrice} AED`}
+                        </span>
                       </div>
-                      {promoApplied && (
+                      {promoApplied && !recurring && (
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                             <Tag className="w-3 h-3" />
@@ -987,7 +1235,7 @@ export default function ParentBooking() {
                       <div className="flex items-center justify-between pt-1.5 border-t border-border/40">
                         <span className="text-sm font-semibold text-foreground">{t('Total', 'Итого')}</span>
                         <span className="text-lg font-bold text-foreground tabular-nums">
-                          {finalPrice} AED
+                          {finalPrice * (recurring ? recurringWeeks : 1)} AED
                         </span>
                       </div>
                     </>
